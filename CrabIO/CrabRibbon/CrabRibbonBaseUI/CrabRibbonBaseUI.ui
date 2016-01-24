@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>CrabRibbonBaseUI</class>
+ <widget class="QWidget" name="CrabRibbonBaseUI">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>600</width>
+    <height>400</height>
+   </rect>
+  </property>
+  <property name="mouseTracking">
+   <bool>true</bool>
+  </property>
+  <property name="windowTitle">
+   <string>CrabRibbonBaseUI</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QWidget#CrabRibbonBaseUI{
+background-color: #67a9cf;
+border: 0px solid transparent;
+/*
+border: 2px solid rgba(103,169,207,15%);
+border-style: outset;
+border-radius: 10px;
+/*
+border-style: outset;
+border-width: 2px;
+border-radius: 10px;
+border-color: beige;
+/*
+http://qt-project.org/doc/qt-4.8/stylesheet-examples.html
+*/
+}
+
+QLabel{
+color:white;
+border:0px solid transparent;
+}
+
+CrabRibbonCtrlButton{
+color:white;
+border:0px solid transparent;
+}
+
+CrabRibbonCtrlButton:hover{
+color:#d0d1e6;
+border:0px solid transparent;
+}
+
+CrabRibbonCtrlButton:pressed{
+color:#d0d1e6;
+background-color:qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #67a9cf, stop:0.5 #3690c0, stop:1 #67a9cf);
+border:0px solid transparent;
+}
+
+CrabRibbonCtrlButton::open{
+color:#d0d1e6;
+background-color:qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #67a9cf, stop:0.5 #3690c0, stop:1 #67a9cf);
+border:0px solid transparent;
+}
+
+CrabRibbonCtrlButton::menu-indicator{
+image: none;
+width:0px;height:0px;
+subcontrol-origin: padding;
+subcontrol-position: top right;
+}
+</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>2</number>
+   </property>
+   <property name="leftMargin">
+    <number>9</number>
+   </property>
+   <property name="topMargin">
+    <number>2</number>
+   </property>
+   <property name="rightMargin">
+    <number>9</number>
+   </property>
+   <property name="bottomMargin">
+    <number>2</number>
+   </property>
+   <item>
+    <widget class="QWidget" name="Head" native="true">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>22</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>22</height>
+      </size>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <property name="leftMargin">
+       <number>12</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="Label">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Welcome</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="CrabRibbonCtrlButton" name="ButtonGo">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>60</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>60</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Go</string>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="CrabRibbonCtrlButton" name="ButtonBye">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>60</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>60</width>
+          <height>20</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Bye</string>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="Core" native="true">
+     <property name="styleSheet">
+      <string notr="true">QWidget#Core{
+/*
+background-color:white;
+*/
+border: 1px solid #a6bddb;
+border-radius: 5px;
+}
+</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="Foot" native="true">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>16</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>16</height>
+      </size>
+     </property>
+     <property name="autoFillBackground">
+      <bool>false</bool>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QWidget#Foot{
+background-color:transparent;
+/*background-color:qlineargradient(x1:0,y1:1,x2:0,y2:0,stop:0 #67a9cf,stop:1 white);*/
+}</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>CrabRibbonCtrlButton</class>
+   <extends>QPushButton</extends>
+   <header>CrabRibbonCtrlButton.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

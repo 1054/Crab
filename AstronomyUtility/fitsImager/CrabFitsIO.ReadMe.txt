@@ -1,0 +1,27 @@
+[Read a fits image]
+
+    if(cstrFilePath!=NULL)
+    { 
+        int   errStatus = 0;
+        int   extNumber = 0;  if(cstrExtNumber!=NULL) {extNumber=atoi(cstrExtNumber);}
+        char *cstrHeader = NULL;
+        long  posHeader = 0;
+        long  lenHeader = 0;
+        //
+        // check
+        std::cout << "CrabFitsImageCrop: " << cstrFilePath << " extension=" << extNumber << std::endl;
+        //
+        // read fits header
+        errStatus = readFitsHeader(cstrFilePath,extNumber,&cstrHeader,&posHeader,&lenHeader);
+        std::cout << "CrabFitsImageCrop: readFitsHeader " << cstrFilePath << " extension=" << extNumber << " headersize=" << strlen(cstrHeader) << std::endl;
+        //
+        // read fits Naxis
+        char *cstrNAXIS1 = extKeyword("NAXIS1",cstrHeader);
+        char *cstrNAXIS2 = extKeyword("NAXIS2",cstrHeader);
+        if(cstrNAXIS1!=NULL && cstrNAXIS2!=NULL) {
+            //
+            // read fits Naxis
+            long oldImWidth = atol(cstrNAXIS1);
+            long oldImHeight = atol(cstrNAXIS2);
+        
+

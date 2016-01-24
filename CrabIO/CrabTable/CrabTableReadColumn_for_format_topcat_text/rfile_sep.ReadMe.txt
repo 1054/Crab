@@ -1,0 +1,45 @@
+### 
+### rfile_sep is a small C/C++ tool to read plain text data table
+### 
+### The data table must be plain text without any non-ascii characters. 
+### 
+### The comment line should be starting with #. 
+### 
+### The first non-comment line should be the column header line. 
+### 
+### Each column should be separated by the character | (vertical line). 
+### 
+### Each column must be aligned to its header, this code will first read the header position, 
+### then read the column vertically. So the content must be aligned to its header. 
+### 
+### For example: 
+### 
+# 
+# 
+# 
+# any comments
+# any comments, but the first non-comment line should be the column header line
+# 
+|  name   |   ra    |   dec        | column useless |     x          |   y   |
+# 
+# any comments
+# any comments
+# 
+|  obj1   |   189.0 |   60         | can be empty   |    100         | 100   |
+| obj2    | 189.1   |     60       | can be empty   |     100        |  100  |
+|  obj3   |  189.2  |    60        | can be empty   |    100         |  100  |
+# 
+# 
+# 
+### 
+### 
+### 
+### Run the example:
+### ./rfile_sep rfile_sep.ReadMe.txt name
+### ./rfile_sep rfile_sep.ReadMe.txt ra
+### ./rfile_sep rfile_sep.ReadMe.txt x
+### 
+### 
+### Just note that the output also contains the column header as its first line. 
+### 
+### 

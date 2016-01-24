@@ -1,0 +1,55 @@
+QWidget#CrabRibbonBaseUI{
+background-color: #67a9cf;
+border: 0px solid transparent;
+/*
+border: 2px solid rgba(103,169,207,15%);
+border-style: outset;
+border-radius: 10px;
+/*
+border-style: outset;
+border-width: 2px;
+border-radius: 10px;
+border-color: beige;
+/*
+http://qt-project.org/doc/qt-4.8/stylesheet-examples.html
+*/
+}
+
+QLabel{
+color:white;
+border:0px solid transparent;
+}
+
+QPushButton#CrabRibbonCtrlButton{
+color:white;
+border:0px solid transparent;
+}
+
+QPushButton#CrabRibbonCtrlButton:hover{
+color:#d0d1e6;
+border:0px solid transparent;
+}
+
+QPushButton#CrabRibbonCtrlButton:pressed{
+color:#d0d1e6;
+background-color:qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #67a9cf, stop:0.5 #3690c0, stop:1 #67a9cf);
+border:0px solid transparent;
+}
+
+QPushButton#CrabRibbonCtrlButton::open{
+color:#d0d1e6;
+background-color:qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #67a9cf, stop:0.5 #3690c0, stop:1 #67a9cf);
+border:0px solid transparent;
+}
+
+QPushButton#CrabRibbonCtrlButton::menu-indicator{
+image: none;
+width:0px;height:0px;
+subcontrol-origin: padding;
+subcontrol-position: top right;
+}
+
+QMenu#CrabRibbonCtrlButtonMenu{
+color:#d0d1e6;
+background-color:#67a9cf;
+}
