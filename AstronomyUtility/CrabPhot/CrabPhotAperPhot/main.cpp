@@ -42,9 +42,11 @@
 #include "CrabFitsIO.h"
 #include "CrabImage.h"
 #include "CrabTableReadColumn.cpp"
+#include "CrabTableReadInfo.cpp"
 //#define DEF_Version "2015-12-21"
 //#define DEF_Version "2015-12-22"
-#define DEF_Version "2016-01-11"
+//#define DEF_Version "2016-01-11"
+#define DEF_Version "2016-04-30"
 
 using namespace std;
 
@@ -106,15 +108,51 @@ int main(int argc, char **argv)
         char *cstrNAXIS2 = extKeyword("NAXIS2",cstrHeader);
         if(cstrNAXIS1!=NULL && cstrNAXIS2!=NULL) {
             //
+            // read info file <added><20160430><dzliu>
+            // -- so that we can apply parameter tuning, e.g. elliptical aperture
+            int aperTYPE = 1; // 1: circle; 2: ellipse; 3: TODO;
+            std::string tempTYPE;
+            if(strncmp(cstrInput2,"none",strlen("none"))!=0) {
+                tempTYPE = CrabTableReadInfo(cstrInput2,"AperType");
+                std::transform(tempTYPE.begin(), tempTYPE.end(), tempTYPE.begin(), ::tolower);
+                if(tempTYPE.find("ellip")!= std::string::npos) {
+                    aperTYPE = 2;
+                    std::cout << "# CrabPhotAperPhot: apertype " << aperTYPE << " " << tempTYPE << std::endl;
+                }
+            }
+            //
             // read fits Naxis
             long longWidth = atol(cstrNAXIS1);
             long longHeight = atol(cstrNAXIS2);
             //
             // read aper details
-            int aperN = 0, aperNX = 0, aperNY = 0, aperNR = 0;
+            int aperN = 0, aperNX = 0, aperNY = 0, aperNR = 0, aperNE = 0, aperNT = 0;
             double *aperX = CrabTableReadColumnF(cstrInput3,1,&aperNX);
             double *aperY = CrabTableReadColumnF(cstrInput3,2,&aperNY);
-            double *aperR = CrabTableReadColumnF(cstrInput3,3,&aperNR);
+            double *aperR = CrabTableReadColumnF(cstrInput3,3,&aperNR); // aperture radius or major axis
+            double *aperE = NULL; // aperture elliptic b/a
+            double *aperT = NULL; // aperture rotate angle "theta"
+            if(1==aperTYPE) {
+                aperE = (double *)malloc(aperNR*sizeof(double)); // aperture elliptic b/a
+                aperT = (double *)malloc(aperNR*sizeof(double)); // aperture rotate angle "theta"
+                for(int tempI = 0; tempI < aperNR; tempI++) {
+                    aperE[tempI] = 1.0; aperT[tempI] = 0.0;
+                }
+            } else {
+                if(2==aperTYPE) {
+                    aperE = CrabTableReadColumnF(cstrInput3,4,&aperNE); // aperture elliptic b/a
+                    aperT = CrabTableReadColumnF(cstrInput3,5,&aperNT); // aperture rotate angle "theta"
+                    if(NULL==aperE) {
+                        std::cout << "# CrabPhotAperPhot: Error! The column 4 of " << cstrInput3 << " is invalid! Abort!" << std::endl;
+                        return -1;
+                    }
+                    if(NULL==aperT) {
+                        std::cout << "# CrabPhotAperPhot: Error! The column 5 of " << cstrInput3 << " is invalid! Abort!" << std::endl;
+                        return -1;
+                    }
+                }
+            }
+            // check aper file rows -- columns should have the same row count
             if(aperNX>0 && aperNX==aperNY && aperNY==aperNR) {
                 aperN = aperNX;
             } else {
@@ -236,10 +274,44 @@ int main(int argc, char **argv)
                     aperImaRU[tempK] = NAN;
                     aperImaRV[tempK] = NAN;
                     if(aperImage[tempK]==aperImage[tempK]) { // <TODO> check non NAN
-                        aperImaRX[tempK] = (double(tempK % aperLength)) - (double(aperRadius)) - (double(aperX[aperK])-long(aperX[aperK])); // <corrected><20150220><dzliu> fractional difference
-                        aperImaRY[tempK] = (double(tempK / aperLength)) - (double(aperRadius)) - (double(aperY[aperK])-long(aperY[aperK])); // <corrected><20150220><dzliu> fractional difference
+                        aperImaRX[tempK] = (double(tempK % aperLength)) - (double(aperRadius)) - (double(aperX[aperK])-long(aperX[aperK])); // convert global coordinate to small image cut coordinate, center is aperX,aperY. <corrected><20150220><dzliu> fractional difference
+                        aperImaRY[tempK] = (double(tempK / aperLength)) - (double(aperRadius)) - (double(aperY[aperK])-long(aperY[aperK])); // convert global coordinate to small image cut coordinate, center is aperX,aperY. <corrected><20150220><dzliu> fractional difference
                         aperImaRD[tempK] = sqrt(aperImaRX[tempK]*aperImaRX[tempK] + aperImaRY[tempK]*aperImaRY[tempK]);
-                        if(aperImaRD[tempK]<=aperR[aperK]) { // (sum ignoring fractional part)
+                        // <modified><20160430><dzliu> elliptic
+                        // double tempDIST = aperImaRD[tempK]-aperR[aperK]; // circular radius
+                        double tempDIST = 0.0; // the distance difference between aperture and current pixel along a same line of sight from center 0,0
+                        double tempTANG = 0.0; // the angle of current pixel line of sight from center 0,0 in degree, against +X axis, compared to the ds9 rotate angle aperT[aperK] (against +X axis as well <TODO>).
+                        if(aperImaRX[tempK]!=0.0) {
+                            if(aperImaRY[tempK]>=0.0) {
+                                tempTANG = atan(aperImaRY[tempK]/aperImaRX[tempK])*180.0/3.14159265;
+                            } else {
+                                tempTANG = atan(aperImaRY[tempK]/aperImaRX[tempK])*180.0/3.14159265+180.0;
+                            }
+                        } else {
+                            if(aperImaRY[tempK]==0.0) {
+                                tempTANG = 1999;
+                            } else {
+                                if(aperImaRY[tempK]>0.0) {
+                                    tempTANG = 90.0;
+                                } else {
+                                    tempTANG = 90.0+180.0;
+                                }
+                            }
+                        }
+                        if(tempTANG>1000) { // this is exactly the center pixel
+                            tempDIST = 999;
+                        } else {
+                            tempTANG = tempTANG - aperT[aperK]; // <TODO> what if one use Position Angle PA that againsts +Y axis?
+                            tempDIST = sqrt(pow(aperR[aperK]*cos(tempTANG/180.0*3.14159265),2)+pow(aperR[aperK]*aperE[aperK]*sin(tempTANG/180.0*3.14159265),2));
+                        }
+                        //<DEBUG> std::cout << "# DEBUG" << std::endl;
+                        //<DEBUG> std::cout << setw(12) << tempTANG << setw(12) << tempDIST << std::endl;
+                        //<DEBUG> std::cout << "# DEBUG" << std::endl;
+                        //<DEBUG> 20160430 elliptic shape has no problem.
+
+                        tempDIST = aperImaRD[tempK] - tempDIST; // then compute the distance difference between current pixel and aperture border pixel, if positive then means current pixel is out of the aperture
+
+                        if(tempDIST<=0.0) { // (sum ignoring fractional part)
                             aperImaRU[tempK] = aperImage[tempK];
                             aperSumS1 += aperImage[tempK];
                             aperSabS1 += std::abs(aperImage[tempK]);
@@ -250,7 +322,8 @@ int main(int argc, char **argv)
                             if(aperMinS1!=aperMinS1) {aperMinS1 = aperImage[tempK];} else if(aperImage[tempK]<aperMinS1) {aperMinS1 = aperImage[tempK];}
                             if(aperMaxS1!=aperMaxS1) {aperMaxS1 = aperImage[tempK];} else if(aperImage[tempK]>aperMaxS1) {aperMaxS1 = aperImage[tempK];}
                         }
-                        if(aperImaRD[tempK]<=aperR[aperK]-0.5) {
+                        if(tempDIST<=-0.5) { // (sum considering fractional part)
+                            // these pixels are fully within the aperture
                             aperMask1[tempK] = 1.0;
                             aperImaRV[tempK] = aperImage[tempK];
                             aperSumF1 += aperImage[tempK];
@@ -265,8 +338,10 @@ int main(int argc, char **argv)
                             // these pixels are at the border of current aperture
                             // how to consider those pixels near within 0.5 pixel of the aperture circle?
                             // we sum their weighted pixel values
-                            if(aperImaRD[tempK]>aperR[aperK]-0.5 && aperImaRD[tempK]<=aperR[aperK]+0.5) {
-                                aperMask1[tempK] = (1.0-aperImaRD[tempK]+aperR[aperK]-0.5);
+                            if(tempDIST>-0.5 && tempDIST<=+0.5) {
+                                // <modified><20160430><dzliu> elliptic
+                                // aperMask1[tempK] = (1.0-aperImaRD[tempK]+aperR[aperK]-0.5);
+                                aperMask1[tempK] = (1.0-(tempDIST)-0.5);
                                 aperSumF1 += aperImage[tempK] * aperMask1[tempK];
                                 // <modified><20151218><dzliu> if(aperImage[tempK]>0.0) {aperRmsF1 += aperImage[tempK] * aperImage[tempK] * aperMask1[tempK];}
                                 aperRmsF1 += aperImage[tempK]*aperImage[tempK]*aperMask1[tempK]*aperMask1[tempK];

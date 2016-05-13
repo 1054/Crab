@@ -1,0 +1,40 @@
+dzliu
+
+2016-01-25
+
+cd CrabConst
+g++ lumdist.cpp -o lumdist
+g++ CrabStringClean.cpp radec2degree.cpp -o radec2degree
+g++ CrabStringClean.cpp degree2radec.cpp -o degree2radec
+cd ..
+cp CrabConst/lumdist lumdist_linux_x86_64
+cp CrabConst/radec2degree radec2degree_linux_x86_64
+cp CrabConst/degree2radec degree2radec_linux_x86_64
+
+cd CrabFitsHeader
+g++ main.cpp CrabFitsIO.cpp -o CrabFitsHeader
+cd ..
+cp CrabFitsHeader/CrabFitsHeader CrabFitsHeader_linux_x86_64
+
+cd CrabFitsImageCut
+g++ main.cpp CrabFitsIO.cpp -o CrabFitsImageCrop
+cd ..
+cp CrabFitsImageCut/CrabFitsImageCrop CrabFitsImageCrop_linux_x86_64
+
+cd CrabPhotAperPhot
+g++ main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotAperPhot
+cd ..
+cp CrabPhotAperPhot/CrabPhotAperPhot CrabPhotAperPhot_linux_x86_64
+
+cd CrabTableReadColumn
+g++ main.cpp -o CrabTableReadColumn
+cd ..
+cp CrabTableReadColumn/CrabTableReadColumn CrabTableReadColumn_linux_x86_64
+
+cd CrabTableReadInfo
+g++ main.cpp -o CrabTableReadInfo
+cd ..
+cp CrabTableReadInfo/CrabTableReadInfo CrabTableReadInfo_linux_x86_64
+
+
+
