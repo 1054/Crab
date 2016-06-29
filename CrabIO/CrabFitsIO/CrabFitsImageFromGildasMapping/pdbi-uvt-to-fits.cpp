@@ -4,11 +4,13 @@
  Please compile like this:
  
      clang++ CrabFitsIO.cpp pdbi-uvt-to-fits.cpp -o pdbi-uvt-to-fits
+     clang++ CrabFitsIO.cpp pdbi-uvt-to-fits.cpp -o pdbi-uvt-to-fits-1024-linux-x86-64
  
  
  Last update:
  
      2015-03-25
+     2016-06-26 UVTHEADSIZE
  
  
  */
@@ -22,7 +24,8 @@
 #include <iostream>
 #include <iomanip>
 #include "CrabFitsIO.h"
-
+//#define UVTHEADSIZE 512
+#define UVTHEADSIZE 1024
 
 using namespace std;
 
@@ -61,8 +64,8 @@ int main(int argc, char **argv)
             std::cout << "        > pdbi-uvt-to-fits temp-data.uvt" << std::endl;
             std::cout << "    which will output a temp-data.uvt.fits image. " << std::endl;
             std::cout << std::endl;
-            std::cout << "    TODO: only support uvt data with 512 bytes header. " << std::endl;
-            std::cout << "    TODO: only support uvt data with float values. " << std::endl;
+            std::cout << "    TODO: only support uvt data with 512 or 1024 bytes header. Default is -header 1024." << std::endl;
+            std::cout << "    TODO: only support uvt data with float values. This will not change according to GILDAS." << std::endl;
             std::cout << std::endl;
             return -5;
         } else {
@@ -97,7 +100,7 @@ int main(int argc, char **argv)
         if(fp.is_open()) {
             int jZero=0, iZero=0;
             int j=0; 
-            int jHead=512; 
+            int jHead=UVTHEADSIZE;
             int jStok=1;
             int jChan=1;
             if(Nheader>0){jHead=Nheader;} //<TODO> uvtable header size in bytes
@@ -195,7 +198,7 @@ int main(int argc, char **argv)
             }
         }
     } else {
-        std::cout << "pdbi-uvt-to-fits aaa.uvt aaa.fits" << std::endl;
+        std::cout << "pdbi-uvt-to-fits -header 1024 -chan 64 -polar 1 aaa.uvt aaa.fits" << std::endl;
     }
     return 0;
 }

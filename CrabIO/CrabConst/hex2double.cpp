@@ -1,8 +1,9 @@
 /*
  
  compile: 
-     
+
      clang++ hex2double.cpp -o hex2double_mac
+     clang++ hex2double.cpp -o hex2double_linux_x86_64
  
  Note: 
      
@@ -20,6 +21,8 @@
 #include <stdlib.h>
 #include <iostream>
 #include <iomanip>
+#include <memory.h>
+
 
 using namespace std;
 
@@ -27,10 +30,11 @@ int main(int argc, char **argv)
 {
     if(argc>1)
     {
-        // char myString[]="0x3f9d70a4";
-        uint32_t HexVar;
+        // char myString[]="ae47e17a14aef33f";
+        uint64_t HexVar;
         double FltVar;
-        sscanf(argv[1],"%x",&HexVar); // TODO: check input
+        sscanf(argv[1],"%lx",&HexVar); // TODO: check input
+        //<DEBUG>printf("%ld\n", sizeof(HexVar));
         
         int SetLittleEndian = 0; // TODO
         
@@ -38,7 +42,7 @@ int main(int argc, char **argv)
             FltVar = *((double*)&HexVar);
             printf("%f\n", FltVar);
         } else {
-            uint32_t HexVarSwapd;
+            uint64_t HexVarSwapd;
             unsigned char *ChrVar = (unsigned char *)&HexVar;
             unsigned char *ChrVarSwapd = (unsigned char *)&HexVarSwapd;
             for(int i=0; i<sizeof(double); i++) {
@@ -49,8 +53,8 @@ int main(int argc, char **argv)
         }
         
     } else {
-        printf("Usage: hex2double 3f9d70a4 => 1.23\n");
-        printf("Usage: hex2double a4709d3f => 1.23\n");
+        //printf("Usage: hex2double 3ff3ae147ae147ae => 1.23\n");
+        printf("Usage: hex2double ae47e17a14aef33f => 1.23\n");
     }
 }
 

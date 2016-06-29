@@ -1,8 +1,9 @@
 /*
  
  compile: 
-     
+
      clang++ double2hex.cpp -o double2hex_mac
+     clang++ double2hex.cpp -o double2hex_linux_x86_64
  
  note:
      
@@ -22,6 +23,8 @@
 #include <cstring>
 #include <iostream>
 #include <iomanip>
+#include <memory.h>
+
 
 using namespace std;
 
@@ -29,6 +32,7 @@ int main(int argc, char **argv)
 {
     if(argc>1)
     {
+        // char myString[[="0xae47e17a14aef33f";
         double FltVar = atof(argv[1]);
         unsigned char *ChrVar = (unsigned char *)&FltVar;
         // std::cout << "double is " << sizeof(double) << " bytes" << std::endl;
@@ -50,8 +54,8 @@ int main(int argc, char **argv)
         }
         std::cout << std::endl;
     } else {
-        printf("Usage: double2hex 1.23 => 3f9d70a4\n");
-        printf("Usage: double2hex 1.23 => a4709d3f\n");
+        //printf("Usage: double2hex 1.23 => ae47e17a14aef33f\n");
+        printf("Usage: double2hex 1.23 => ae47e17a14aef33f\n");
     }
 }
 
