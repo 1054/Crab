@@ -12,8 +12,19 @@ fitsImager::fitsImager(QWidget *parent) :
     errorcode=0;
     this->setAutoFillBackground(false);
     connect(ui->closeButton,SIGNAL(clicked()),this,SLOT(close()));
-    connect(ui->openButton,SIGNAL(clicked()),this,SLOT(openFile()));
-    connect(ui->saveButton,SIGNAL(clicked()),this,SLOT(saveFile()));
+    //connect(ui->openButton,SIGNAL(clicked()),this,SLOT(openFile()));
+    //connect(ui->saveButton,SIGNAL(clicked()),this,SLOT(saveFile()));
+    //connect(ui->funcButton,SIGNAL(clicked()),this,SLOT(close()));
+
+    /* Setup recent file list under the openButton */
+    QMenu *menuRecentFiles = new QMenu(ui->openButton);
+    ui->openButton->setMenu(menuRecentFiles);
+    setupOpenFileMenu();
+
+    /* Setup QPushButton stylesheet */
+    ui->openButton->setStyleSheet("QPushButton:pressed{background-color:#3C3C3C;}");
+    ui->closeButton->setStyleSheet("QPushButton:pressed{background-color:#3C3C3C;}");
+
 }
 
 fitsImager::~fitsImager()
@@ -22,10 +33,40 @@ fitsImager::~fitsImager()
 }
 
 
+void fitsImager::setupOpenFileMenu()
+{
+    /* Read recent file list from ini */
+    QSettings setIni(QSettings::IniFormat,QSettings::UserScope,"crabsoftware","fitsImager");
+    setIni.beginGroup("fitsImager");
+    QStringList listRecentFiles = setIni.value("RecentFiles").toStringList();
+    // QStringList listRecentTimes = setIni.value("RecentTimes").toStringList();
+    /* Setup recent file list under the openButton */
+    QMenu *menuRecentFiles = ui->openButton->menu();
+    menuRecentFiles->addSeparator();
+    for(int i=0; i<listRecentFiles.count(); i++) {
+        QAction *actionOpenRecentFile = new QAction(listRecentFiles.at(i));
+        menuRecentFiles->addAction(actionOpenRecentFile);
+        connect(actionOpenRecentFile,SIGNAL(triggered(bool)),this,SLOT(openFile()));
+    }
+}
+
+
 void fitsImager::openFile()
 {
-    QString strFilePath;
+    /* Check sender */
+    QAction* actionOpenFile = qobject_cast<QAction*>(sender());
+    if(actionOpenFile) {
+       if(!actionOpenFile->text().isEmpty()) {
+           // Sender is an action with file path as text, then open the file.
+           openFile(actionOpenFile->text());
+           return;
+       }
+       // Otherwise when sender is not an action,
+       // or sender is an action but without file path as text,
+       // then open the open file dialog.
+    }
     /*Select a file. But not open it.*/
+    QString strFilePath;
     strFilePath=QFileDialog::getOpenFileName(this,"Open A FITS",QDir::currentPath(),"Fits(*.fits)");
     /*Check input filepath.*/
     if (!strFilePath.isNull())
@@ -69,7 +110,7 @@ void fitsImager::openFile(QString strFilePath)
     qDebug()<<"filepwd"<<FilePath.toLocal8Bit().data();
     qDebug()<<"xtenumb"<<xtenumb;
 
-    int xtension = 2;
+    int xtension = 0; // <TODO> define extension
 
     /*Read fits header.*/
     char *HeaderText=NULL;
@@ -105,11 +146,11 @@ void fitsImager::openFile(QString strFilePath)
     m_Image_mirrored = data2qimage(m_Data,m_Data_uchar,m_Width,m_Height,"log");
 
     /*Mirror the image along the vertical direction.*/
-    qDebug() << "m_Image dimension? " << m_Image_mirrored.width() << m_Image_mirrored.height();
-    qDebug() << "m_Image is gray? " << m_Image_mirrored.allGray();
-    qDebug() << "<TODO> m_Data_uchar" << m_Data_uchar << QString("x").prepend(strNAXIS1).prepend("(").append(strNAXIS2).append(")");
+    // qDebug() << "m_Image dimension? " << m_Image_mirrored.width() << m_Image_mirrored.height();
+    // qDebug() << "m_Image is gray? " << m_Image_mirrored.allGray();
+    // qDebug() << "<TODO> m_Data_uchar" << m_Data_uchar << QString("x").prepend(strNAXIS1).prepend("(").append(strNAXIS2).append(")");
     m_Image = m_Image_mirrored.mirrored(false,true);
-    m_Image_mirrored.save("/Users/dliu/Programming/QtProgram/AstronomyUtility/fitsImager/tmp.png");
+    // m_Image_mirrored.save("/Users/dliu/Programming/QtProgram/AstronomyUtility/fitsImager/tmp.png");
     // free(m_Data_uchar);  // <TODO> Under Mac System do not free??? <20140322>
     // m_Data_uchar=NULL;
 
@@ -120,8 +161,19 @@ void fitsImager::openFile(QString strFilePath)
     QStringList listRecentTimes = setIni.value("RecentTimes").toStringList();
     // qDebug() << "listRecentFiles" << listRecentFiles;
     // qDebug() << "listRecentTimes" << listRecentTimes;
-    listRecentFiles.prepend(FilePath);
-    listRecentTimes.prepend(QDateTime::currentDateTime().toString());
+    // listRecentFiles.clear();
+    // listRecentTimes.clear();
+    // Check duplication
+    if(listRecentFiles.indexOf(FilePath)>=0) {
+        int indexDuplicatedRecentFile = listRecentFiles.indexOf(FilePath);
+        listRecentFiles.removeAt(indexDuplicatedRecentFile);
+        listRecentTimes.removeAt(indexDuplicatedRecentFile);
+        listRecentFiles.prepend(FilePath);
+        listRecentTimes.prepend(QDateTime::currentDateTime().toString());
+    } else {
+        listRecentFiles.prepend(FilePath);
+        listRecentTimes.prepend(QDateTime::currentDateTime().toString());
+    }
     // qDebug() << "listRecentFiles" << listRecentFiles;
     // qDebug() << "listRecentTimes" << listRecentTimes;
     if(listRecentFiles.length()>15) listRecentFiles.removeLast();
@@ -133,6 +185,7 @@ void fitsImager::openFile(QString strFilePath)
     /*Display in the widget.*/
     ui->widget->setImage(m_Image);
     ui->label->setText(FilePath);
+    // ui->label->setText(FilePath.prepend("<font face=\"Cantarell;Sans\">").append("</font>"));
     ui->widget->update();
     this->update();
     return;

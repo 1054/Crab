@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'fitsImager.ui'
 **
-** Created by: Qt User Interface Compiler version 5.4.2
+** Created by: Qt User Interface Compiler version 5.7.0
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -32,7 +32,7 @@ public:
     QLabel *label;
     QPushButton *openButton;
     QPushButton *saveButton;
-    QPushButton *FFTButton;
+    QPushButton *FuncButton;
     QPushButton *closeButton;
     fitsImagePainter *widget;
 
@@ -102,7 +102,8 @@ public:
         label = new QLabel(fitsImager);
         label->setObjectName(QStringLiteral("label"));
         QFont font1;
-        font1.setPointSize(10);
+        font1.setFamily(QStringLiteral("Cantarell"));
+        font1.setPointSize(12);
         label->setFont(font1);
         label->setAutoFillBackground(false);
         label->setStyleSheet(QStringLiteral(""));
@@ -141,19 +142,19 @@ public:
 
         horizontalLayout->addWidget(saveButton);
 
-        FFTButton = new QPushButton(fitsImager);
-        FFTButton->setObjectName(QStringLiteral("FFTButton"));
-        sizePolicy.setHeightForWidth(FFTButton->sizePolicy().hasHeightForWidth());
-        FFTButton->setSizePolicy(sizePolicy);
-        FFTButton->setMaximumSize(QSize(32, 28));
-        FFTButton->setAutoFillBackground(false);
+        FuncButton = new QPushButton(fitsImager);
+        FuncButton->setObjectName(QStringLiteral("FuncButton"));
+        sizePolicy.setHeightForWidth(FuncButton->sizePolicy().hasHeightForWidth());
+        FuncButton->setSizePolicy(sizePolicy);
+        FuncButton->setMaximumSize(QSize(32, 28));
+        FuncButton->setAutoFillBackground(false);
         QIcon icon2;
         icon2.addFile(QStringLiteral(":/ico/04.ico"), QSize(), QIcon::Normal, QIcon::Off);
-        FFTButton->setIcon(icon2);
-        FFTButton->setIconSize(QSize(32, 28));
-        FFTButton->setFlat(true);
+        FuncButton->setIcon(icon2);
+        FuncButton->setIconSize(QSize(32, 28));
+        FuncButton->setFlat(true);
 
-        horizontalLayout->addWidget(FFTButton);
+        horizontalLayout->addWidget(FuncButton);
 
         closeButton = new QPushButton(fitsImager);
         closeButton->setObjectName(QStringLiteral("closeButton"));
@@ -202,9 +203,9 @@ public:
 #endif // QT_NO_TOOLTIP
         saveButton->setText(QString());
 #ifndef QT_NO_TOOLTIP
-        FFTButton->setToolTip(QApplication::translate("fitsImager", "FourierTransform", 0));
+        FuncButton->setToolTip(QApplication::translate("fitsImager", "FourierTransform", 0));
 #endif // QT_NO_TOOLTIP
-        FFTButton->setText(QString());
+        FuncButton->setText(QString());
 #ifndef QT_NO_TOOLTIP
         closeButton->setToolTip(QApplication::translate("fitsImager", "Close", 0));
 #endif // QT_NO_TOOLTIP

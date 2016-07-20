@@ -5,30 +5,38 @@
  
      clang++ CrabFitsIO.cpp pdbi-uvt-to-fits.cpp -o pdbi-uvt-to-fits
      clang++ CrabFitsIO.cpp pdbi-uvt-to-fits.cpp -o pdbi-uvt-to-fits-1024-linux-x86-64
+     clang++ -std=c++11 CrabFitsIO.cpp pdbi-uvt-to-fits.cpp -o pdbi-uvt-to-fits-linux-x86-64
  
  
  Last update:
  
      2015-03-25
      2016-06-26 UVTHEADSIZE
+     2016-07-04 auto determine header size
  
  
  */
 
 #include <stdio.h>
-#include <stdlib.h>     /* atoi */
 #include <string.h>
+#include <stdlib.h>     /* atoi */
+#include <stdint.h>
 #include <vector>
 #include <cmath>
 #include <fstream>
+#include <sstream>
 #include <iostream>
 #include <iomanip>
 #include "CrabFitsIO.h"
-//#define UVTHEADSIZE 512
-#define UVTHEADSIZE 1024
 
 using namespace std;
 
+bool isFloat(string s) { // http://stackoverflow.com/questions/447206/c-isfloat-function
+    istringstream iss(s);
+    float dummy;
+    iss >> noskipws >> dummy;
+    return iss && iss.eof();     // Result converted to bool
+}
 
 int main(int argc, char **argv)
 {
@@ -44,8 +52,20 @@ int main(int argc, char **argv)
     int Nchan = 0;
     int Nstoke = 0;
     int Nheader = 0;
+    int Verbose = 3; // <TODO> Verbose
     std::string strInputMap;
     std::string strOutputMap;
+    int         intHeaderType = 1; // lonHeaderBytes = 512*intHeaderType
+    int         intStokesNumb = 1;
+    uint64_t    lonHeaderBytes = 0;
+    uint64_t    lonNAXIS1 = 0;
+    uint64_t    lonNAXIS2 = 0;
+    double      dblCDELT1 = 0.0;
+    double      dblCDELT2 = 0.0;
+    double      dblCRPIX1 = 0.0;
+    double      dblCRPIX2 = 0.0;
+    double      dblCRVAL1 = 0.0;
+    double      dblCRVAL2 = 0.0;
     for(int i=1; i<argc; i++) {
         if( (0==strcmp(argv[i],"-h")) ||
            (0==strcmp(argv[i],"-help")) ||
@@ -86,26 +106,219 @@ int main(int argc, char **argv)
             if(strOutputMap.empty()) {strOutputMap = std::string(argv[i]); continue;}
         }
     }
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
     if(Vargc>=1) {
+        //
+        // set default output file
         if(strOutputMap.empty()) {strOutputMap = strInputMap+".fits";}
-        // open and read file
-        long fpSize = 0;
-        long fdSize = 0;
+        //
+        // prepare variables
         std::ifstream fp;
         std::vector<float> fd;
-        char *fdptr = NULL;
-        float *fdvar = NULL;
-        bool isLittleEndian = false; // <TODO> 
+        char  *strHeader = NULL;
+        float *fltVarPtr = NULL;
+        long  *lonVarPtr = NULL;
+        int   *intVarPtr = NULL;
+        char  *strVarPtr = NULL;
+        long   fpSize = 0;
+        long   fdSize = 0;
+        bool   isLittleEndian = false; // <TODO>
+        //
+        // open uvt binary file
         fp.open(strInputMap.c_str(),ios::in|ios::binary);
         if(fp.is_open()) {
+            //
+            // prepare to read header
+            strVarPtr = new char[8]; strVarPtr[8-1] = 0x0;
+            intVarPtr = new int;
+            lonVarPtr = new long;
+            //
+            // read header
+            if(0==lonHeaderBytes) {
+                // auto determine header bytes
+                lonHeaderBytes = 512;
+                strHeader = (char *)malloc(sizeof(char)*(lonHeaderBytes+1));
+                memset(strHeader,0x0,sizeof(char)*(lonHeaderBytes+1));
+                fp.read(strHeader,lonHeaderBytes*sizeof(char));
+                // auto determine header type
+                memcpy(strVarPtr,strHeader+0xE8,7); // memcpy(strVarPtr,strHeader+0x164,7);
+                if(0==strcmp(strVarPtr,"UV-DATA")) {
+                    intHeaderType = 1;
+                    // header type 1    --- header size 512   --- 0xE8  "UV-DATA"
+                    // header type n>=2 --- header size 512*n --- 0x164 "UV-DATA" --- n is indicated by byte 0x18
+                } else {
+                    memset(strVarPtr,0x0,8);
+                    memcpy(strVarPtr,strHeader+0x18,1); // 0x18 is the mark byte --- <TODO> make sure of this!
+                    intHeaderType = (int)(*strVarPtr);  // 0x18 is the mark byte
+                }
+                // read the rest header bytes
+                for(int j=1; j<intHeaderType; j++) {
+                    free(strHeader); lonHeaderBytes+=512;
+                    strHeader = (char *)malloc(sizeof(char)*(lonHeaderBytes+1));
+                    fp.seekg(0,ios::beg);
+                    fp.read(strHeader,lonHeaderBytes*sizeof(char));
+                }
+                // print debug message
+                if(Verbose>=1) {
+                    std::cout << "Header type is " << intHeaderType << " Code " << strVarPtr << std::endl; // <DEBUG>
+                }
+            } else {
+                // otherwise if user input lonHeaderBytes
+                intHeaderType = lonHeaderBytes/512;
+                strHeader = (char *)malloc(sizeof(char)*(lonHeaderBytes+1));
+                memset(strHeader,0x0,sizeof(char)*(lonHeaderBytes+1));
+                fp.read(strHeader,lonHeaderBytes*sizeof(char)); // fp.seekg(512,ios::beg);
+                // auto determine header type
+                memcpy(strVarPtr,strHeader+0x18,1); // 0x18 is the mark byte --- <TODO> make sure of this!
+                intHeaderType = (int)(*strVarPtr); // 0x18 is the mark byte
+                // print debug message
+                if(Verbose>=1) {
+                    std::cout << "Header type is " << intHeaderType << " Code " << strVarPtr << std::endl; // <DEBUG>
+                }
+            }
+            free(strVarPtr);
+            //
+            // check header format
+            if((std::string(strHeader+0x0,strHeader+0x0+12) != std::string("GILDAS<UVFIL")) &&
+               (std::string(strHeader+0x0,strHeader+0x0+12) != std::string("GILDAS-UVFIL"))) {
+                if(Verbose>=1) {
+                    std::cout << "Checking header starting string " << std::string(strHeader+0x0,strHeader+0x0+12) << std::endl; // <DEBUG>
+                }
+                std::cout << "Error! header is not starting with \"GILDAS-UVFIL\"! Wrong file? " << std::endl;
+                return -1;
+            }
+            //
+            // Check NAXIS1 NAXIS2
+            if(lonNAXIS1<=0 || lonNAXIS2<=0) {
+                // NAXIS1 NAXIS2 are 4 byte int for header type 1, while 8 byte long for header type >=2.
+                if(Verbose>=1) {
+                    std::cout << "Reading NAXIS1 NAXIS2 from header " << std::endl;
+                }
+                if(Verbose>=2) {
+                    // std::cout << "Reading NAXIS1 NAXIS2 " << "sizeof(long)=" << sizeof(long) << std::endl; // what if sizeof(long)==4? -- So now use uint64_t
+                    std::cout << "Reading NAXIS1 NAXIS2 " << "sizeof(uint64_t)=" << sizeof(uint64_t) << std::endl;
+                }
+                if(1==intHeaderType) {
+                    strVarPtr = strHeader+0x30;
+                    memcpy(&lonNAXIS1,strVarPtr,4); strVarPtr+=4;
+                    memcpy(&lonNAXIS2,strVarPtr,4); strVarPtr+=4;
+                } else {
+                    strVarPtr = strHeader+0x50;
+                    memcpy(&lonNAXIS1,strVarPtr,8); strVarPtr+=8;
+                    memcpy(&lonNAXIS2,strVarPtr,8); strVarPtr+=8;
+                }
+                if(Verbose>=1) {
+                    std::cout << "Checking NAXIS1 NAXIS2 " << lonNAXIS1 << " " << lonNAXIS2 << std::endl;
+                }
+                if(lonNAXIS1<=0 || lonNAXIS2<=0) {
+                    std::cout << "Error! NAXIS1 NAXIS2 are not given or determined! " << std::endl;
+                    return -1;
+                }
+            }
+            //
+            // Check CRPIX1 CRVAL1 CDELT1 CRPIX2 CRVAL2 CDELT2
+            if(dblCRPIX1<=0 || dblCRPIX2<=0) {
+                std::cout << "Reading CRPIX CRVAL CDELT from header " << std::endl;
+                // CRPIX CRVAL CDELT are 8 byte double for all header types.
+                if(1==intHeaderType) {
+                    strVarPtr = strHeader+0x40;
+                } else {
+                    strVarPtr = strHeader+0xA8;
+                }
+                memcpy(&dblCRPIX1,strVarPtr,8); strVarPtr+=8;
+                memcpy(&dblCRVAL1,strVarPtr,8); strVarPtr+=8;
+                memcpy(&dblCDELT1,strVarPtr,8); strVarPtr+=8;
+                memcpy(&dblCRPIX2,strVarPtr,8); strVarPtr+=8;
+                memcpy(&dblCRVAL2,strVarPtr,8); strVarPtr+=8;
+                memcpy(&dblCDELT2,strVarPtr,8); strVarPtr+=8;
+                if(Verbose>=1) {
+                    std::cout << "Checking CRPIX1 CRVAL1 CDELT1 " << dblCRPIX1 << " " << dblCRVAL1 << " " << dblCDELT1 << " " << std::endl;
+                    std::cout << "Checking CRPIX2 CRVAL2 CDELT2 " << dblCRPIX2 << " " << dblCRVAL2 << " " << dblCDELT2 << " " << std::endl;
+                }
+                if(dblCRPIX1<=0 || dblCRPIX2<=0) {
+                    std::cout << "Error! CRPIX1 CRPIX2 are not given or determined! " << std::endl;
+                    return -1;
+                }
+            }
+            //
+            // Check Stokes
+            if(intHeaderType>1 && intStokesNumb==1) {
+                // <TODO> DO NOT KNOW WHERE THE OLD 512 BYTE HEADER STORES THE STOKES NUMBER
+                // <TODO> seems that (most?) PdBI data are only single stokes.
+                // <TODO> So we only read stokes number from header for header type n>=2 data.
+                strVarPtr = strHeader+0x2E0;
+                memcpy(&intStokesNumb,strVarPtr,4); strVarPtr+=4;
+                if(Verbose>=1) {
+                    std::cout << "Checking Stokes " << intStokesNumb << std::endl;
+                    std::cout << "Checking Stokes " << intStokesNumb << std::endl;
+                }
+                if(intStokesNumb<=0) {
+                    std::cout << "Error! Stokes is not given or determined! " << std::endl;
+                    return -1;
+                }
+            }
+            //
+            //
+            // return 0;
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
+            //
             int jZero=0, iZero=0;
             int j=0; 
-            int jHead=UVTHEADSIZE;
-            int jStok=1;
-            int jChan=1;
-            if(Nheader>0){jHead=Nheader;} //<TODO> uvtable header size in bytes
-            if(Nstoke>0){jStok=Nstoke;} //<TODO> uvtable stokes number
-            if(Nchan>0){jChan=Nchan;} //<TODO> uvtable channel number
+            int jHead=lonHeaderBytes;
+            int jStok=intStokesNumb;
+            int jChan=(lonNAXIS1-7)/3; // gildas uv table format
+            if(Nheader>0){jHead=Nheader;} //<TODO> User input UV table header size in bytes
+            if(Nstoke>0){jStok=Nstoke;} //<TODO> User input UV table stokes number
+            if(Nchan>0){jChan=Nchan;} //<TODO> User input UV table channel number
             int jNCol = 7+3*jChan*jStok; // gildas uv table format: 
 
             // gildas uv table format: u,v,w,date,date,n1,n2,Chan1_Polar1_Re,Chan1_Polar1_Im,Chan1_Polar1_Wt,
@@ -126,19 +339,19 @@ int main(int argc, char **argv)
             if(1==0) { // <TODO> -- choose double type or float type -- generally gildas uv table is float type
                 // double type -- one visibility row contains 10*8 = 80 bytes
                 double *ddvar = NULL;
-                fdptr = new char[sizeof(double)];
+                strVarPtr = new char[sizeof(double)];
                 fp.seekg(0,ios::end); fpSize=fp.tellg(); fdSize=fpSize-jHead; // get file size and data block size
                 fp.seekg(jHead,ios::beg); // seek to the begining of data block
                 while(!fp.eof() && j*jNCol*sizeof(double)<fdSize) { // <corrected><20150227><dzliu> eof does not always right.
                     for(int i=0; i<jNCol; i++) { 
                         for(int k=0; k<sizeof(double); k++) {
                             if(isLittleEndian) {
-                                fp.read(fdptr+sizeof(double)-1-k,sizeof(char));
+                                fp.read(strVarPtr+sizeof(double)-1-k,sizeof(char));
                             } else {
-                                fp.read(fdptr+k,sizeof(char));
+                                fp.read(strVarPtr+k,sizeof(char));
                             }
                         }
-                        ddvar = (double *)fdptr;
+                        ddvar = (double *)strVarPtr;
                         fd.push_back((float)(*ddvar));
                         if((*ddvar)==0) {iZero++;} else {iZero=0;} // remove the trailing zero zero
                         // debug
@@ -154,24 +367,24 @@ int main(int argc, char **argv)
             } else {
                 // float type -- one visibility row contains 10*4 = 40 bytes
                 // std::cout << "sizeof(float) = " << sizeof(float) << std::endl;
-                fdptr = new char[sizeof(float)];
+                strVarPtr = new char[sizeof(float)];
                 fp.seekg(0,ios::end); fpSize=fp.tellg(); fdSize=fpSize-jHead; // get file size and data block size
                 fp.seekg(jHead,ios::beg); // seek to the begining of data block
                 while(!fp.eof() && j*jNCol*sizeof(float)<fdSize) { // <corrected><20150227><dzliu> eof does not always right.
                     for(int i=0; i<jNCol; i++) { // gildas uv table format: u,v,w,date,date,n1,n2,chan1real,chan1imagine,chan1weight,cha2...
                         for(int k=0; k<sizeof(float); k++) {
                             if(isLittleEndian) {
-                                fp.read(fdptr+sizeof(float)-1-k,sizeof(char));
+                                fp.read(strVarPtr+sizeof(float)-1-k,sizeof(char));
                             } else {
-                                fp.read(fdptr+k,sizeof(char));
+                                fp.read(strVarPtr+k,sizeof(char));
                             }
                         }
-                        fdvar = (float *)fdptr;
-                        fd.push_back(*fdvar);
-                        if((*fdvar)==0) {iZero++;} else {iZero=0;} // remove the trailing zero zero
+                        fltVarPtr = (float *)strVarPtr;
+                        fd.push_back(*fltVarPtr);
+                        if((*fltVarPtr)==0) {iZero++;} else {iZero=0;} // remove the trailing zero zero
                         // debug
                         // if(i<=1 && j<=1) {
-                        //     std::cout << (*fdvar) << std::endl;
+                        //     std::cout << (*fltVarPtr) << std::endl;
                         //     break;
                         // }
                     }

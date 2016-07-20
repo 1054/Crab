@@ -12,6 +12,7 @@
 #include <QImage>
 #include <QDesktopServices>
 #include <QMimeData>
+#include <QMenu>
 #include <QAction>
 #include <QSettings>
 #include <QDateTime>
@@ -58,6 +59,7 @@ private:
     QImage  m_Image_mirrored;
 
 protected:
+    void setupOpenFileMenu();
     void dragEnterEvent(QDragEnterEvent *event);
     void dropEvent(QDropEvent *event);
     void wheelEvent(QWheelEvent *event);

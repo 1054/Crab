@@ -10,7 +10,8 @@ TARGET    = fitsImager
 
 TEMPLATE  = app
 
-CONFIG   += release
+CONFIG   += c++11
+# CONFIG   += release
 
 INCLUDEPATH += /usr/include/qt5
 

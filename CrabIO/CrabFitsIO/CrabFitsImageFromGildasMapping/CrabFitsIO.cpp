@@ -469,47 +469,20 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderTex
     char *strKeywordComment = NULL;
     int   intKeywordValueBytes;
     int   intKeywordCommentBytes;
-    char *baLine;    //byte array containing a line.
+    char *baLine = NULL; //byte array containing a line.
+    baLine = (char *)malloc((80+1)*sizeof(char)); //Prepare input header line container
     /*Check whether keyword exists.*/
     errorcode = modKeyword(strKeyName,strKeyValue,strHeader);
     if(errorcode==-1) {
         errorcode=-1;
         // new keyword! Now start to add the keyword after the last header text line.
-        newHeaderSize = oldHeaderSize+80; // <TODO> add one line (80bytes)
-        newHeader = (char *)malloc((newHeaderSize+1)*sizeof(char));
-        memset(newHeader,0x20,newHeaderSize);
-        memset(newHeader+newHeaderSize,0x00,1);
-        newHeaderPtr = newHeader;
-        baLine = (char *)malloc((80+1)*sizeof(char));
-        memset(baLine,0x20,80);
-        memset(baLine+80,0x00,1);
-        strKeywordName = (char *)malloc((8+1)*sizeof(char));
-        memset(strKeywordName,0x20,8);
-        memset(strKeywordName+8,0x00,1);
-        //Copy the keyword name.
-        k=(int)strlen(strKeyName);
-        for(i=0;i<8;i++){if(i<k){*(strKeywordName+i)=*(strKeyName+i);}else{*(strKeywordName+i)=0x20;}} // the keyname is a 8-byte string, including white space.
-        
-        //Copy and trim the new keyword value.
-        strKeywordValue = strtrim2(strKeyValue);
-        intKeywordValueBytes = strlen(strKeywordValue);
-        if(intKeywordValueBytes>71) intKeywordValueBytes=71; //check the input outflow. the input value size should be .LE. 71.
-        //printf("strlen of the keyvalue is %d \n",intKeywordValueBytes);
-        
-        //Copy and trim the new keyword comment.
-        if(strComment) {
-            strKeywordComment = strtrim2(strComment);
-            intKeywordCommentBytes = strlen(strKeywordComment);
-            if(intKeywordValueBytes+intKeywordCommentBytes>71-3) intKeywordCommentBytes=71-3-intKeywordValueBytes; //check the input outflow. if value is too long, then there will be no place for intKeywordCommentBytes. Note that there has a 3 bytes string " / " between key value and key comment.
-            //printf("strlen of the keycomment is %d \n",intKeywordCommentBytes);
-        } else {
-            intKeywordCommentBytes = 0;
-        }
-        
+        //
         /*Begin loop.*/
         isHeader=1;
         while(isHeader==1) {
             //read line by line
+            memset(baLine,0x20,80);
+            memset(baLine+80,0x00,1);
             for(i=0;i<80;i++) {
                 *(baLine+i) = *(strHeader+countBytes+i);
             }
@@ -520,34 +493,90 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderTex
             else if(isENDmark(baLine)) flagENDmark=1;
             //Find the last keyword keyvalue line
             if(1==isHeader && 0==isBlank && 0==flagENDmark) { oldHeaderValidSize = countBytes + 80; }
-            //Copy the header
+            //Untill we touch the last header line with END mark
             if(1==flagENDmark) {
-                int intByteToAdd = 80; // add one keyword line (80bytes)
+                //Record current old header END position
+                long lonByteAtEnd = countBytes;
+                //Determine how to add new keyword line, insert or append.
+                int intByteToAdd = 0; // add how many keyword bytes, one line is 80bytes
+                if(oldHeaderValidSize <= oldHeaderSize-80-80) {
+                    //There has blank line, no need to add new header block lines.
+                    intByteToAdd = 0; // add 0 keyword line (0*80bytes)
+                } else {
+                    //Add new header block lines, 2880bytes/80bytes=36lines.
+                    intByteToAdd = 2880; // add 36 keyword line (36*80bytes=2880bytes)
+                }
+                //Prepare output new header buffer
+                newHeaderSize = oldHeaderSize + intByteToAdd;
+                newHeader = (char *)malloc((newHeaderSize+1)*sizeof(char));
+                memset(newHeader,0x20,newHeaderSize);
+                memset(newHeader+newHeaderSize,0x00,1);
+                //printf("\ndebug:oldHeaderSize %ld, newHeaderSize %ld\n",oldHeaderSize,newHeaderSize);
+                //Prepare keyword name buffer
+                strKeywordName = (char *)malloc((8+1)*sizeof(char));
+                memset(strKeywordName,0x20,8);
+                memset(strKeywordName+8,0x00,1);
+                //Copy the keyword name.
+                k=(int)strlen(strKeyName);
+                for(i=0;i<8;i++){if(i<k){*(strKeywordName+i)=*(strKeyName+i);}else{*(strKeywordName+i)=0x20;}} // the keyname is a 8-byte string, including white space.
+                //Copy and trim the new keyword value.
+                strKeywordValue = strtrim2(strKeyValue);
+                intKeywordValueBytes = strlen(strKeywordValue);
+                if(intKeywordValueBytes>71) intKeywordValueBytes=71; //check the input outflow. the input value size should be .LE. 71.
+                //printf("strlen of the keyvalue is %d \n",intKeywordValueBytes);
+                //Copy and trim the new keyword comment.
+                if(strComment) {
+                    strKeywordComment = strtrim2(strComment);
+                    intKeywordCommentBytes = strlen(strKeywordComment);
+                    if(intKeywordValueBytes+intKeywordCommentBytes>71-3) intKeywordCommentBytes=71-3-intKeywordValueBytes; //check the input outflow. if value is too long, then there will be no place for intKeywordCommentBytes. Note that there has a 3 bytes string " / " between key value and key comment.
+                    //printf("strlen of the keycomment is %d \n",intKeywordCommentBytes);
+                } else {
+                    intKeywordCommentBytes = 0;
+                }
+                //Copy the header from old header buffer to new header buffer, for only valid header lines, i.e. not empty lines
+                newHeaderPtr = newHeader;
                 strncpy(newHeaderPtr,strHeader,oldHeaderValidSize);
                 newHeaderPtr+=oldHeaderValidSize;
+                //Insert new keyword line, 80bytes, and append the rest of old header contents.
+                int intByteAdded = 0; // adedd how many keyword bytes, one line is 80bytes
                 strncpy(newHeaderPtr,strKeywordName,8);
                 newHeaderPtr+=8;
-                intByteToAdd-=8;
+                intByteAdded+=8;
                 strncpy(newHeaderPtr,"= ",2);
                 newHeaderPtr+=2;
-                intByteToAdd-=2;
+                intByteAdded+=2;
                 strncpy(newHeaderPtr,strKeywordValue,intKeywordValueBytes);
                 newHeaderPtr+=intKeywordValueBytes;
-                intByteToAdd-=intKeywordValueBytes;
+                intByteAdded+=intKeywordValueBytes;
                 if(intKeywordCommentBytes>0) {
                     strncpy(newHeaderPtr," / ",3);
                     newHeaderPtr+=3;
-                    intByteToAdd-=3;
+                    intByteAdded+=3;
                     strncpy(newHeaderPtr,strKeywordComment,intKeywordCommentBytes);
                     newHeaderPtr+=intKeywordCommentBytes;
-                    intByteToAdd-=intKeywordCommentBytes;
+                    intByteAdded+=intKeywordCommentBytes;
                 }
-                // printf("\ndebug:countBytes=%d,oldHeaderValidSize=%d,intByteToAdd=%d\n%s\n",countBytes,oldHeaderValidSize,intByteToAdd,newHeaderPtr);
-                newHeaderPtr+=intByteToAdd;
-                strncpy(newHeaderPtr,strHeader+oldHeaderValidSize,oldHeaderSize-oldHeaderValidSize);
+                while(intByteAdded%80!=0) {
+                    strncpy(newHeaderPtr," ",1);
+                    newHeaderPtr+=1;
+                    intByteAdded+=1;
+                }
+                //Copy the last lines
+                if(0) {
+                printf("\ndebug:newHeader+%ld oldHeader+%ld size=%ld\n",
+                                  newHeaderSize-(oldHeaderSize-lonByteAtEnd),
+                                                               lonByteAtEnd,
+                                                 oldHeaderSize-lonByteAtEnd);
+                }
+                strncpy(newHeader+newHeaderSize-(oldHeaderSize-lonByteAtEnd),
+                                                     strHeader+lonByteAtEnd,
+                                                 oldHeaderSize-lonByteAtEnd);
+                //<OLD><BEFORE><20160704>// newHeaderPtr+=intByteToAdd;
+                //<OLD><BEFORE><20160704>// strncpy(newHeaderPtr,strHeader+oldHeaderValidSize,oldHeaderSize-oldHeaderValidSize);
                 // printf("\ndebug:strlen(newHeader)=%d\n",strlen(newHeader));
                 // printf("\ndebug:countBytes=%d,oldHeaderValidSize=%d\n%s\n",countBytes,oldHeaderValidSize,newHeader);
-                isHeader=0; errorcode=0; break;
+                isHeader=0; errorcode=0;
+                break;
             }
             //<DONE>
             //<DONE> WRITE A CODE TO ADD KEYWORD !!! <20150215>
@@ -555,13 +584,14 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderTex
             //next
             countBytes+=80; countLines++;
         }
-        printf("debug strKeywordName = %s\n", strKeywordName);
-        printf("debug strKeywordValue = %s\n", strKeywordValue);
+        if(0){
+            printf("debug:strKeywordName = %s\n", strKeywordName);
+            printf("debug:strKeywordValue = %s\n", strKeywordValue);
+            printf("debug:oldHeaderSize=%ld\n",strlen(strHeader));
+            printf("debug:newHeaderSize=%ld\n",strlen(newHeader));
+        }
         if(baLine) { free(baLine); baLine=NULL; }
         if(strKeywordName) { free(strKeywordName); strKeywordName=NULL; }
-        
-        //// printf("debug:strHeaderSize=%d\n",strlen(strHeader));
-        //// printf("debug:newHeaderSize=%d\n",strlen(newHeader));
         // printf("\ndebug:strHeader=%d\n",strHeader);
         // printf("\ndebug:newHeader=%d\n",newHeader);
         // printf("\ndebug:\n%s\n",strHeader);
@@ -1207,6 +1237,11 @@ double *readFitsImageBlock(const char *chrFilePath, int ImagePosI0, int ImagePos
     if (ImageFullWidth<=0 || ImageFullHeight<=0) { printf("readFitsImageBlock: Error! Could not get NAXIS from fits header!\n"); return NULL; }
     int ImageFullSize = ImageFullWidth*ImageHeight;
     int ImageSize = ImageWidth*ImageHeight;
+    /*Free header data.*/
+    free((void *)HeaderData); HeaderData=NULL;
+    free((void *)BITPIX); BITPIX=NULL;
+    free((void *)NAXIS1); NAXIS1=NULL;
+    free((void *)NAXIS2); NAXIS2=NULL;
     /*Read fits image data.*/
     if(ImageBitpix==32)
     {
@@ -1214,6 +1249,8 @@ double *readFitsImageBlock(const char *chrFilePath, int ImagePosI0, int ImagePos
         double *data1 = (double *)malloc(ImageSize*sizeof(double));
         for(int i=0; i<ImageSize; i++)
             data1[i] = double(data2[i]);
+        // free temporary data array
+        free((void *)data2); data2=NULL;
         return data1;
     }
     else if(ImageBitpix==-32)
@@ -1222,6 +1259,8 @@ double *readFitsImageBlock(const char *chrFilePath, int ImagePosI0, int ImagePos
         double *data1 = (double *)malloc(ImageSize*sizeof(double));
         for(int i=0; i<ImageSize; i++)
             data1[i] = double(data2[i]);
+        // free temporary data array
+        free((void *)data2); data2=NULL;
         return data1;
     }
     else if(ImageBitpix==-64)
@@ -2026,8 +2065,8 @@ char *generateFitsHeaderFS(int DataWidth, int DataHeight)
 {
    int   i=0,j=0,m=0,temp1=0,temp2=0,nnX=0,nnY=0;
    char line1[81] ="SIMPLE  =                    T / Fits standard                                  "; //actually it's 80 bytes.
-   char line2[81] ="BITPIX  =                  -32 / Bits per pixel                                 ";//But the extra 1bytes is
-   char line3[81] ="NAXIS   =                    2 / Number of axes                                 ";//used for '\0'.
+   char line2[81] ="BITPIX  =                  -32 / Bits per pixel                                 "; //But the extra 1bytes is
+   char line3[81] ="NAXIS   =                    2 / Number of axes                                 "; //used for '\0'.
    char line4[81] ="NAXIS1  =                    X / Axis length                                    ";
    char line5[81] ="NAXIS2  =                    Y / Axis length                                    ";
    char line6[81] ="EXTEND  =                    F / File may contain extensions                    ";

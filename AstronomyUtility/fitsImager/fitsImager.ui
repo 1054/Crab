@@ -240,7 +240,8 @@
       <widget class="QLabel" name="label">
        <property name="font">
         <font>
-         <pointsize>10</pointsize>
+         <family>Cantarell</family>
+         <pointsize>12</pointsize>
         </font>
        </property>
        <property name="autoFillBackground">
@@ -337,7 +338,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="FFTButton">
+      <widget class="QPushButton" name="FuncButton">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
          <horstretch>0</horstretch>
