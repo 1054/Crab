@@ -5,6 +5,7 @@
      g++ -pthread main.cpp -o michi2_v02_201509
      g++ -pthread main.cpp -o michi2_v02_201509_DL07
      clang++ -std=c++11 -pthread main.cpp -o michi2_v03_201607
+     clang++ -std=c++11 -pthread main.cpp -o michi2_v03_20160727
  deploy:
      \cp a.out ../../06_LVG_Synthesis/03_Minimize_Chi2/michi2_v03
  test: 

@@ -163,7 +163,7 @@ void michi2MinPack::fit(int Input_debug)
     double *wa = new double[lwa];  // for internal use
     int *iwa = new int[n];         // for internal use
     //
-    lmdif1_( michi2MinPack_func, &m, &n, x, fvec, &ftol, &info, iwa, wa, &lwa);
+    lmdif1_( michi2MinPack_func, &m, &n, x, fvec, &ftol, &info, iwa, wa, &lwa );
     for(int i=0; i<m; i++) { chisq[i] = fvec[i]*fvec[i]; }
     //
     // save to class
@@ -176,6 +176,7 @@ void michi2MinPack::fit(int Input_debug)
     delete[] fvec;
     // 
     // print on screen
+    double sumchisq = 0.0;
     int debug = Input_debug;
     if(debug) {
         std::cout << "michi2MinPack:" << setw(15) << "fOBS" << setw(15) << "eOBS" << setw(15) << "fLIB1" << setw(15) << "fLIB2" << setw(15) << "fLIB3" << setw(15) << "fDIFF" << setw(15) << "chi^2" << std::endl;
@@ -187,7 +188,7 @@ void michi2MinPack::fit(int Input_debug)
         std::cout << "michi2MinPack:" << " ncount=" << michi2MinPack_ncount << " info=" << info;
         std::cout << " n=" << n; for(int i=0; i<n; i++) { std::cout << " a[" << i << "]=" << aCOE[i]; }
         std::cout << " m=" << m; // for(int i=0; i<n; i++) { std::cout << " x[" << i << "]=" << x[i]; }
-        double sumchisq = 0.0;   for(int i=0; i<m; i++) { sumchisq+=chisq[i]; }
+        for(int i=0; i<m; i++) { sumchisq+=chisq[i]; }
         std::cout << " sumchi2=" << sumchisq << std::endl;
     }
     //
@@ -195,6 +196,14 @@ void michi2MinPack::fit(int Input_debug)
     switch (info) {
         case 0:
             std::cout << "michi2MinPack::fit() improper input parameters!" << std::endl;
+            std::cout << "michi2MinPack:" << setw(15) << "fOBS" << setw(15) << "eOBS" << setw(15) << "fLIB1" << setw(15) << "fLIB2" << setw(15) << "fLIB3" << setw(15) << "fDIFF" << setw(15) << "chi^2" << std::endl;
+            for(int i=0; i<m; i++) {
+                std::cout << setw(14) << " " << setw(15) << fOBS[i] << setw(15) << eOBS[i] << setw(15) << fLIB[0][i] << setw(15) << fLIB[1][i] << setw(15) << fLIB[2][i] << setw(15) << fOBS[i]-fLIB[0][i]*aCOE[0]-fLIB[1][i]*aCOE[1]-fLIB[2][i]*aCOE[2] << setw(15) << chi2[i] << "   + " << std::endl ; // m3chi2
+            }
+            std::cout << "michi2MinPack:" << " ncount=" << michi2MinPack_ncount << " info=" << info;
+            std::cout << " n=" << n; for(int i=0; i<n; i++) { std::cout << " a[" << i << "]=" << aCOE[i]; }
+            std::cout << " m=" << m; // for(int i=0; i<n; i++) { std::cout << " x[" << i << "]=" << x[i]; }
+            std::cout << " sumchi2=" << sumchisq << std::endl;
             break;
         case 1:
             // std::cout << "michi2MinPack::fit() algorithm estimates that the relative error in the sum of squares is at most tol." << std::endl;

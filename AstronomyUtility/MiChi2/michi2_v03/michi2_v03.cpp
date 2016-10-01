@@ -1054,8 +1054,9 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
             tmpstr.str(""); tmpstr << "i" << iLib+1; SDOUT << std::setw(10) << tmpstr.str();
             tmpstr.str(""); tmpstr << "a" << iLib+1; SDOUT << std::setw(15) << tmpstr.str();
         }
-        for(long iLib=0; iLib<InputLibList.size(); iLib++) {
-            michi2DataClass *SDLIB = SDLIBList.at(i);
+        for(long iLib=0; iLib<SDLIBList.size(); iLib++) {
+            //michi2DataClass *SDLIB = SDLIBList.at(i); //<BUG><fixed><20160727><dzliu>
+            michi2DataClass *SDLIB = SDLIBList.at(iLib);
             for(long iLibPar=0; iLibPar<SDLIB->TPAR.size(); iLibPar++) {
                 SDOUT << std::setw(15) << SDLIB->TPAR[iLibPar]; // write each title of parameter to be fit in each LIB file
             }
@@ -1346,7 +1347,7 @@ void *mnchi2parallel(void *params)
             //
             michi2MinPack *MPACK = new michi2MinPack(fLIB,fOBS,eOBS);
             //
-            // check parameter and output results to stream
+            // check parameter and write output results to stream
             double chi2 = 0.0; for(int j=0;j<MPACK->chi2.size();j++) {chi2+=MPACK->chi2[j];}
             std::stringstream pStream;
             pStream << std::setw(8) << pParams->i << std::setw(15) << chi2;

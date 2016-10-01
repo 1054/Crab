@@ -4,7 +4,8 @@
  Please compile like this:
 
      clang++ CrabFitsIO.cpp pdbi-lmv-to-fits.cpp -o pdbi-lmv-to-fits
-     clang++ -std=c++11 CrabFitsIO.cpp pdbi-lmv-to-fits.cpp -o pdbi-lmv-to-fits-linux-x86-64
+     clang++ CrabFitsIO.cpp pdbi-lmv-to-fits.cpp -o pdbi-lmv-to-fits-linux-x86-64
+     cp pdbi-lmv-to-fits-linux-x86-64 /home/dzliu/Cloud/Github/Crab.Toolkit.PdBI/bin/bin_linux/pdbi-lmv-to-fits_linux_x86_64
  
  
  Last update:
@@ -14,6 +15,10 @@
          add argument -image to allow user to define image nx ny size e.g. 1024 1024
          fixed CDELT1 not negative bug
      2016-07-04 auto determine header size
+     2016-07-22 <TODO><20160722>
+     2016-07-28 //<20160728>//for compatible with old glib 2.12
+     2016-08-04 //<20160804>//do not check dblCRPIX3
+     2016-08-04 //<20160804>//for pdbi *.beam file
  
  */
 
@@ -41,7 +46,7 @@ bool isFloat(string s) { // http://stackoverflow.com/questions/447206/c-isfloat-
 template <typename T>
 
 const char *mesprintf(const char *strFormat, T dblVar) {
-    int intlength = snprintf(nullptr, 0, strFormat, dblVar);
+    int intlength = snprintf(NULL, 0, strFormat, dblVar);
     // printf("\nmesprintf: format = %s intlength = %d value = %g\n", strFormat, intlength, dblVar);
     char *stroutput = new char[intlength+1];
     memset(stroutput, 0x0, intlength+1);
@@ -66,10 +71,10 @@ int main(int argc, char **argv)
     int Verbose = 3; // <TODO> Verbose
     std::string strInputMap;
     std::string strOutputMap;
-    std::string strPointingRA;
-    std::string strPointingDec;
-    std::string strPixScaleX;
-    std::string strPixScaleY;
+    std::string strPointingRA; // in degree
+    std::string strPointingDec; // in degree
+    std::string strPixScaleX; // in degree
+    std::string strPixScaleY; // in degree
     int         intHeaderType = 1; // lonHeaderBytes = 512*intHeaderType
     int         intStokesNumb = 1;
     uint64_t    lonHeaderBytes = 0;
@@ -143,12 +148,14 @@ int main(int argc, char **argv)
                     return -1;
                 }
                 double PixScaleVar = strtod(argv[i+1],NULL);
-                ostringstream PixScaleBuf; PixScaleBuf << (-PixScaleVar/3600.0);
+                ostringstream PixScaleBuf; PixScaleBuf << (PixScaleVar/3600.0); //PixScaleBuf << (-PixScaleVar/3600.0);
                 strPixScaleX = PixScaleBuf.str();
-                PixScaleBuf.str(""); PixScaleBuf.clear(); PixScaleBuf << (PixScaleVar/3600.0);
+                //PixScaleBuf.str(""); PixScaleBuf.clear(); PixScaleBuf << (PixScaleVar/3600.0);
                 strPixScaleY = PixScaleBuf.str();
-                dblPixScaleX = std::stod(strPixScaleX);
-                dblPixScaleY = std::stod(strPixScaleY);
+                dblPixScaleX = -strtod(strPixScaleX.c_str(), NULL);//<20160728>//for compatible with old glib 2.12
+                dblPixScaleY = strtod(strPixScaleY.c_str(), NULL);//<20160728>//for compatible with old glib 2.12
+                //<20160728>//dblPixScaleX = -std::stod(strPixScaleX);//<20160728>//for compatible with old glib 2.12
+                //<20160728>//dblPixScaleY = std::stod(strPixScaleY);//<20160728>//for compatible with old glib 2.12
                 i++; 
             }
         } else if( (0==strcasecmp(argv[i],"-cdelt")) ||
@@ -163,8 +170,10 @@ int main(int argc, char **argv)
                     std::cout << "Error! CDELT x y invalid! Please set it like this: -cdelt -5E-4 1E-4 " << std::endl;
                     return -1;
                 }
-                dblPixScaleX = std::stod(strPixScaleX);
-                dblPixScaleY = std::stod(strPixScaleY);
+                dblPixScaleX = strtod(strPixScaleX.c_str(), NULL);//<20160728>//for compatible with old glib 2.12
+                dblPixScaleY = strtod(strPixScaleY.c_str(), NULL);//<20160728>//for compatible with old glib 2.12
+                //<20160728>//dblPixScaleX = std::stod(strPixScaleX);//<20160728>//for compatible with old glib 2.12
+                //<20160728>//dblPixScaleY = std::stod(strPixScaleY);//<20160728>//for compatible with old glib 2.12
                 i++; i++;
             }
         } else if( (0==strcasecmp(argv[i],"-header")) ||
@@ -239,7 +248,7 @@ int main(int argc, char **argv)
         // prepare variables
         std::ifstream fp;
         std::vector<float> fd;
-        std::vector<std::vector<float>> fcube;
+        std::vector<std::vector<float> > fcube;
         char  *strHeader = NULL;
         float *fltVarPtr = NULL;
         long  *lonVarPtr = NULL;
@@ -335,8 +344,13 @@ int main(int argc, char **argv)
                 if(Verbose>=1) {
                     std::cout << "Checking NAXIS1 NAXIS2 NAXIS3 " << lonNAXIS1 << " " << lonNAXIS2 << " " << lonNAXIS3 << std::endl;
                 }
-                if(lonNAXIS1<=0 || lonNAXIS2<=0 || lonNAXIS3<=0) {
-                    std::cout << "Error! NAXIS1 NAXIS2 NAXIS3 are not given or determined! " << std::endl;
+                // Check valid NAXIS value
+                //<20160804>// if(lonNAXIS1<=0 || lonNAXIS2<=0 || lonNAXIS3<=0) {
+                //<20160804>//     std::cout << "Error! NAXIS1 NAXIS2 NAXIS3 are not given or determined! " << std::endl;
+                //<20160804>//     return -1;
+                //<20160804>// }
+                if(lonNAXIS1<=0 || lonNAXIS2<=0) {
+                    std::cout << "Error! NAXIS1 NAXIS2 are negative values! This should not happen? Exit! " << std::endl;
                     return -1;
                 }
             }
@@ -348,7 +362,7 @@ int main(int argc, char **argv)
                 if(1==intHeaderType) {
                     strVarPtr = strHeader+0x40; // <NOTE> different from UV table data (strHeader+0x40)
                 } else {
-                    strVarPtr = strHeader+0xA8+3*8; // <NOTE> different from UV table data (strHeader+0xA8)
+                    strVarPtr = strHeader+0xA8; // <NOTE> different from UV table data (strHeader+0xA8) // <TODO><20160722> some need to +3*8
                 }
                 memcpy(&dblCRPIX1,strVarPtr,8); strVarPtr+=8;
                 memcpy(&dblCRVAL1,strVarPtr,8); strVarPtr+=8;
@@ -360,17 +374,67 @@ int main(int argc, char **argv)
                 memcpy(&dblCRVAL3,strVarPtr,8); strVarPtr+=8;
                 memcpy(&dblCDELT3,strVarPtr,8); strVarPtr+=8;
                 if(Verbose>=1) {
-                    std::cout << "Checking CRPIX1 CRVAL1 CDELT1 " << dblCRPIX1 << " " << dblCRVAL1 << " " << dblCDELT1 << " " << std::endl;
-                    std::cout << "Checking CRPIX2 CRVAL2 CDELT2 " << dblCRPIX2 << " " << dblCRVAL2 << " " << dblCDELT2 << " " << std::endl;
+                    std::cout << "Checking CRPIX1 CRVAL1 CDELT1 " << dblCRPIX1 << " " << dblCRVAL1 << " " << dblCDELT1/3.141592653589793*180.0 << " " << std::endl;
+                    std::cout << "Checking CRPIX2 CRVAL2 CDELT2 " << dblCRPIX2 << " " << dblCRVAL2 << " " << dblCDELT2/3.141592653589793*180.0 << " " << std::endl;
                     std::cout << "Checking CRPIX3 CRVAL3 CDELT3 " << dblCRPIX3 << " " << dblCRVAL3 << " " << dblCDELT3 << " " << std::endl;
                 }
-                if(dblCRPIX1<=0 || dblCRPIX2<=0 || dblCRPIX3<=0) {
-                    std::cout << "Error! CRPIX1 CRPIX2 CRPIX3 are not given or determined! " << std::endl;
+                // Check valid pixel value
+                //<20160804>// if(dblCRPIX1<=0 || dblCRPIX2<=0 || dblCRPIX3<=0) {
+                //<20160804>//     std::cout << "Error! CRPIX1 CRPIX2 CRPIX3 are not given or determined! " << std::endl;
+                //<20160804>//     return -1;
+                //<20160804>// }
+                if(dblCRPIX1<=0 || dblCRPIX2<=0 ) { //<20160804>// do not check dblCRPIX3
+                    std::cout << "Error! CRPIX1 CRPIX2 are negative values! This should not happen? Exit! " << std::endl;
                     return -1;
                 }
-                // Further convert to pixel size
-                strPixScaleX = mesprintf("%g", dblCDELT1*3600.0);
-                strPixScaleY = mesprintf("%g", dblCDELT2*3600.0);
+                // Further convert to string type
+                if( (dblPixScaleX<-1e-30||dblPixScaleX>1e-30) && (dblPixScaleY<-1e-30||dblPixScaleY>1e-30) ) { // check non-zero
+                    strPixScaleX = mesprintf("%g", dblPixScaleX);
+                    strPixScaleY = mesprintf("%g", dblPixScaleY);
+                } else {
+                    strPixScaleX = mesprintf("%g", dblCDELT1/3.141592653589793*180.0); // <TODO><20160722> the minus sign? GILDAS always gives positive CDELT1? // <20160728> convert from GILDAS radian to degree.
+                    strPixScaleY = mesprintf("%g", dblCDELT2/3.141592653589793*180.0); // <20160728> convert from GILDAS radian to degree.
+                }
+
+                // <Added><20160728> double check to deal with the "<TODO><20160722> some need to +3*8" problem
+                if(dblCRPIX1<1 || dblCRPIX2<1) {
+                    //
+                    strVarPtr = strVarPtr-9*8; // <Added><20160728> rewind and shift 3*8 bits and read again
+                    strVarPtr = strVarPtr+3*8; // <Added><20160728> double check to deal with the "<TODO><20160722> some need to +3*8" problem
+                    //
+                    memcpy(&dblCRPIX1,strVarPtr,8); strVarPtr+=8;
+                    memcpy(&dblCRVAL1,strVarPtr,8); strVarPtr+=8;
+                    memcpy(&dblCDELT1,strVarPtr,8); strVarPtr+=8;
+                    memcpy(&dblCRPIX2,strVarPtr,8); strVarPtr+=8;
+                    memcpy(&dblCRVAL2,strVarPtr,8); strVarPtr+=8;
+                    memcpy(&dblCDELT2,strVarPtr,8); strVarPtr+=8;
+                    memcpy(&dblCRPIX3,strVarPtr,8); strVarPtr+=8;
+                    memcpy(&dblCRVAL3,strVarPtr,8); strVarPtr+=8;
+                    memcpy(&dblCDELT3,strVarPtr,8); strVarPtr+=8;
+                    if(Verbose>=1) {
+                        std::cout << "Checking CRPIX1 CRVAL1 CDELT1 " << dblCRPIX1 << " " << dblCRVAL1 << " " << dblCDELT1/3.141592653589793*180.0 << " " << std::endl;
+                        std::cout << "Checking CRPIX2 CRVAL2 CDELT2 " << dblCRPIX2 << " " << dblCRVAL2 << " " << dblCDELT2/3.141592653589793*180.0 << " " << std::endl;
+                        std::cout << "Checking CRPIX3 CRVAL3 CDELT3 " << dblCRPIX3 << " " << dblCRVAL3 << " " << dblCDELT3 << " " << std::endl;
+                    }
+                    // Check valid pixel value
+                    //<20160804>// if(dblCRPIX1<=0 || dblCRPIX2<=0 || dblCRPIX3<=0) {
+                    //<20160804>//     std::cout << "Error! CRPIX1 CRPIX2 CRPIX3 are not given or determined! " << std::endl;
+                    //<20160804>//     return -1;
+                    //<20160804>// }
+                    if(dblCRPIX1<=0 || dblCRPIX2<=0) {
+                        std::cout << "Error! CRPIX1 CRPIX2 are negative values! This should not happen? Exit! " << std::endl;
+                        return -1;
+                    }
+                    // Further convert to string type
+                    if( (dblPixScaleX<-1e-30||dblPixScaleX>1e-30) && (dblPixScaleY<-1e-30||dblPixScaleY>1e-30) ) { // check non-zero
+                        strPixScaleX = mesprintf("%g", dblPixScaleX);
+                        strPixScaleY = mesprintf("%g", dblPixScaleY);
+                    } else {
+                        strPixScaleX = mesprintf("%g", dblCDELT1/3.141592653589793*180.0); // <TODO><20160722> the minus sign? GILDAS always gives positive CDELT1? // <20160728> convert from GILDAS radian to degree.
+                        strPixScaleY = mesprintf("%g", dblCDELT2/3.141592653589793*180.0); // <20160728> convert from GILDAS radian to degree.
+                    }
+                }
+
             }
             //
             // Check Stokes
@@ -426,6 +490,20 @@ int main(int argc, char **argv)
             //
             //
             // return 0;
+            //
+            //
+            //<20160804>// for pdbi *.beam file
+            if(lonNAXIS3<=0) {
+                lonNAXIS3 = 1; //<20160804>// for pdbi *.beam file
+                dblCRPIX3 = 1.0;
+                dblCDELT3 = 1.0;
+                dblCRVAL3 = 0.0;
+                dblRestFrequency = 0.0;
+                dblOffsFrequency = 0.0;
+                dblResoFrequency = 0.0;
+                strPointingRA = "0.0";
+                strPointingDec = "0.0";
+            }
             //
             //
             //

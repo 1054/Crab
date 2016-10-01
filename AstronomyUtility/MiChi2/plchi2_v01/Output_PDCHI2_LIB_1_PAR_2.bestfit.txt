@@ -1,0 +1,11 @@
+# Current Time 2016-07-16 20:59:56 UTC+0
+# 
+ILIB = 1
+TLIB = "example/lib.lvg"
+IPAR = 2
+TPAR = "log n_{H_2}"
+Min  = 3.7900000
+Max  = 5.0000000
+Mean = 4.3283333
+Median = 4.4000000
+Error = 0.60500000
