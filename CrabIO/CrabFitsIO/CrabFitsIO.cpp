@@ -53,6 +53,7 @@ int readFitsHeader(const char *FilePath, char **HeaderText)
 
 int readFitsHeader(const char *FilePath, int xtension, char **HeaderText, long *HeaderPosition, long *HeaderSize)
 {
+    int debugflag=0; //set to 1 to debug
     int errorcode=0;
     int isHeader=0;    //whether this line is simple text (header).
     int isEnded=0;     //whether this header section has ended.
@@ -98,6 +99,9 @@ int readFitsHeader(const char *FilePath, int xtension, char **HeaderText, long *
                 break;
             xtensionPosition=currentPosition-80;
             isEnded=0;
+            if(debugflag>0) {
+                printf("readFitsHeader: debug: found extension %ld at position %ld.\n", xtensionSection, xtensionPosition);
+            }
         }
         else if(isENDmark(baLine)) //if it's END mark, then close the section.
         {
@@ -115,6 +119,9 @@ int readFitsHeader(const char *FilePath, int xtension, char **HeaderText, long *
             {
                 isHeader=1;
                 xtensionSize+=80;
+                if(debugflag>0) {
+                    printf("readFitsHeader: debug: reading extension %ld at position %ld.\n", xtensionSection, xtensionPosition+xtensionSize);
+                }
             }
             else         //after END mark.
             {
@@ -1953,6 +1960,7 @@ int writeFitsFS(float *data, int DataWidth, int DataHeight, const char *strFileP
     int flag=0,m=0;
     FILE *fp;
     char *header;
+    char *generateFitsHeaderFS(int DataWidth, int DataHeight);
     char *dp;
 
     fp=fopen(strFilePath,"wb"); //TODO: support Chinese Path?
@@ -1990,8 +1998,8 @@ int writeFitsDS(double *data, int DataWidth, int DataHeight, const char *strFile
     int errorcode = 0;
     int flag=0,m=0;
     FILE *fp;
-    const char *header;
-    const char *generateFitsHeaderDS(int DataWidth, int DataHeight);
+    char *header;
+    char *generateFitsHeaderDS(int DataWidth, int DataHeight);
     char *dp;
 
     fp=fopen(strFilePath,"wb"); //TODO: support Chinese Path?
@@ -2110,7 +2118,7 @@ char *generateFitsHeaderFS(int DataWidth, int DataHeight)
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*generateFitsHeader double(-64bits) Simplest(contains no RA,Dec info).*/
-const char *generateFitsHeaderDS(int DataWidth, int DataHeight)
+char *generateFitsHeaderDS(int DataWidth, int DataHeight)
 {
    int   i=0,j=0,m=0,temp1=0,temp2=0,nnX=998,nnY=1006;
    char line1[81] ="SIMPLE  =                    T / Fits standard                                  "; //actually it's 80 bytes.
@@ -2124,7 +2132,7 @@ const char *generateFitsHeaderDS(int DataWidth, int DataHeight)
    char chrnnX[7];
    char chrnnY[7];
    char *header=NULL;
-   const char *header2;
+   // const char *header2;
 
    nnX = DataWidth;
    nnY = DataHeight;
@@ -2151,7 +2159,7 @@ const char *generateFitsHeaderDS(int DataWidth, int DataHeight)
    for(m=6*80;m<35*80 ;m++,i++) header[m]=0x20;
    for(m=35*80,i=0;i<80;m++,i++) header[m]=line36[i];
 
-   header2 = (const char *)header;
+   // header2 = (const char *)header;
 
-   return header2;
+   return header;
 }

@@ -396,42 +396,46 @@ plotChisqInnerRoutine
         if(is_vector(LTIR_Cold)) {set LTIR = LTIR_Cold}
         if(is_vector(LTIR_Warm)) {set LTIR = LTIR_Warm}
         if(is_vector(LTIR_Warm) && is_vector(LTIR_Cold)) {set LTIR = LTIR_Warm + LTIR_Cold}
-        set SPIwRadio = SPIwc
-        ### set SPIfRadio = lg( LTIR/dL**2/1.1624 / 10**2.5 / 1e3 * (2.99792458e5/10**SPIwRadio)**(-0.45) )
-        set SPIfRadio = lg( LTIR/dL**2/1.1624 / 10**2.4 / 1e3 * (2.99792458e5/10**SPIwRadio)**(-0.80) ) # arxiv.org/pdf/1005.1072
-        ### echo $((Ltir3+Ltir4)) Lsun
-        ### echo $((Ltir3+Ltir4)/dL**2/1.1624 / 10**2.4) uJy
-        ### echo $((Ltir3+Ltir4)/dL**2/1.1624 / 10**2.4 / 1e3) mJy
-        # 
-        # add Radio to combined SED
-        # 
-        set fc = lg(10**fc+10**SPIfRadio)
-        # 
-        # <added> 
-        # recompute radio chi2
-        # 
-        if(1==1) {
-            macro read rShift.sm rShift_read_flux_obsframe $(FileObs)
-            set go_radio = (abs(w0-2e5)<0.1*2e5)
-            if(sum(go_radio)>0) {
-                set w0_radio = w0 if(go_radio)
-                set f0_radio = f0 if(go_radio)
-                set df_radio = df if(go_radio)
-                set LOGw0_radio = (lg(w0_radio))
-                spline wc fc LOGw0_radio SEDf0_radio
-                set SEDf0_radio = 10**SEDf0_radio
-                set CHIf0_radio = ((f0_radio-SEDf0_radio)/df_radio) # this is chi not chi-square
-                # now we do quadratic sum
-                set radio_chi2 = sum(CHIf0_radio**2)
-                set original_chi2 = chi2[$i]
-                set recomputed_chi2 = original_chi2 + radio_chi2
-                set chi2[$i] = recomputed_chi2
-                ## print '\n' {}
-                ## print {w0_radio f0_radio df_radio SEDf0_radio original_chi2 radio_chi2 recomputed_chi2}
-            } else {
-                set original_chi2 = chi2[$i]
-                set recomputed_chi2 = original_chi2
+        if(is_vector(LTIR)) {
+            
+            set SPIwRadio = SPIwc
+            ### set SPIfRadio = lg( LTIR/dL**2/1.1624 / 10**2.5 / 1e3 * (2.99792458e5/10**SPIwRadio)**(-0.45) )
+            set SPIfRadio = lg( LTIR/dL**2/1.1624 / 10**2.4 / 1e3 * (2.99792458e5/10**SPIwRadio)**(-0.80) ) # arxiv.org/pdf/1005.1072
+            ### echo $((Ltir3+Ltir4)) Lsun
+            ### echo $((Ltir3+Ltir4)/dL**2/1.1624 / 10**2.4) uJy
+            ### echo $((Ltir3+Ltir4)/dL**2/1.1624 / 10**2.4 / 1e3) mJy
+            # 
+            # add Radio to combined SED
+            # 
+            set fc = lg(10**fc+10**SPIfRadio)
+            # 
+            # <added> 
+            # recompute radio chi2
+            # 
+            if(1==1) {
+                macro read rShift.sm rShift_read_flux_obsframe $(FileObs)
+                set go_radio = (abs(w0-2e5)<0.1*2e5)
+                if(sum(go_radio)>0) {
+                    set w0_radio = w0 if(go_radio)
+                    set f0_radio = f0 if(go_radio)
+                    set df_radio = df if(go_radio)
+                    set LOGw0_radio = (lg(w0_radio))
+                    spline wc fc LOGw0_radio SEDf0_radio
+                    set SEDf0_radio = 10**SEDf0_radio
+                    set CHIf0_radio = ((f0_radio-SEDf0_radio)/df_radio) # this is chi not chi-square
+                    # now we do quadratic sum
+                    set radio_chi2 = sum(CHIf0_radio**2)
+                    set original_chi2 = chi2[$i]
+                    set recomputed_chi2 = original_chi2 + radio_chi2
+                    set chi2[$i] = recomputed_chi2
+                    ## print '\n' {}
+                    ## print {w0_radio f0_radio df_radio SEDf0_radio original_chi2 radio_chi2 recomputed_chi2}
+                } else {
+                    set original_chi2 = chi2[$i]
+                    set recomputed_chi2 = original_chi2
+                }
             }
+            
         }
         # 
         # ------------------------------------------------------------------------------------
@@ -450,7 +454,11 @@ plotChisqInnerRoutine
                 set FileFit = {"bestfit_wave_flux.dat"}
                 set bestfit_w = 10**wc
                 set bestfit_f = 10**fc
-                print $(FileFit) '%15g%15g%15g%15g%15g%15g%15g%15g\n' {bestfit_w bestfit_f wc fc SPIw1 SPIf1 SPIw2 SPIf2}
+                if(is_vector(SPIw2) && is_vector(SPIf2)) {
+                    print $(FileFit) '%15g%15g%15g%15g%15g%15g%15g%15g\n' {bestfit_w bestfit_f wc fc SPIw1 SPIf1 SPIw2 SPIf2}
+                } else {
+                    print $(FileFit) '%15g%15g%15g%15g%15g%15g\n' {bestfit_w bestfit_f wc fc SPIw1 SPIf1}
+                }
                 
                 set FileFit = {"bestfit_wave_flux_chi2.dat"}
                 macro read rShift.sm rShift_read_flux_obsframe $(FileObs)
@@ -636,10 +644,10 @@ plotChisqInnerRoutine
                                                   #  ctype red  label " qPAH="$(sprintf('%04.2f',(qPAH_Warm))) 
             if(is_vector(Mdust_Warm)){               ctype red  label " lgM_d="$(sprintf('%05.2f',(lg(Mdust_Warm)))) }
             if(is_vector(LTIR_Warm)){                ctype red  label " lgL_{IR}="$(sprintf('%05.2f',(lg(LTIR_Warm)))) }
-                                                     ctype blue label " U_{min}="$(sprintf('%04.1f',(Umin_Cold)))
+            if(is_vector(Umin_Cold)){                ctype blue label " U_{min}="$(sprintf('%04.1f',(Umin_Cold))) }
                                                   #  ctype blue label " qPAH="$(sprintf('%04.2f',(qPAH_Cold)))
-                                                     ctype blue label " lgM_d="$(sprintf('%05.2f',(lg(Mdust_Cold))))
-                                                     ctype blue label " lgL_{IR}="$(sprintf('%05.2f',(lg(LTIR_Cold))))
+            if(is_vector(Mdust_Cold)){               ctype blue label " lgM_d="$(sprintf('%05.2f',(lg(Mdust_Cold)))) }
+            if(is_vector(LTIR_Cold)){                ctype blue label " lgL_{IR}="$(sprintf('%05.2f',(lg(LTIR_Cold)))) }
             # 
             # plot best fit model component types
             # 

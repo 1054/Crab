@@ -7,10 +7,13 @@
  Last update:
      
      2014-12-30
+     
+     2016-10-29 add "-ext" argument
  
  */
 
 #include <stdio.h>
+#include <stdlib.h> /* atoi */
 #include <string.h>
 #include <iostream>
 #include <iomanip>
@@ -29,6 +32,17 @@ int main(int argc, char **argv)
         std::cout << argv[i] << std::endl;
     }
     **/
+    char *cstrFilePath = NULL; char *cstrExtNumber = (char *)"-1";
+    
+    for(int i=1; i<argc; i++) {
+        if(strncmp(argv[i],"-ext",4)==0 && i<argc-1) {
+            i++; cstrExtNumber = argv[i]; continue;
+        }
+        if(cstrFilePath==NULL && i<=argc-1) { 
+            cstrFilePath = argv[i]; continue; 
+        }
+    }
+    
     if(argc>1)
     {
         // <DEBUG>
@@ -36,9 +50,10 @@ int main(int argc, char **argv)
         // std::cout << (aaa==0) << std::endl << (aaa==NULL) << std::endl;
         // return 0;
         //
-        int extNumber = 0;
-        const char *cstrHeader = readFitsHeader(argv[1],extNumber);
-        while(cstrHeader!=0) {
+        int extNumber = atoi(cstrExtNumber);
+        const char *cstrHeader = readFitsHeader(cstrFilePath,extNumber);
+        // if no "-ext" argument then we read all extensions
+        while(cstrHeader!=NULL) {
             std::string sstrHeader(cstrHeader);
             for(int i=0; i<strlen(cstrHeader); i+=80) { //
                 std::string subHeader = sstrHeader.substr(i,80);
@@ -49,7 +64,12 @@ int main(int argc, char **argv)
                 }
             }
             std::cout << std::endl;
-            extNumber++; cstrHeader = readFitsHeader(argv[1],extNumber);
+            if(-1==atoi(cstrExtNumber)) {
+                if(-1==extNumber) {extNumber++;}
+                extNumber++; cstrHeader = readFitsHeader(cstrFilePath,extNumber);
+            } else {
+                cstrHeader = NULL;
+            }
         }
     } else {
         std::cout << "CrabFitsHeader 1.fits" << std::endl;
