@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <clocale> // <20160725><dzliu> added <clocale> for mac.
 #include "CrabStringClean.cpp"
 #include "CrabStringUnicode.cpp"
 #include "CrabStringFindWholeWord.cpp"

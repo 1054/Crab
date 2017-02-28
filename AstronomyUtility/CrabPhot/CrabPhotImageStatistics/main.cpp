@@ -7,6 +7,7 @@
  Please compile like this:
  
      clang++ -std=c++11 main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotImageStatistics_linux_x86_64
+     g++-mp-5 -I/usr/include/malloc/ -std=c++11 main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotImageStatistics_mac # 2017-02-20 00:40:00 CET
  
  Initialized:
      

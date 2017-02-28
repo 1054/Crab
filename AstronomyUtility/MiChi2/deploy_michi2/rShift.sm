@@ -24,6 +24,23 @@ redShift_maskout_LowSNR 02
     if($?1==0){print 'Usage: redShift 1.325 --> convert "flux_obsframe.dat" to "flux_restframe.dat"\n' {}}
     if($?2==0){define redShift_fmark "."} else {define redShift_fmark "_"$2"."}
     rShift_read_flux_obsframe
+    set coosnr = (f >= 3.0 * df)
+    set z = float($1)
+    set wave = wave / (1.0+z) if(coosnr) 
+    set f    =    f           if(coosnr) # flux is mJy, 1e-26 erg s-1 cm-2 Hz-1
+    set df   =   df           if(coosnr)    
+    rShift_write_flux_restframe
+
+redShift_maskout_LowSNR_25 02
+    # 
+    # redshift the ir sed from obsframe to restframe
+    # because the sed library is restframe
+    # 
+    # macro read rShift.sm redShift_maskout_LowSNR_25 3.06357
+    # 
+    if($?1==0){print 'Usage: redShift 1.325 --> convert "flux_obsframe.dat" to "flux_restframe.dat"\n' {}}
+    if($?2==0){define redShift_fmark "."} else {define redShift_fmark "_"$2"."}
+    rShift_read_flux_obsframe
     set coosnr = (f > 2.5 * df)
     set z = float($1)
     set wave = wave / (1.0+z) if(coosnr) 

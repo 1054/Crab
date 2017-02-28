@@ -1,4 +1,4 @@
-plotChisq 07
+plotChisq 09
     # 
     # Usage: 
     #    macro read pChisq.sm plotChisq "flux.dat" "lib1.SED" "fit.out"
@@ -17,7 +17,7 @@ plotChisq 07
     # Check Input
     # 
     do i=1,1 {if(is_vector(FileObs)) {unset FileObs}}
-    do i=1,4 {if(is_vector(FileLi$i)) {unset FileLi$i}}
+    do i=1,6 {if(is_vector(FileLi$i)) {unset FileLi$i}}
     if($?1==0) {print 'Usage: plotChisq \"flux.dat\" \"lib1.SED\" [\"lib2.SED\" [\"lib3.SED\" [\"lib4.SED\"]]] \"fit.out\"\n\n' {} return}
     if($?2==0) {print 'Usage: plotChisq \"flux.dat\" \"lib1.SED\" [\"lib2.SED\" [\"lib3.SED\" [\"lib4.SED\"]]] \"fit.out\"\n\n' {} return}
     if($?3==0) {print 'Usage: plotChisq \"flux.dat\" \"lib1.SED\" [\"lib2.SED\" [\"lib3.SED\" [\"lib4.SED\"]]] \"fit.out\"\n\n' {} return}
@@ -25,6 +25,8 @@ plotChisq 07
     if($?4==1) {set FileLi1 = <"$2"> set FileLi2 = <"$3"> set NumbLib = 2}
     if($?5==1) {set FileLi1 = <"$2"> set FileLi2 = <"$3"> set FileLi3 = <"$4"> set NumbLib = 3}
     if($?6==1) {set FileLi1 = <"$2"> set FileLi2 = <"$3"> set FileLi3 = <"$4"> set FileLi4 = <"$5"> set NumbLib = 4}
+    if($?7==1) {set FileLi1 = <"$2"> set FileLi2 = <"$3"> set FileLi3 = <"$4"> set FileLi4 = <"$5"> set FileLi5 = <"$6"> set NumbLib = 5}
+    if($?8==1) {set FileLi1 = <"$2"> set FileLi2 = <"$3"> set FileLi3 = <"$4"> set FileLi4 = <"$5"> set FileLi5 = <"$6"> FileLi6 = <"$7"> set NumbLib = 6}
                 set FileObs = <"$1"> set FileOut = <"$$(NumbLib+2)"> set FileOK = 0
     if(FileOK==0 && $verbose>0) {print 'Welcome!\nReading input files ... \n' {}}
     !rm .FileObs .FileLi? .FileOut 2>/dev/null
@@ -124,6 +126,7 @@ plotChisq 07
         if(index(FileLi$iLib,'FSPS.')>=0) {set NPARLib$iLib = 4} # BC03 stellar -- Metal, Age, Mass, EBV
         if(index(FileLi$iLib,'AGN.')>=0)  {set NPARLib$iLib = 1} # Mullaney AGN -- Type
         if(index(FileLi$iLib,'DL07.')>=0) {set NPARLib$iLib = 2} # DL07 dust -- Umin, qPAH
+        if(index(FileLi$iLib,'RadioPowerlaw.')>=0) {set NPARLib$iLib = 1} # RadioPowerlaw -- powerlaw_index
         if(NPARLib$iLib==0) {print 'Error! Could not recognize \"$(FileLi$iLib)\"! Please contact dzliu to modify the code!\n' {}}
         define pChisq_PreVerbose $verbose verbose 0
         set iCol = iCol+1 data $(FileOut) read i$iLib $(iCol)
@@ -145,7 +148,8 @@ plotChisq 07
                 return
             }
         }
-        #[20160502]set gCoo = (gCoo && a$iLib>0.0)
+        #[20160502]
+        set gCoo = (gCoo && a$iLib>=0.0)
     }
     # 
     # 
@@ -162,7 +166,12 @@ plotChisq 07
         set srchi2 = chi2 set sruuid = 0,dimen(chi2)-1 
         set srgcoo = gCoo
         sort {srchi2 sruuid srgcoo}
-        set cid = sruuid if(srgcoo) # <fixed><bug><20150414> # <TODO> choose only goodSolution (a1>0 && a2>0)
+        #set cid = sruuid if(srgcoo) # <fixed><bug><20150414> # <TODO> choose only goodSolution (a1>0 && a2>0)
+        set cid = sruuid if(gCoo[sruuid]) # <fixed><bug><20170219> # gCoo[cid]
+        #echo $(cid[0]) $(chi2[cid[0]])
+        #echo $(cid[1]) $(chi2[cid[1]])
+        #echo $(cid[2]) $(chi2[cid[2]])
+        #echo $(cid[3]) $(chi2[cid[3]])
         set cidTMP = 0,$($ns-1) # choose the nth best fit chi2 solutions
         set cid = cid[cidTMP]
         if(dimen(cid)==0) {return}
@@ -220,6 +229,10 @@ plotChisqInnerRoutine
     # 
     define i 0
     define c 0
+    #echo $(cid[0]) $(chi2[cid[0]])
+    #echo $(cid[1]) $(chi2[cid[1]])
+    #echo $(cid[2]) $(chi2[cid[2]])
+    #echo $(cid[3]) $(chi2[cid[3]])
     if(is_vector(gCoo)) {
         set cid = cid if(gCoo[cid])
         if(dimen(cid)==0) {return}
@@ -234,7 +247,7 @@ plotChisqInnerRoutine
         # check whether this is a good solution
         # 
         # if(!gCoo[$i]) {continue}
-        if($verbose>0) {echo Loading chi2 solution $i ... }
+        if($verbose>0) {echo Loading chi2 solution $i (chi2=$(chi2[$i])) ... }
         # 
         # 
         # set common x
@@ -396,7 +409,7 @@ plotChisqInnerRoutine
         if(is_vector(LTIR_Cold)) {set LTIR = LTIR_Cold}
         if(is_vector(LTIR_Warm)) {set LTIR = LTIR_Warm}
         if(is_vector(LTIR_Warm) && is_vector(LTIR_Cold)) {set LTIR = LTIR_Warm + LTIR_Cold}
-        if(is_vector(LTIR)) {
+        if(is_vector(LTIR) && !$?No_Recompute_Radio) {
             
             set SPIwRadio = SPIwc
             ### set SPIfRadio = lg( LTIR/dL**2/1.1624 / 10**2.5 / 1e3 * (2.99792458e5/10**SPIwRadio)**(-0.45) )
@@ -435,7 +448,9 @@ plotChisqInnerRoutine
                     set recomputed_chi2 = original_chi2
                 }
             }
-            
+        } else {
+            set original_chi2 = chi2[$i] # for compatible
+            set recomputed_chi2 = chi2[$i] # for compatible
         }
         # 
         # ------------------------------------------------------------------------------------
@@ -609,6 +624,17 @@ plotChisqInnerRoutine
                     define print_noheader 0
                 }
             }
+            # 
+            # output best fit chi2
+            # 
+            if(1==1) {
+                if(0==$?FileFitNoOutput) {
+                    !echo "Best-fit chi2 = "$(sprintf('%g',chi2[$i]))
+                    !echo "Best-fit chi2 = "$(sprintf('%g',chi2[$i])) > "bestfit_chi2.txt" #<added><20170219><dzliu># 
+                    !echo ""
+                }
+            }
+            # 
         }
         # 
         # ------------------------------------------------------------------------------------
@@ -634,7 +660,9 @@ plotChisqInnerRoutine
             # 
             # plot best fit model parameters
             # 
-            relocate (01350 $(28500-1000*$c)) expand $(1.1/(1+0.16*NumbLib)) lweight 3.0 label (\chi^2=$(sprintf('%.2f',chi2[$i])))
+            #<20170220># relocate (01350 $(28500-1000*$c)) expand $(1.1/(1+0.16*NumbLib)) lweight 3.0 label (\chi^2=$(sprintf('%.2f',chi2[$i])))
+            relocate ($(01350+01350) $(18500+1000*(dimen(cid)-$c))) 
+            expand $(1.1/(1+0.16*NumbLib)) lweight 3.0 label (\chi^2=$(sprintf('%.2f',chi2[$i])))"  "
             ctype = dColor
             ctype 0
             if(is_vector(Mstar)){                    ctype star label " lgM_*="$(sprintf('%05.2f',(lg(Mstar)))) }
@@ -653,16 +681,25 @@ plotChisqInnerRoutine
             # 
             if(0==$c) {
                 # 
+                set LabelPosX = 01350+01350
                 do iLib=1,NumbLib {
-                    relocate ($(01350+27000/NumbLib*$iLib) $(28500+1200*01)) 
-                    if(index(FileLi$iLib,'FSPS.')>=0)     { ctype star expand 1.25 putlabel 5 Stellar }
-                    if(index(FileLi$iLib,'AGN.')>=0)      { ctype nuck expand 1.25 putlabel 5 AGN }
-                    if(index(FileLi$iLib,'DL07.HiEx')>=0) { ctype red  expand 1.25 putlabel 5 Warm Dust }
-                    if(index(FileLi$iLib,'DL07.LoEx')>=0) { ctype blue expand 1.25 putlabel 5 Cold Dust }
+                    # 
+                    if(index(FileLi$iLib,'FSPS.')>=0)     { set LabelPosX = LabelPosX+8425 }
+                    if(index(FileLi$iLib,'AGN.')>=0)      { set LabelPosX = LabelPosX+3225 }
+                    if(index(FileLi$iLib,'DL07.HiEx')>=0) { set LabelPosX = LabelPosX+8275 }
+                    if(index(FileLi$iLib,'DL07.LoEx')>=0) { set LabelPosX = LabelPosX+8275 }
+                    # 
+                    relocate ($(LabelPosX) $(18500+1000*(dimen(cid)+1))) # ($(01350+27000/NumbLib*$iLib) $(28500+1200*01))
+                    # 
+                    if(index(FileLi$iLib,'FSPS.')>=0)     { ctype star expand 1.25 putlabel 4 "Stellar" }
+                    if(index(FileLi$iLib,'AGN.')>=0)      { ctype nuck expand 1.25 putlabel 4 "AGN" }
+                    if(index(FileLi$iLib,'DL07.HiEx')>=0) { ctype red  expand 1.25 putlabel 4 "Warm Dust" }
+                    if(index(FileLi$iLib,'DL07.LoEx')>=0) { ctype blue expand 1.25 putlabel 4 "Cold Dust" }
                 }
                 # 
                 relocate $($fx1+($fx2-$fx1)/20) $($fy2-($fy2-$fy1)/10) 
                 ctype 0 expand 0.95 
+                if(is_vector(Source)) {puts $(Source)} #<added><20170219><dzliu># 
                 puts z = $(sprintf('%0.3f',float(z)))
                 puts dL = $(sprintf('%0.0f',float(dL))) Mpc
             }

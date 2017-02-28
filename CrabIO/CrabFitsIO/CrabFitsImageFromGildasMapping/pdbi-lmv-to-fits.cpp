@@ -5,6 +5,7 @@
 
      clang++ CrabFitsIO.cpp pdbi-lmv-to-fits.cpp -o pdbi-lmv-to-fits
      clang++ CrabFitsIO.cpp pdbi-lmv-to-fits.cpp -o pdbi-lmv-to-fits-linux-x86-64
+     clang++ CrabFitsIO.cpp pdbi-lmv-to-fits.cpp -o pdbi-lmv-to-fits-mac -I/usr/include/sys
      cp pdbi-lmv-to-fits-linux-x86-64 /home/dzliu/Cloud/Github/Crab.Toolkit.PdBI/bin/bin_linux/pdbi-lmv-to-fits_linux_x86_64
  
  

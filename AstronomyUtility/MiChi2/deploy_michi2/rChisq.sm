@@ -16,7 +16,7 @@ calc_chisq_probability
     define FileEpsNoOutput 1
     define FileFitNoOutput 1
     define NumberOfSolution 1
-    data "fit_triple.out" read {ccchi2 2}
+    data "fit.out" read {ccchi2 2}
     echo Number of all chi2 solution is $(dimen(ccchi2))
     !rm "fit_rchisq.dat" 2>/dev/null
     define PrintHeaderOnce 0
@@ -34,11 +34,12 @@ calc_chisq_probability
         if($cccid==0 || ccchi2[cid]<0.75*$ccchi2MEDIAN) {
             define rChisq_PreVerbose $verbose verbose 0
             if($cccid==0) {
-                plotChisq "flux_obsframe.dat" \
-                          "FSPS.Padova.BaSeL.Z0.0190.EBV.lib.SED" \
-                          "DL07.HiExCom.lib.SED" \
-                          "DL07.LoExCom.lib.SED" \
-                          "fit_triple.out"
+                input run_plotting.sm
+                #plotChisq "flux_obsframe.dat" \
+                #          "FSPS.Padova.BaSeL.Z0.0190.EBV.lib.SED" \
+                #          "DL07.HiExCom.lib.SED" \
+                #          "DL07.LoExCom.lib.SED" \
+                #          "fit_triple.out"
             } else {
                 plotChisqInnerRoutine
             }

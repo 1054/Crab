@@ -12,7 +12,7 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
-#include <locale>
+#include <clocale> // <20160725><dzliu> modified from <locale> to <clocale> for mac.
 #include <wchar.h>
 
 using namespace std;

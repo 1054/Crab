@@ -14,6 +14,8 @@
      clang++ main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotAperPhot_linux_x86_64
  
      clang++ main.cpp CrabFitsIO.cpp CrabPhotUI.cpp -I/Users/dliu/Code/Qt/5.2.1/5.2.1/clang_64/include/ -I/Users/dliu/Code/Qt/5.2.1/5.2.1/clang_64/include/QtCore -I/Users/dliu/Code/Qt/5.2.1/5.2.1/clang_64/include/QtGui -I/Users/dliu/Code/Qt/5.2.1/5.2.1/clang_64/include/QtWidgets -L/Users/dliu/Code/Qt/5.2.1/5.2.1/clang_64/lib -lQtCore.framework -o CrabPhotAperPhot_mac
+     
+     clang++ -I/usr/include/malloc/ main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotAperPhot_mac # 20170228
  
  Initialized:
      
@@ -25,6 +27,7 @@
      2015-12-18 add stddev, median
      2015-12-21 add arg -header-no-comment
      2015-12-22 set arg -header-no-comment as the default choice
+     2017-02-28 set arg -header-in-comment as the default choice. Use strncasecmp instead of strncmp.
  
  
  
@@ -65,13 +68,13 @@ int main(int argc, char **argv)
     
     for(int i=1; i<argc; i++) {
         // read extension parameter
-        if(strncmp(argv[i],"-ext",4)==0 && i<argc-1) {
+        if(strncasecmp(argv[i],"-ext",4)==0 && i<argc-1) {
             i++; cstrExtNumber = argv[i]; continue;
         }
-        if(strncmp(argv[i],"-header-no",10)==0) { // -header-no-comment
+        if(strncasecmp(argv[i],"-header-no",10)==0) { // -header-no-comment
             intHeaderComment = 0; continue;
         }
-        if(strncmp(argv[i],"-header-in",10)==0) { // -header-in-comment
+        if(strncasecmp(argv[i],"-header-in",10)==0) { // -header-in-comment
             intHeaderComment = 1; continue;
         }
         // read input fits file path
@@ -112,7 +115,7 @@ int main(int argc, char **argv)
             // -- so that we can apply parameter tuning, e.g. elliptical aperture
             int aperTYPE = 1; // 1: circle; 2: ellipse; 3: TODO;
             std::string tempTYPE;
-            if(strncmp(cstrInput2,"none",strlen("none"))!=0) {
+            if(strncasecmp(cstrInput2,"none",strlen("none"))!=0 && strncasecmp(cstrInput2,"null",strlen("null"))!=0) {
                 tempTYPE = CrabTableReadInfo(cstrInput2,"AperType");
                 std::transform(tempTYPE.begin(), tempTYPE.end(), tempTYPE.begin(), ::tolower);
                 if(tempTYPE.find("ellip")!= std::string::npos) {

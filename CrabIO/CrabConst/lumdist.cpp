@@ -34,27 +34,36 @@ int main(int argc, char **argv)
         const char* str_rz = "";
         int verbose = 0;
         // read the first non -XXX arg as redshift
-        for(int i=1; i<argc; i++) {
-            if(0<strlen(argv[i]) && 0!=strncmp(argv[i],"-",1)) {
-                str_rz = argv[i]; break;
-            }
-        }
+        // for(int i=1; i<argc; i++) {
+        //     if(0<strlen(argv[i]) && 0!=strncmp(argv[i],"-",1)) {
+        //         str_rz = argv[i]; break;
+        //     }
+        // }
         // read -h0 -omega -lambda
         for(int i=1; i<argc; i++) {
             if(0==strncmp(argv[i],"-h0",3) || 0==strncmp(argv[i],"-hubble",7)) {
-                for(int j=i+1; j<i+2; j++) { if(0!=strncmp(argv[j],"-",1)) { str_H0=argv[j]; break; } else { break; } }
+                int i_shift = 0;
+                for(int j=i+1; j<i+2; j++) { if(0!=strncmp(argv[j],"-",1)) { str_H0=argv[j]; i_shift++; break; } else { break; } }
+                i += i_shift; continue;
             }
             if(0==strncmp(argv[i],"-omega",6) || 0==strncmp(argv[i],"-matter",7)) {
-                for(int j=i+1; j<i+2; j++) { if(0!=strncmp(argv[j],"-",1)) { str_OM=argv[j]; break; } else { break; } }
+                int i_shift = 0;
+                for(int j=i+1; j<i+2; j++) { if(0!=strncmp(argv[j],"-",1)) { str_OM=argv[j]; i_shift++; break; } else { break; } }
+                i += i_shift; continue;
             }
             if(0==strncmp(argv[i],"-lambda",7) || 0==strncmp(argv[i],"-vaccum",7)) {
-                for(int j=i+1; j<i+2; j++) { if(0!=strncmp(argv[j],"-",1)) { str_LM=argv[j]; break; } else { break; } }
+                int i_shift = 0;
+                for(int j=i+1; j<i+2; j++) { if(0!=strncmp(argv[j],"-",1)) { str_LM=argv[j]; i_shift++; break; } else { break; } }
+                i += i_shift; continue;
             }
             if(0==strncmp(argv[i],"-verbose",8)) {
-                verbose = 1;
+                verbose = 1; continue;
             }
             if(0==strncmp(argv[i],"-simple",8)) {
-                verbose = -1;
+                verbose = -1; continue;
+            }
+            if(0<strlen(argv[i]) && 0!=strncmp(argv[i],"-",1)) {
+                str_rz = argv[i]; continue;
             }
         }
         // std::cout << "lumdist " << "H0=" << str_H0 << " Omega_M=" << str_OM << " Lambda0=" << str_LM << std::endl;

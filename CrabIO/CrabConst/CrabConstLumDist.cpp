@@ -79,7 +79,7 @@ double lumdist(double redshift, double HubbleConstant, double OmegaMatter, doubl
         // from z=z1->z=0 integrate lookbacktime and radial comoving distance.
         // which is R=R(1)->R=R(0)=1
         CosmicScaleFactor_z = CosmicScaleFactor_1 + \
-        (1.0-CosmicScaleFactor_1)*(double(costep)+0.5)/double(coloop);
+                                                   (1.0-CosmicScaleFactor_1)*(double(costep)+0.5)/double(coloop);
         dot_CosmicScaleFactor_z = sqrt( 0.0 \
                                        + 0.4165/HubbleConstant/HubbleConstant/CosmicScaleFactor_z/CosmicScaleFactor_z \
                                        + OmegaMatter/CosmicScaleFactor_z \
@@ -87,16 +87,18 @@ double lumdist(double redshift, double HubbleConstant, double OmegaMatter, doubl
         LookBackTime = LookBackTime + 1.0/dot_CosmicScaleFactor_z;
         ComovingDistance = ComovingDistance + 1.0/(CosmicScaleFactor_z*dot_CosmicScaleFactor_z);
     }
-    CosmicAge_1 = CosmicScaleFactor_1*CosmicAge_1/coloop;
-    LookBackTime = (1.0-CosmicScaleFactor_1)*LookBackTime/coloop;
+    CosmicAge_1 = CosmicScaleFactor_1*CosmicAge_1/coloop;  // zage in http://www.astro.ucla.edu/~wright/CC.python
+    LookBackTime = (1.0-CosmicScaleFactor_1)*LookBackTime/coloop;  // DTT in http://www.astro.ucla.edu/~wright/CC.python
     CosmicAge_0 = CosmicAge_1 + LookBackTime;
     ComovingDistance = (1.0-CosmicScaleFactor_1)*ComovingDistance/coloop;
     LuminosityDistance = ComovingDistance*(1.0+redshift);
     LuminosityDistance = LuminosityDistance*HubbleFlowDistance;
     if(verbose>0) {
-        double CosmicAge_Now = log((1.0+sqrt(OmegaLambda))/(sqrt(OmegaLambda)))/sqrt(OmegaMatter)*6.52*100/HubbleConstant; // http://ned.ipac.caltech.edu/level5/March03/Lineweaver/Lineweaver7_8.html <Note> this website is wrong!!! see instead: http://cds.cern.ch/record/519900/files/0109232.ps.gz?version=1
+        // double HubbleTime = log((1.0+sqrt(OmegaLambda))/(sqrt(OmegaLambda)))/sqrt(OmegaMatter)*6.52*100/HubbleConstant; // http://ned.ipac.caltech.edu/level5/March03/Lineweaver/Lineweaver7_8.html <Note> this website is wrong!!! see instead: http://cds.cern.ch/record/519900/files/0109232.ps.gz?version=1
+        // double HubbleTime = log((1.0+sqrt(OmegaLambda))/(sqrt(1.0-OmegaLambda)))/sqrt(OmegaLambda)*6.52*100/HubbleConstant; // http://ned.ipac.caltech.edu/level5/March03/Lineweaver/Lineweaver7_8.html <Note> this website is wrong!!! see instead: http://cds.cern.ch/record/519900/files/0109232.ps.gz?version=1
+        double HubbleTime = 977.8 / HubbleConstant; // http://www.astro.ucla.edu/~wright/CC.python
         std::cout << "lumdist" << " d_L=" << LuminosityDistance << " Mpc, d_c=" << LuminosityDistance/(1.0+redshift) << " Mpc, d_A=" << LuminosityDistance/(1.0+redshift)/(1.0+redshift) << " Mpc" << std::endl;
-        std::cout << "lumdist" << " t_age=" << CosmicAge_1*CosmicAge_Now << " Gyr, t_lookback=" << LookBackTime*CosmicAge_Now << " Gyr, t_now=" << CosmicAge_0*CosmicAge_Now << " Gyr" << std::endl;
+        std::cout << "lumdist" << " t_age=" << CosmicAge_1*HubbleTime << " Gyr, t_lookback=" << LookBackTime*HubbleTime << " Gyr, t_now=" << CosmicAge_0*HubbleTime << " Gyr, t_Hubble=" << HubbleTime << " Gyr" << std::endl;
     }
     return LuminosityDistance;
 }
