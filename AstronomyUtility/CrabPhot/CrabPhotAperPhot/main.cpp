@@ -27,7 +27,7 @@
      2015-12-18 add stddev, median
      2015-12-21 add arg -header-no-comment
      2015-12-22 set arg -header-no-comment as the default choice
-     2017-02-28 set arg -header-in-comment as the default choice. Use strncasecmp instead of strncmp.
+     2017-02-28 set arg -header-no-comment as the default choice. Use strncasecmp instead of strncmp.
  
  
  
