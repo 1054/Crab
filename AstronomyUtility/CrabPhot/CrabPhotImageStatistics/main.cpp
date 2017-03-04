@@ -8,6 +8,9 @@
  
      clang++ -std=c++11 main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotImageStatistics_linux_x86_64
      g++-mp-5 -I/usr/include/malloc/ -std=c++11 main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotImageStatistics_mac # 2017-02-20 00:40:00 CET
+
+     g++ -I/usr/include/malloc/ main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotImageStatistics_mac # 2017-03-04 09:46:00 CET # -header-in-comment
+ 
  
  Initialized:
      
@@ -19,6 +22,7 @@
      2015-11-23 TODO: could not read SPIRE photometry fits file extensions! Need to improve CrabFitsIO.cpp
      2015-11-23 checked the results with ds9 region analysis. All except fMEDIAN are consistent. Now need to check fMEDIAN.
      2015-11-23 now fMEDIAN corrected by adding a sort(vector.begin(),vector.end())
+     2017-03-04 set arg -header-no-comment as the default choice. Use strncasecmp instead of strncmp. Added #include <clocale>.
  
  
  
@@ -29,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <cmath>
+#include <clocale>
 #include <fstream>
 #include <iostream>     // std::cout
 #include <vector>       // std::vector
@@ -38,6 +43,7 @@
 #include "CrabFitsIO.h"
 #include "CrabImage.h"
 #include "CrabTableReadColumn.cpp"
+#define DEF_Version "2017-03-04"
 
 using namespace std;
 
@@ -48,13 +54,22 @@ int main(int argc, char **argv)
      **/
     char *cstrInput1 = NULL;
     char *cstrExtNumber = (char *)"0";
+    int   intHeaderComment = 1; // if 1 we use commented two line header, if 0 we use uncommented single line header // <Note> since 2015-12-22, we use uncommented header as default. // <Note> since 2017-03-04, we use commented header as default.
     
     int debug = 0; // <TODO><DEBUG>
     
     for(int i=1; i<argc; i++) {
         // read extension parameter
-        if(strncmp(argv[i],"-ext",4)==0 && i<argc-1) {
+        if(strncasecmp(argv[i],"-ext",4)==0 && i<argc-1) {
             i++; cstrExtNumber = argv[i]; continue;
+        }
+        // read -header-no-comment option
+        if(strncasecmp(argv[i],"-header-no",10)==0) { // -header-no-comment
+            intHeaderComment = 0; continue;
+        }
+        // read -header-in-comment option
+        if(strncasecmp(argv[i],"-header-in",10)==0) { // -header-in-comment
+            intHeaderComment = 1; continue;
         }
         // read input fits file path
         if(cstrInput1==NULL && i<=argc-1) {
@@ -88,11 +103,19 @@ int main(int argc, char **argv)
             long longHeight = atol(cstrNAXIS2);
             //
             // before loop print the column header
-            std::cout << "# " << std::endl;
-            std::cout << "# " << cstrInput1 << std::endl;
-            std::cout << "# " << std::endl;
-            std::cout << "# " << setw(13) << "NPIX" << setw(15) << "MIN" << setw(15) << "MEAN" << setw(15) << "MEDIAN" << setw(15) << "MAX" << setw(15) << "SUM" << setw(15) << "STDDEV" << setw(15) << "-3STDDEV" << setw(15) << "+6STDDEV" << std::endl;
-            std::cout << "# " << std::endl;
+            if(intHeaderComment>0) {
+                // if intHeaderComment==1 we use commented two line header, if 0 we use uncommented single line header
+                std::cout << "# " << std::endl;
+                std::cout << "# " << cstrInput1 << std::endl;
+                std::cout << "# " << std::endl;
+                std::cout << "# " << setw(13) << "NPIX" << setw(15) << "MIN" << setw(15) << "MEAN" << setw(15) << "MEDIAN" << setw(15) << "MAX" << setw(15) << "SUM" << setw(15) << "STDDEV" << setw(15) << "-3STDDEV" << setw(15) << "+6STDDEV" << std::endl;
+                std::cout << "# " << std::endl;
+            } else {
+                std::cout << "# " << std::endl;
+                std::cout << "# " << cstrInput1 << std::endl;
+                std::cout << "# " << std::endl;
+                std::cout << setw(15) << "NPIX" << setw(15) << "MIN" << setw(15) << "MEAN" << setw(15) << "MEDIAN" << setw(15) << "MAX" << setw(15) << "SUM" << setw(15) << "STDDEV" << setw(15) << "-3STDDEV" << setw(15) << "+6STDDEV" << std::endl;
+            }
             //
             // read fits Image (TODO: for very big image, what can we do?) // mainly copied from CrabPhotAperPhot
             //
@@ -149,6 +172,8 @@ int main(int argc, char **argv)
     } else {
         // print usage
         std::cout << "Usage: \n    CrabPhotImageStatistics NGC1068_PACS160.fits -ext 1"
+                  << "\n"
+                  << "Version: \n    " << DEF_Version
                   << std::endl;
     }
     return 0;

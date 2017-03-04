@@ -15,7 +15,9 @@
  
      clang++ main.cpp CrabFitsIO.cpp CrabPhotUI.cpp -I/Users/dliu/Code/Qt/5.2.1/5.2.1/clang_64/include/ -I/Users/dliu/Code/Qt/5.2.1/5.2.1/clang_64/include/QtCore -I/Users/dliu/Code/Qt/5.2.1/5.2.1/clang_64/include/QtGui -I/Users/dliu/Code/Qt/5.2.1/5.2.1/clang_64/include/QtWidgets -L/Users/dliu/Code/Qt/5.2.1/5.2.1/clang_64/lib -lQtCore.framework -o CrabPhotAperPhot_mac
      
-     clang++ -I/usr/include/malloc/ main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotAperPhot_mac # 20170228
+     clang++ -I/usr/include/malloc/ main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotAperPhot_mac # 2017-02-28
+     clang++ -I/usr/include/malloc/ main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotAperPhot_mac # 2017-03-04
+ 
  
  Initialized:
      
@@ -27,7 +29,8 @@
      2015-12-18 add stddev, median
      2015-12-21 add arg -header-no-comment
      2015-12-22 set arg -header-no-comment as the default choice
-     2017-02-28 set arg -header-no-comment as the default choice. Use strncasecmp instead of strncmp.
+     2017-02-28 set arg -header-no-comment as the default choice. Use strncasecmp instead of strncmp. Added #include <clocale>.
+     2017-03-04 set arg -header-in-comment as the default choice.
  
  
  
@@ -50,7 +53,8 @@
 //#define DEF_Version "2015-12-22"
 //#define DEF_Version "2016-01-11"
 //#define DEF_Version "2016-04-30"
-#define DEF_Version "2017-02-28"
+//#define DEF_Version "2017-02-28"
+#define DEF_Version "2017-03-04"
 
 using namespace std;
 
@@ -63,7 +67,7 @@ int main(int argc, char **argv)
     char *cstrInput2 = NULL;
     char *cstrInput3 = NULL;
     char *cstrExtNumber = (char *)"0";
-    int   intHeaderComment = 0; // if 1 we use commented two line header, if 0 we use uncommented single line header // <Note> since 2015-12-22, we use uncommented header as default. 
+    int   intHeaderComment = 1; // if 1 we use commented two line header, if 0 we use uncommented single line header // <Note> since 2015-12-22, we use uncommented header as default. // <Note> since 2017-03-04, we use commented header as default.
     
     int debug = 0; // <TODO><DEBUG>
     
@@ -72,9 +76,11 @@ int main(int argc, char **argv)
         if(strncasecmp(argv[i],"-ext",4)==0 && i<argc-1) {
             i++; cstrExtNumber = argv[i]; continue;
         }
+        // read -header-no-comment option
         if(strncasecmp(argv[i],"-header-no",10)==0) { // -header-no-comment
             intHeaderComment = 0; continue;
         }
+        // read -header-in-comment option
         if(strncasecmp(argv[i],"-header-in",10)==0) { // -header-in-comment
             intHeaderComment = 1; continue;
         }
