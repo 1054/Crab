@@ -1,7 +1,0 @@
-2016-07-25
-
-"Crab" IDL library files are made for various data reduction and plotting purposes
-
-Here is a partial snapshot of full crab idl lib for "pdchi2_v01.pro", which is a 
-code for plotting chi^2 distribution with the "michi2" fitting output file. 
-
