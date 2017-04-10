@@ -1,3 +1,14 @@
+/*
+ 
+ last update: 
+ 
+     2015-03-16 fix getting header at the end of the header line
+ 
+     2015-06-15 add argument BreakupMark in functions
+ 
+ */
+
+
 #ifndef H_CrabTableReadColumn
 #define H_CrabTableReadColumn
 #include <stdio.h>
@@ -7,9 +18,9 @@
 #include <fstream>
 #include <sstream>
 #include <clocale> // <20160725><dzliu> added <clocale> for mac.
-#include "CrabStringClean.cpp"
-#include "CrabStringUnicode.cpp"
-#include "CrabStringFindWholeWord.cpp"
+#include "../CrabString/CrabStringClean.cpp"
+#include "../CrabString/CrabStringUnicode.cpp"
+#include "../CrabString/CrabStringFindWholeWord.cpp"
 
 using namespace std;
 
@@ -23,11 +34,11 @@ string ctrcstrfindwholeword(const string &t, size_t pos, const string &BreakupMa
 
 std::vector<double> ctrcstrtodouble(std::vector<string> strVec);
 
-std::vector<std::string> CrabTableReadColumn(const char *InputFile, const char *InputColHead, int *OutputRowNumber = NULL, const char *CommentMark = "#");
+std::vector<std::string> CrabTableReadColumn(const char *InputFile, const char *InputColHead, int *OutputRowNumber = NULL, const char *CommentMark = "#", const char *BreakupMark = " ", const char *BreakupMark2 = "  ");
 
-std::vector<std::string> CrabTableReadColumn(const char *InputFile, int InputColNumber, int *OutputRowNumber = NULL, const char *CommentMark = "#");
+std::vector<std::string> CrabTableReadColumn(const char *InputFile, int InputColNumber, int *OutputRowNumber = NULL, const char *CommentMark = "#", const char *BreakupMark = " ");
 
-double *CrabTableReadColumnF(const char *InputFile, int InputColNumber, int *OutputRowNumber = NULL, const char *CommentMark = "#");
+double *CrabTableReadColumnF(const char *InputFile, int InputColNumber, int *OutputRowNumber = NULL, const char *CommentMark = "#", const char *BreakupMark = " ");
 
 
 
@@ -133,10 +144,11 @@ std::vector<double> ctrcstrtodouble(std::vector<string> strVec)
 
 
 
-std::vector<std::string> CrabTableReadColumn(const char *InputFile, const char *InputColHead, int *OutputRowNumber, const char *CommentMark)
+std::vector<std::string> CrabTableReadColumn(const char *InputFile, const char *InputColHead, int *OutputRowNumber, const char *CommentMark, const char *BreakupMark, const char *BreakupMark2)
 {
     //
     std::vector<std::string> OutputArray; // OutputArray.push_back(superman);
+    //
     int debug = 0;
     //
     if(strlen(InputColHead)>0 && strlen(InputFile)>0) {
@@ -147,12 +159,18 @@ std::vector<std::string> CrabTableReadColumn(const char *InputFile, const char *
         std::wstring colvalue;
         // std::wstring commark(CommentMark); // From char * to string: http://stackoverflow.com/questions/2573834/c-convert-string-or-char-to-string-or-wchar-t
         std::wstring commark = CrabStringWideString(CommentMark); // From utf8 char * to utf16 wstring
+        std::wstring breakup = CrabStringWideString(BreakupMark); // <added><20150615><dzliu>
+        std::wstring breakup2 = CrabStringWideString(BreakupMark2); // <added><20170324><dzliu>
         
-        if(debug) { std::cout << "DEBUG:InputFile==" << InputFile << std::endl; }
-        if(debug) { std::cout << "DEBUG:ColumnHead==" << InputColHead << std::endl; }
-        if(debug) { std::cout << "DEBUG:CommentMark==" << CommentMark << std::endl; }
+        if(debug) {
+            std::cout << "CrabTableReadColumn: Debuging: InputFile = \"" << InputFile << "\"" << std::endl;
+            std::cout << "CrabTableReadColumn: Debuging: ColumnHead = \"" << InputColHead << "\"" << std::endl;
+            std::cout << "CrabTableReadColumn: Debuging: CommentMark = \"" << CommentMark << "\"" << std::endl;
+            std::cout << "CrabTableReadColumn: Debuging: BreakupMark = \"" << BreakupMark << "\"" << std::endl;
+            std::cout << "CrabTableReadColumn: Debuging: BreakupMark2 = \"" << BreakupMark2 << "\"" << std::endl;
+        }
         
-        long colpos = -1;
+        long colpos = -1; // indicate the position to FindWholeWord
         long colcnt = 0;
         std::ifstream backstory (InputFile); std::string backline; // Do not use wstring to read file! <TODO>
         if (backstory.is_open()) {
@@ -167,9 +185,15 @@ std::vector<std::string> CrabTableReadColumn(const char *InputFile, const char *
                 
                 // whether this is empty line?
                 if(trline.empty()) {
-                    if(OutputArray.size()>0) {break;} else {continue;}
+                    // <20170324> if(OutputArray.size()>0) {break;} else {continue;} // <20170324> do not break, just continue
+                    continue;
                 }
                 // whether this is comment line?
+                if(debug) {
+                    std::wcout << "CrabTableReadColumn: Debuging: " << "commark = " << commark << std::endl;
+                    std::wcout << "CrabTableReadColumn: Debuging: " << "trline = " << trline << std::endl;
+                    std::wcout << "CrabTableReadColumn: Debuging: " << "trline.find(commark) = " << trline.find(commark) << std::endl;
+                }
                 if(0==trline.find(commark)) {
                     continue;
                 }
@@ -177,16 +201,17 @@ std::vector<std::string> CrabTableReadColumn(const char *InputFile, const char *
                 if(-1==colpos) {
                     if(debug) {
                         char* locale = setlocale(LC_ALL, "");
-                        std::wcout << "CrabStringReadColumn: Debuging: " << "locale = " << locale << std::endl;
+                        std::wcout << "CrabTableReadColumn: Debuging: " << "locale = " << locale << std::endl;
                         locale = std::setlocale(LC_ALL,"zh_CN.UTF-8");
-                        std::wcout << "CrabStringReadColumn: Debuging: " << "locale = " << locale << std::endl;
-                        std::wcout << "CrabStringReadColumn: Debuging: " << colname << std::endl;
-                        std::wcout << "CrabStringReadColumn: Debuging: " << line << std::endl;
-                        std::wcout << "CrabStringReadColumn: Debuging: " << line.find(L"测试测试") << " " << string::npos << std::endl;
+                        std::wcout << "CrabTableReadColumn: Debuging: " << "locale = " << locale << std::endl;
+                        std::wcout << "CrabTableReadColumn: Debuging: " << "colname = " << colname << std::endl;
+                        std::wcout << "CrabTableReadColumn: Debuging: " << "line = " << line << std::endl;
+                        std::wcout << "CrabTableReadColumn: Debuging: " << line.find(L"测试测试") << " " << string::npos << std::endl;
                         std::setlocale(LC_ALL,"");
                         std::cout << "CrabTableReadColumn: Column Header pos " << colpos << std::endl;
                     }
-                    colpos = CrabStringFindWholeWord(line,colname);
+                    // colpos = CrabStringFindWholeWord(line,colname,breakup,L" "); // <updated><20150615><dzliu>,breakup ++ and for Header, BreakUpOnceMore=" "
+                    colpos = CrabStringFindWholeWord(line,colname,breakup,breakup2,debug); // <updated><20170324><dzliu>,breakup ++ and for Header, BreakUpOnceMore will also be available from user input
                     if(debug) {
                         std::cout << "CrabTableReadColumn: Column Header pos " << colpos << std::endl;
                     }
@@ -197,19 +222,39 @@ std::vector<std::string> CrabTableReadColumn(const char *InputFile, const char *
                 }
                 // whether this is content line? (we read table content by matching the vertical position!)
                 if(colpos>=0) {
-                    for(int j=0; j<colname.length(); j++) {
-                        colvalue = CrabStringFindWholeWord(line,colpos+j);
-                        if(!colvalue.empty()){
-                            if(debug) { std::wcout << "CrabStringReadColumn: Debuging: j="<< j << " colvalue=" << colvalue << std::endl; }
-                            colvalue = CrabStringTrim(colvalue);
-                            OutputArray.push_back(csu_wstr_to_utf8(colvalue));
-                            colcnt++;
-                            // std::cout << colvalue << std::endl; // <TODO> Verbose
-                            // std::cout << colvalue << "(" << colpos << ":" << colpos+colname.length()-1 << ")" << std::endl;
-                            break;
+                    // find whole word at the header text center position (colpos+colname.length()/2)
+                    colvalue = CrabStringFindWholeWord(line,colpos+colname.length()/2,breakup,breakup2,debug);
+                    if(!colvalue.empty()) {
+                        colvalue = CrabStringTrim(colvalue);
+                        if(debug) {
+                            std::wcout << "CrabTableReadColumn: Debuging: found whole word at position "<< colpos+colname.length()/2 << " colvalue=\"" << colvalue << "\"" << std::endl;
+                        }
+                    } else {
+                        // find whole word at more flexible positions around the header text center position (colpos+colname.length()/2+j or -j)
+                        for(int j=1; j<=colname.length()/2; j++) {
+                            colvalue = CrabStringFindWholeWord(line,colpos+colname.length()/2+j,breakup,breakup2,debug);
+                            if(!colvalue.empty()) {
+                                colvalue = CrabStringTrim(colvalue);
+                                if(debug) {
+                                    std::wcout << "CrabTableReadColumn: Debuging: found whole word at position "<< colpos+colname.length()/2+j << " colvalue=\"" << colvalue << "\"" << std::endl;
+                                }
+                                break;
+                            }
+                            
+                            colvalue = CrabStringFindWholeWord(line,colpos+colname.length()/2-j,breakup,breakup2,debug);
+                            if(!colvalue.empty()) {
+                                colvalue = CrabStringTrim(colvalue);
+                                if(debug) {
+                                    std::wcout << "CrabTableReadColumn: Debuging: found whole word at position "<< colpos+colname.length()/2-j << " colvalue=\"" << colvalue << "\"" << std::endl;
+                                }
+                                break;
+                            }
                         }
                     }
                 }
+                // append to OutputArray, including blank values
+                OutputArray.push_back(csu_wstr_to_utf8(colvalue));
+                colcnt++;
                 // if user give *OutputRowNumber then only read limited rows
                 if(OutputRowNumber) {
                     if(*OutputRowNumber>0) {
@@ -232,17 +277,17 @@ std::vector<std::string> CrabTableReadColumn(const char *InputFile, const char *
             std::cout << "CrabTableReadColumn: Unable to open file! Please check " << InputFile << std::endl;
         }
     }
-    if(debug) {
-        for(int i=0; i<OutputArray.size(); i++) {
-            std::cout << OutputArray[i] << std::endl;
-        }
-    }
+    // if(debug) {
+    //     for(int i=0; i<OutputArray.size(); i++) {
+    //         std::cout << OutputArray[i] << std::endl;
+    //     }
+    // }
     return OutputArray;
 }
 
 
 
-std::vector<std::string> CrabTableReadColumn(const char *InputFile, int InputColNumber, int *OutputRowNumber, const char *CommentMark)
+std::vector<std::string> CrabTableReadColumn(const char *InputFile, int InputColNumber, int *OutputRowNumber, const char *CommentMark, const char *BreakupMark)
 {
     //
     std::vector<std::string> OutputArray; // OutputArray.push_back(superman);
@@ -254,6 +299,7 @@ std::vector<std::string> CrabTableReadColumn(const char *InputFile, int InputCol
         std::wstring colname;
         std::wstring colvalue;
         std::wstring commark = CrabStringWideString(CommentMark); // From utf8 char * to utf16 wstring
+        std::wstring breakup = CrabStringWideString(BreakupMark); // <added><20150615><dzliu>
         
         if(debug) { std::cout << "DEBUG:InputFile==" << InputFile << std::endl; }
         if(debug) { std::cout << "DEBUG:ColumnNumb==" << InputColNumber << std::endl; }
@@ -284,9 +330,9 @@ std::vector<std::string> CrabTableReadColumn(const char *InputFile, int InputCol
                     // vector<string> debugTmpArr;
                     colpos = 0;
                     for(long j=0; j<line.length(); j++) {
-                        colvalue = CrabStringFindWholeWord(line,j);
+                        colvalue = CrabStringFindWholeWord(line,j,breakup); // <updated><20150615><dzliu>,breakup
                         if(!colvalue.empty()){
-                            // if(debug) { std::wcout << "CrabStringReadColumn: Debuging: j="<< j << " colvalue=" << colvalue << std::endl; }
+                            // if(debug) { std::wcout << "CrabTableReadColumn: Debuging: j="<< j << " colvalue=" << colvalue << std::endl; }
                             colpos--;
                             if((-colpos)==InputColNumber) {
                                 colpos = j; break;
@@ -296,12 +342,12 @@ std::vector<std::string> CrabTableReadColumn(const char *InputFile, int InputCol
                         }
                     }
                     if(colpos<0) {
-                        std::cout << "CrabStringReadColumn: Column Number is too large in file " << InputFile << std::endl;
-                        // std::cout << "CrabStringReadColumn: Debugging ";
+                        std::cout << "CrabTableReadColumn: Column Number is too large in file " << InputFile << std::endl;
+                        // std::cout << "CrabTableReadColumn: Debugging ";
                         // for(int debuggi=0; debuggi<debugTmpArr.size(); debuggi++) { std::cout << debugTmpArr[debuggi] << " "; }
                         // std::cout << std::endl;
                  /* } else if(colpos==0) {
-                        std::cout << "CrabStringReadColumn: Empty line! <TODO> Stop or not?" << std::endl; // <Modified><20150201><DzLIU>
+                        std::cout << "CrabTableReadColumn: Empty line! <TODO> Stop or not?" << std::endl; // <Modified><20150201><DzLIU>
                     } else if(colpos>0) {
                         OutputArray.push_back(csu_wstr_to_utf8(colvalue));
                         colcnt++;
@@ -347,9 +393,9 @@ std::vector<std::string> CrabTableReadColumn(const char *InputFile, int InputCol
 }
 
 
-double *CrabTableReadColumnF(const char *InputFile, int InputColNumber, int *OutputRowNumber, const char *CommentMark)
+double *CrabTableReadColumnF(const char *InputFile, int InputColNumber, int *OutputRowNumber, const char *CommentMark, const char *BreakupMark)
 {
-    std::vector<std::string> sctable = CrabTableReadColumn(InputFile, InputColNumber, OutputRowNumber, CommentMark);
+    std::vector<std::string> sctable = CrabTableReadColumn(InputFile, InputColNumber, OutputRowNumber, CommentMark, BreakupMark); // <update><20150615><dzliu>,BreakupMark
     if(!sctable.empty()) {
         std::vector<double> dctable = ctrcstrtodouble(sctable);
         double *fctable = new double[sctable.size()];

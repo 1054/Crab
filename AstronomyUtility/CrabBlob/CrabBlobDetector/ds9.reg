@@ -1,0 +1,145 @@
+image
+
+
+point(361,63) # point=box color=#e8139e
+point(360,63) # point=box color=#e8139e
+point(361,64) # point=box color=#e8139e
+point(362,64) # point=box color=#e8139e
+point(362,65) # point=box color=#e8139e
+point(363,65) # point=box color=#e8139e
+point(363,64) # point=box color=#e8139e
+point(364,64) # point=box color=#e8139e
+point(362,63) # point=box color=#e8139e
+point(363,63) # point=box color=#e8139e
+point(362,62) # point=box color=#e8139e
+point(360,62) # point=box color=#e8139e
+point(359,62) # point=cross color=#e8139e
+point(360,61) # point=cross color=#e8139e
+point(361,62) # point=cross color=#e8139e
+point(363,62) # point=cross color=#e8139e
+point(364,63) # point=cross color=#e8139e
+point(365,64) # point=cross color=#e8139e
+point(364,65) # point=cross color=#e8139e
+point(361,65) # point=cross color=#e8139e
+point(360,64) # point=cross color=#e8139e
+point(359,63) # point=cross color=#e8139e
+
+
+point(1,102) # point=box color=#26afc5
+point(1,103) # point=box color=#26afc5
+point(1,104) # point=box color=#26afc5
+point(2,103) # point=box color=#26afc5
+point(2,102) # point=box color=#26afc5
+point(1,101) # point=cross color=#26afc5
+point(2,101) # point=cross color=#26afc5
+point(3,102) # point=cross color=#26afc5
+point(3,103) # point=cross color=#26afc5
+point(2,104) # point=cross color=#26afc5
+point(1,105) # point=cross color=#26afc5
+
+
+point(1,299) # point=box color=#7244bc
+point(1,298) # point=box color=#7244bc
+point(1,297) # point=cross color=#7244bc
+point(2,298) # point=cross color=#7244bc
+point(2,299) # point=cross color=#7244bc
+point(2,300) # point=cross color=#7244bc
+point(1,300) # point=cross color=#7244bc
+
+
+point(512,102) # point=box color=#6d7850
+point(512,103) # point=box color=#6d7850
+point(511,101) # point=cross color=#6d7850
+point(512,101) # point=cross color=#6d7850
+point(512,104) # point=cross color=#6d7850
+point(511,103) # point=cross color=#6d7850
+point(511,102) # point=cross color=#6d7850
+
+
+point(501,1) # point=box color=#662f66
+point(502,1) # point=cross color=#662f66
+point(502,2) # point=cross color=#662f66
+point(501,2) # point=cross color=#662f66
+point(500,2) # point=cross color=#662f66
+point(500,1) # point=cross color=#662f66
+
+
+point(511,352) # point=box color=#8f8e4f
+point(510,351) # point=cross color=#8f8e4f
+point(511,351) # point=cross color=#8f8e4f
+point(512,351) # point=cross color=#8f8e4f
+point(512,352) # point=cross color=#8f8e4f
+point(512,353) # point=cross color=#8f8e4f
+point(511,353) # point=cross color=#8f8e4f
+point(510,353) # point=cross color=#8f8e4f
+point(510,352) # point=cross color=#8f8e4f
+
+
+point(156,169) # point=box color=#a03403
+point(157,169) # point=box color=#a03403
+point(155,168) # point=cross color=#a03403
+point(156,168) # point=cross color=#a03403
+point(157,168) # point=cross color=#a03403
+point(158,169) # point=cross color=#a03403
+point(157,170) # point=cross color=#a03403
+point(156,170) # point=cross color=#a03403
+point(155,170) # point=cross color=#a03403
+point(155,169) # point=cross color=#a03403
+
+
+point(324,297) # point=box color=#7c7220
+point(323,296) # point=box color=#7c7220
+point(322,296) # point=cross color=#7c7220
+point(324,296) # point=cross color=#7c7220
+point(325,296) # point=cross color=#7c7220
+point(325,297) # point=cross color=#7c7220
+point(325,298) # point=cross color=#7c7220
+point(324,298) # point=cross color=#7c7220
+point(323,298) # point=cross color=#7c7220
+point(323,297) # point=cross color=#7c7220
+
+
+point(229,283) # point=box color=#4612bd
+point(228,282) # point=cross color=#4612bd
+point(229,282) # point=cross color=#4612bd
+point(230,282) # point=cross color=#4612bd
+point(230,283) # point=cross color=#4612bd
+point(230,284) # point=cross color=#4612bd
+point(229,284) # point=cross color=#4612bd
+point(228,284) # point=cross color=#4612bd
+point(228,283) # point=cross color=#4612bd
+
+
+point(434,453) # point=box color=#7b74be
+point(433,452) # point=cross color=#7b74be
+point(434,452) # point=cross color=#7b74be
+point(435,452) # point=cross color=#7b74be
+point(435,453) # point=cross color=#7b74be
+point(435,454) # point=cross color=#7b74be
+point(434,454) # point=cross color=#7b74be
+point(433,454) # point=cross color=#7b74be
+point(433,453) # point=cross color=#7b74be
+
+
+point(203,94) # point=box color=#f73811
+point(202,93) # point=cross color=#f73811
+point(203,93) # point=cross color=#f73811
+point(204,93) # point=cross color=#f73811
+point(204,94) # point=cross color=#f73811
+point(204,95) # point=cross color=#f73811
+point(203,95) # point=cross color=#f73811
+point(202,95) # point=cross color=#f73811
+point(202,94) # point=cross color=#f73811
+
+
+point(416,256) # point=box color=#9de603
+point(415,255) # point=box color=#9de603
+point(414,255) # point=cross color=#9de603
+point(416,255) # point=cross color=#9de603
+point(417,255) # point=cross color=#9de603
+point(417,256) # point=cross color=#9de603
+point(417,257) # point=cross color=#9de603
+point(416,257) # point=cross color=#9de603
+point(415,257) # point=cross color=#9de603
+point(415,256) # point=cross color=#9de603
+

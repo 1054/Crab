@@ -3,6 +3,7 @@
  Please compile like this:
  
      clang++ main.cpp CrabFitsIO.cpp -o CrabFitsHeader_linux_x86_64
+     g++ -static-libstdc++ main.cpp CrabFitsIO.cpp -o CrabFitsHeader_linux_x86_64
  
  Last update:
      
