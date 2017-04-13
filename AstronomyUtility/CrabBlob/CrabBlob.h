@@ -45,6 +45,7 @@ class blob_class
     int rmpix(long pindex);
     int maskpix(long xinput, long yinput);
     
+    void set_debug_level(int input_debug_level);
     int debug_level;
 };
 
