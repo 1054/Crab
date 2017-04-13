@@ -286,6 +286,7 @@ int main(int argc, char **argv)
                 for(long kpix=0; kpix<input_number_limit; kpix++) {
                     // detect one "blob_item" at each time, append to "blob_list".
                     blob_class blob_item;
+                    blob_item.set_debug_level(debug);
                     blob_item.init(input_image_data,input_image_size,input_pixel_pool);
                     if(input_detect_threshold==input_detect_threshold){
                         blob_item.set_detect_threshold(input_detect_threshold,true); // set absolute detect threshold
