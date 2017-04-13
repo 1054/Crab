@@ -109,6 +109,14 @@ double blob_class::getpix(long xinput, long yinput) {
     // get pixel by input subscript (i,j) from the 1D data array of a 2D image [i,j]
     if(!this->image_data) {return NAN;}
     if(this->pixel_pool->size()<=0) {return NAN;}
+    if(this->debug_level>=2) {
+        std::cout << "DEBUG: CrabBlob: blob_class::getpix()" << std::flush;
+        std::cout << " xinput = " << xinput << std::flush;
+        std::cout << ", yinput = " << yinput << std::flush;
+        std::cout << ", naxis1 = " << this->image_size[0] << std::flush;
+        std::cout << ", naxis2 = " << this->image_size[1] << std::flush;
+        std::cout << std::endl;
+    }
     long xindex = this->image_size[0]*yinput + xinput;
     if(xindex>=0 && xindex<image_size[0]*image_size[1]) {
         return this->image_data[xindex]; /* <Bug><20170413><Fixed> */
