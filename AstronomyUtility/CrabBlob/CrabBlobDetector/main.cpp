@@ -92,6 +92,10 @@ int main(int argc, char **argv)
         if(strncasecmp(argv[i],"-number-limit",13)==0 && i<argc-1) {
             i++; cstrNumberLimit = argv[i]; continue;
         }
+        // read -detect-number option
+        if(strncasecmp(argv[i],"-detect-number",14)==0 && i<argc-1) {
+            i++; cstrNumberLimit = argv[i]; continue;
+        }
         // read debug parameter
         if(strncasecmp(argv[i],"-debug",6)==0) {
             debug++; continue;
