@@ -110,7 +110,10 @@ double blob_class::getpix(long xinput, long yinput) {
     if(!this->image_data) {return NAN;}
     if(this->pixel_pool->size()<=0) {return NAN;}
     long xindex = this->image_size[0]*yinput + xinput;
-    return this->image_data[xindex];
+    if(xindex>=0 && xindex<image_size[0]*image_size[1]) {
+        return this->image_data[xindex]; /* <Bug><20170413><Fixed> */
+    }
+    return NAN;
 }
 
 double blob_class::getmean(std::vector<double> v) {
