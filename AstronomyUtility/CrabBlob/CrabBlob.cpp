@@ -22,13 +22,22 @@ void blob_class::init(double* input_image_data, long input_image_size[2], std::v
     this->pixel_pool = &input_pixel_pool;
     this->set_detect_threshold(input_detect_threshold,false); // set relative detect threshold
     this->set_deblend_level(input_deblend_level);
-    int debug = 0;
-    if(debug>=1) {
+    this->debug_level = 0;
+    if(this->debug_level>=1) {
         std::cout << "DEBUG: CrabBlob: blob_class::init() &input_pixel_pool = " << &input_pixel_pool << ", this->pixel_pool = " << this->pixel_pool << std::endl;
     }
     //int check_ok = this->settle();
     //input_pixel_pool = this->pixel_pool;
 };
+
+void blob_class::set_debug_level(int input_debug_level)
+{
+    if(input_debug_level>0) {
+        this->debug_level = input_debug_level;
+    } else {
+        this->debug_level = 0;
+    }
+}
 
 void blob_class::set_detect_threshold(double input_detect_threshold, bool absolute_value)
 {
@@ -78,8 +87,7 @@ int blob_class::settle() {
             yc.at(0) = this->pixel_pool->at(ipix) / this->image_size[0];
         }
     }
-    int debug = 0;
-    if(debug>=1) {
+    if(this->debug_level>=1) {
         std::cout << "DEBUG: CrabBlob: blob_class::settle()" << std::flush;
         std::cout << " xc = " << xc.at(0) << std::flush;
         std::cout << ", yc = " << yc.at(0) << std::flush;
@@ -219,7 +227,6 @@ int blob_class::grow() {
     }
     //
     // grow starting from xc,yc, eat as far as possible
-    int debug = 0;
     long i = 0;
     long count = 0;
     // growth_ratio = 0.03; // go as far as 45% peak flux
@@ -245,7 +252,7 @@ int blob_class::grow() {
         long dupli = 0;
         //
         // print debug info
-        if(debug>=1) {
+        if(this->debug_level>=1) {
             std::cout << "DEBUG: CrabBlob: blob_class::grow() basex = " << basex+1 << ", basey = " << basey+1 << ", growX = " << grow1 << " (" << growx_pixval << ")" << ", growY = " << grow2 << " (" << growy_pixval << "), theta = " << theta.at(i) << std::endl;
         }
         //
@@ -278,13 +285,13 @@ int blob_class::grow() {
                     if(grow1>0) {
                         addpix(growx,basey,i+1);
                         //addpix(growx,basey,insert_position);
-                        if(debug>=1) {
+                        if(this->debug_level>=1) {
                             std::cout << "DEBUG: CrabBlob: blob_class::grow() basex = " << basex+1 << ", basey = " << basey+1 << ", grow = " << "+X" << std::endl; // +1 accounts for ds9 coordinate system starting from 1 instead of 0.
                         }
                     } else {
                         addpix(growx,basey,i+1);
                         //addpix(growx,basey,insert_position);
-                        if(debug>=1) {
+                        if(this->debug_level>=1) {
                             std::cout << "DEBUG: CrabBlob: blob_class::grow() basex = " << basex+1 << ", basey = " << basey+1 << ", grow = " << "-X" << std::endl; // +1 accounts for ds9 coordinate system starting from 1 instead of 0.
                         }
                     }
@@ -327,13 +334,13 @@ int blob_class::grow() {
                     if(grow2>0) {
                         addpix(basex,growy,i+1);
                         //addpix(basex,growy,insert_position);
-                        if(debug>=1) {
+                        if(this->debug_level>=1) {
                             std::cout << "DEBUG: CrabBlob: blob_class::grow() basex = " << basex+1 << ", basey = " << basey+1 << ", grow = " << "+Y" << std::endl; // +1 accounts for ds9 coordinate system starting from 1 instead of 0.
                         }
                     } else {
                         addpix(basex,growy,i+1);
                         //addpix(basex,growy,insert_position);
-                        if(debug>=1) {
+                        if(this->debug_level>=1) {
                             std::cout << "DEBUG: CrabBlob: blob_class::grow() basex = " << basex+1 << ", basey = " << basey+1 << ", grow = " << "-Y" << std::endl; // +1 accounts for ds9 coordinate system starting from 1 instead of 0.
                         }
                     }
@@ -355,7 +362,7 @@ int blob_class::grow() {
             rmpix(i); i--;
         }
         
-        if(debug>=1) {
+        if(this->debug_level>=1) {
             std::cout << "DEBUG: CrabBlob: blob_class::grow() x = " << std::flush;
             for(long ipix=0; ipix<f.size(); ipix++) {
                 if(ipix>0) {std::cout << ", ";}

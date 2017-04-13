@@ -63,7 +63,7 @@ int main(int argc, char **argv)
     char *cstrNumberLimit = (char *)"12";
     int   intHeaderComment = 1; // if 1 we use commented two line header, if 0 we use uncommented single line header // <Note> since 2015-12-22, we use uncommented header as default. // <Note> since 2017-03-04, we use commented header as default.
     
-    int debug = 1; // <TODO><DEBUG>
+    int debug = 0; // <TODO><DEBUG>
     
     for(int i=1; i<argc; i++) {
         // read extension parameter
@@ -92,7 +92,7 @@ int main(int argc, char **argv)
         }
         // read debug parameter
         if(strncasecmp(argv[i],"-debug",6)==0) {
-            debug = 1; continue;
+            debug++; continue;
         }
         // read input fits file path
         if(cstrInput1==NULL && i<=argc-1) {
@@ -252,7 +252,7 @@ int main(int argc, char **argv)
                 
                 //
                 // check the image size
-                if(debug) {
+                if(debug>=1) {
                     std::cout << "DEBUG: -------------------------" << std::endl;
                     std::cout << "DEBUG: iBox " << box_i << " " << box_j << std::endl;
                     std::cout << "DEBUG: Rect " << box_i-box_buff[0] << " " << box_j-box_buff[1] << std::endl;
