@@ -45,7 +45,7 @@ class blob_class
     int rmpix(long pindex);
     int maskpix(long xinput, long yinput);
     
-    int debuglevel;
+    int debug_level;
 };
 
 struct blob_struct
