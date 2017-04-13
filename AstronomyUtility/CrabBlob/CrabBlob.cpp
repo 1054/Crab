@@ -22,7 +22,7 @@ void blob_class::init(double* input_image_data, long input_image_size[2], std::v
     this->pixel_pool = &input_pixel_pool;
     this->set_detect_threshold(input_detect_threshold,false); // set relative detect threshold
     this->set_deblend_level(input_deblend_level);
-    this->debug_level = 0;
+    //this->debug_level = 0;
     if(this->debug_level>=1) {
         std::cout << "DEBUG: CrabBlob: blob_class::init() &input_pixel_pool = " << &input_pixel_pool << ", this->pixel_pool = " << this->pixel_pool << std::endl;
     }

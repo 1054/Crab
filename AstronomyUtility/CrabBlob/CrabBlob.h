@@ -46,7 +46,7 @@ class blob_class
     int maskpix(long xinput, long yinput);
     
     void set_debug_level(int input_debug_level);
-    int debug_level;
+    int debug_level = 0;
 };
 
 struct blob_struct
