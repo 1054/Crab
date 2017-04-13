@@ -90,6 +90,10 @@ int main(int argc, char **argv)
         if(strncasecmp(argv[i],"-number-limit",13)==0 && i<argc-1) {
             i++; cstrNumberLimit = argv[i]; continue;
         }
+        // read debug parameter
+        if(strncasecmp(argv[i],"-debug",6)==0) {
+            debug = 1; continue;
+        }
         // read input fits file path
         if(cstrInput1==NULL && i<=argc-1) {
             cstrInput1 = argv[i]; continue;
