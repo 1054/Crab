@@ -17,8 +17,9 @@
  
  Last update:
  
-     2017-04-09
-     2017-04-10 "-number-limit"
+ 2017-04-09
+ 2017-04-10 "-number-limit"
+ 2017-04-13 "-debug" and "blob_item.set_debug_level()"
  
  
  
@@ -40,7 +41,8 @@
 #include "CrabTableReadInfo.cpp"
 #include "CrabBlob.cpp"
 //#define DEF_Version "2017-04-09 @ MPIA"
-#define DEF_Version "2017-04-10 @ MPIA"
+//#define DEF_Version "2017-04-10 @ MPIA"
+#define DEF_Version "2017-04-13 @ MPIA"
 
 using namespace std;
 
