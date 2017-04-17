@@ -13,7 +13,7 @@
  Please compile like this:
  
      clang++ main.cpp CrabFitsIO.cpp -o CrabFitsImageArithmetic_linux_x86_64
-     clang++ -I/usr/include/malloc/ main.cpp CrabFitsIO.cpp -o CrabFitsImageArithmetic_mac; cp CrabFitsImageArithmetic_mac ~/Cloud/Github/DeepFields.SuperDeblending/Softwares/ds9_mac/
+     clang++ -I/usr/include/malloc/ main.cpp CrabFitsIO.cpp -o CrabFitsImageArithmetic_mac; cp -i CrabFitsImageArithmetic_mac ~/Cloud/Github/DeepFields.SuperDeblending/Softwares/ds9_mac/
  
  Last update:
      
@@ -46,6 +46,7 @@ int main(int argc, char **argv)
     }
     **/
     char *cstrFilePath = NULL; char *cstrExtNumber = (char *)"0";
+    char *cstrFilePathRefImage = NULL; char *cstrExtNumberRefImage = (char *)"0";
     char *cstrOperator = NULL;
     char *cstrNumValue = NULL; double dblNumValue = 0.0;
     char *cstrNewFilePath = NULL;
@@ -55,7 +56,9 @@ int main(int argc, char **argv)
     
     for(int i=1; i<argc; i++) {
         if(strncmp(argv[i],"-ext",4)==0 && i<argc-1) {
-            i++; cstrExtNumber = argv[i]; continue;
+            i++;
+            if(cstrExtNumber==NULL) {cstrExtNumber = argv[i]; continue;}
+            if(cstrExtNumberRefImage==NULL) {cstrExtNumberRefImage = argv[i]; continue;}
         }
         if(strcasecmp(argv[i],"-remove-nan")==0 ) {
             iRemoveNaN = 1; continue;
@@ -74,9 +77,13 @@ int main(int argc, char **argv)
     { 
         int   errStatus = 0;
         int   extNumber = 0;  if(cstrExtNumber!=NULL) {extNumber=atoi(cstrExtNumber);}
+        int   extNumberRefImage = 0;  if(cstrExtNumberRefImage!=NULL) {extNumberRefImage=atoi(cstrExtNumberRefImage);}
         char *cstrHeader = NULL;
+        char *cstrHeaderRefImage = NULL;
         long  posHeader = 0;
         long  lenHeader = 0;
+        long  posHeaderRefImage = 0;
+        long  lenHeaderRefImage = 0;
         //
         // check
         std::cout << "CrabFitsImageArithmetic: " << cstrFilePath << " extension=" << atoi(cstrExtNumber) << std::endl;
@@ -98,6 +105,23 @@ int main(int argc, char **argv)
             double *oldImage = readFitsImage(cstrFilePath,extNumber);
             std::cout << "CrabFitsImageArithmetic: readFitsImage " << cstrFilePath << " extension=" << extNumber << " imagesize=" << oldImWidth << "x" << oldImHeight << " bitpix=" << -long(sizeof(double))*8 << std::endl;
             //
+            // prepare new image
+            long newImWidth = oldImWidth;
+            long newImHeight = oldImHeight;
+            //
+            // create new image array
+            double *newImage = (double *)malloc(newImWidth*newImHeight*sizeof(double));
+            //
+            // remove NaN
+            if(0==iRemoveNaN) {
+                for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = NAN; } // need cmath.h
+            } else {
+                if(debug>0) {
+                    std::cout << "DEBUG: removing all NaN values by filling 0.0" << std::endl;
+                }
+                for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = 0.0; } // need cmath.h
+            }
+            //
             // check operator
             std::string sstrOperator = std::string(cstrOperator);
             if(sstrOperator.find("*")!=std::string::npos ||
@@ -105,10 +129,12 @@ int main(int argc, char **argv)
                sstrOperator.find("multipl")!=std::string::npos ) {
                 sstrOperator = "multiplies";
             } else if(sstrOperator.find("+")!=std::string::npos ||
-                      sstrOperator.find("add")!=std::string::npos ) {
+                      sstrOperator.find("add")!=std::string::npos ||
+                      sstrOperator.find("plus")!=std::string::npos ) {
                 sstrOperator = "adds";
             } else if(sstrOperator.find("-")!=std::string::npos ||
-                      sstrOperator.find("subtract")!=std::string::npos ) {
+                      sstrOperator.find("subtract")!=std::string::npos ||
+                      sstrOperator.find("minus")!=std::string::npos ) {
                 sstrOperator = "subtracts";
             } else if(sstrOperator.find("/")!=std::string::npos ||
                       sstrOperator.find("divide")!=std::string::npos ) {
@@ -119,31 +145,15 @@ int main(int argc, char **argv)
             }
             //
             // check NumValue (evaluate)
-            exprtk::symbol_table<double> symbol_table; symbol_table.add_constants();
-            exprtk::expression<double> expression; expression.register_symbol_table(symbol_table);
-            exprtk::parser<double> parser; parser.compile(cstrNumValue,expression);
-            dblNumValue = expression.value();
-            //
-            // check Rect
-            if( 1 ) {
+            std::string strRefImage = cstrNumValue;
+            if(strRefImage.find(".fits")==std::string::npos) {
+                exprtk::symbol_table<double> symbol_table; symbol_table.add_constants();
+                exprtk::expression<double> expression; expression.register_symbol_table(symbol_table);
+                exprtk::parser<double> parser; parser.compile(cstrNumValue,expression);
+                dblNumValue = expression.value();
                 //
                 // check
                 std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " " << sstrOperator << " " << dblNumValue << " " << std::endl;
-                //
-                // define new image size
-                long newImWidth = oldImWidth;
-                long newImHeight = oldImHeight;
-                //
-                // create new image array
-                double *newImage = (double *)malloc(newImWidth*newImHeight*sizeof(double));
-                if(0==iRemoveNaN) {
-                    for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = NAN; } // need cmath.h
-                } else {
-                    if(debug>0) {
-                        std::cout << "DEBUG: removing all NaN values by filling 0.0" << std::endl;
-                    }
-                    for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = 0.0; } // need cmath.h
-                }
                 //
                 // copy image pixel by pixel
                 for(int jj=0; jj<=(newImHeight-1); jj++) {
@@ -157,13 +167,72 @@ int main(int argc, char **argv)
                             } else if("subtracts" == sstrOperator) {
                                 newImage[kk] = oldImage[kk] - dblNumValue;
                             } else if("divides" == sstrOperator) {
-                                newImage[kk] = oldImage[kk] - dblNumValue;
+                                newImage[kk] = oldImage[kk] / dblNumValue;
                             } else if("power of" == sstrOperator) {
                                 newImage[kk] = pow(oldImage[kk], dblNumValue);
                             }
                         }
                     }
                 }
+            } else {
+                //
+                // if the input NumValue is RefImage
+                cstrFilePathRefImage = (char *)strRefImage.c_str();
+                //
+                // check
+                std::cout << "CrabFitsImageArithmetic: " << cstrFilePathRefImage << " extension=" << atoi(cstrExtNumberRefImage) << std::endl;
+                //
+                // read fits header
+                errStatus = readFitsHeader(cstrFilePathRefImage,extNumberRefImage,&cstrHeaderRefImage,&posHeaderRefImage,&lenHeaderRefImage);
+                std::cout << "CrabFitsImageArithmetic: readFitsHeader " << cstrFilePathRefImage << " extension=" << extNumberRefImage << " headersize=" << strlen(cstrHeaderRefImage) << std::endl;
+                //
+                // read fits Naxis
+                char *cstrNAXIS1RefImage = extKeyword("NAXIS1",cstrHeaderRefImage);
+                char *cstrNAXIS2RefImage = extKeyword("NAXIS2",cstrHeaderRefImage);
+                if(cstrNAXIS1RefImage!=NULL && cstrNAXIS2RefImage!=NULL) {
+                    //
+                    // read fits Naxis
+                    long refImWidth = atol(cstrNAXIS1RefImage);
+                    long refImHeight = atol(cstrNAXIS2RefImage);
+                    //
+                    // check -- if the input NumValue is RefImage
+                    std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " " << sstrOperator << " " << cstrFilePathRefImage << " extension=" << extNumberRefImage << std::endl;
+                    //
+                    // read ref image
+                    double *refImage = readFitsImage(cstrFilePathRefImage,extNumberRefImage);
+                    std::cout << "CrabFitsImageArithmetic: readFitsImage " << cstrFilePathRefImage << " extension=" << extNumberRefImage << " imagesize=" << refImWidth << "x" << refImHeight << " bitpix=" << -long(sizeof(double))*8 << std::endl;
+                    //
+                    // check ref image size
+                    if(refImWidth!=oldImWidth || refImHeight!=oldImHeight) {
+                        std::cout << "Error! The two input fits images have different dimensions!" << std::endl;
+                        return -1;
+                    }
+                    //
+                    // copy image pixel by pixel
+                    for(int jj=0; jj<=(newImHeight-1); jj++) {
+                        for(int ii=0; ii<=(newImWidth-1); ii++) {
+                            long kk = long(ii)+long(jj)*newImWidth;
+                            if(NAN != oldImage[kk] && oldImage[kk] == oldImage[kk]) {
+                                if("multiplies" == sstrOperator) {
+                                    newImage[kk] = oldImage[kk] * refImage[kk];
+                                } else if("adds" == sstrOperator) {
+                                    newImage[kk] = oldImage[kk] + refImage[kk];
+                                } else if("subtracts" == sstrOperator) {
+                                    newImage[kk] = oldImage[kk] - refImage[kk];
+                                } else if("divides" == sstrOperator) {
+                                    newImage[kk] = oldImage[kk] / refImage[kk];
+                                } else if("power of" == sstrOperator) {
+                                    newImage[kk] = pow(oldImage[kk], refImage[kk]);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    std::cout << "Error! Failed to read NAXIS1 and NAXIS2 from the second input fits file!" << std::endl;
+                    return -1;
+                }
+            }
+            if(1) {
                 //
                 // also modify BITPIX
                 if(debug>0) {
