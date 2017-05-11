@@ -17,6 +17,7 @@
      
      clang++ -I/usr/include/malloc/ main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotAperPhot_mac # 2017-02-28
      clang++ -I/usr/include/malloc/ main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotAperPhot_mac # 2017-03-04
+     clang++ -I/usr/include/malloc/ main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotAperPhot_mac # 2017-05-08
  
  
  Initialized:
@@ -31,6 +32,7 @@
      2015-12-22 set arg -header-no-comment as the default choice
      2017-02-28 set arg -header-no-comment as the default choice. Use strncasecmp instead of strncmp. Added #include <clocale>.
      2017-03-04 set arg -header-in-comment as the default choice.
+     2017-05-08 allow fits name containing fits image extension number, e.g. aaa.fits[2]
  
  
  
@@ -54,7 +56,8 @@
 //#define DEF_Version "2016-01-11"
 //#define DEF_Version "2016-04-30"
 //#define DEF_Version "2017-02-28"
-#define DEF_Version "2017-03-04"
+//#define DEF_Version "2017-03-04"
+#define DEF_Version "2017-05-08"
 
 using namespace std;
 
@@ -109,9 +112,18 @@ int main(int argc, char **argv)
         std::cout << "# CrabPhotAperPhot: version " << DEF_Version << std::endl;
         // std::cout << "# CrabPhotAperPhot: " << cstrInput1 << " extension=" << extNumber << std::endl;
         //
+        // determine fits file name (and fits image extension if in fits file name) <20170508><dzliu>
+        std::string strFileName(cstrInput1);
+        if(strFileName.find(".fits[")!=std::string::npos) {
+            if(strFileName.find("]")>strFileName.find(".fits[")) {
+                extNumber = atoi(strFileName.substr(strFileName.find(".fits[")+6, strFileName.find("]")-strFileName.find(".fits[")-6).c_str());
+                strFileName = strFileName.substr(0,strFileName.find(".fits[")+5);
+            }
+        }
+        //
         // read fits header
-        errStatus = readFitsHeader(cstrInput1,extNumber,&cstrHeader,&posHeader,&lenHeader);
-        std::cout << "# CrabPhotAperPhot: readFitsHeader " << cstrInput1 << " extension=" << extNumber << " headersize=" << strlen(cstrHeader) << std::endl;
+        errStatus = readFitsHeader(strFileName.c_str(),extNumber,&cstrHeader,&posHeader,&lenHeader);
+        std::cout << "# CrabPhotAperPhot: readFitsHeader " << strFileName.c_str() << " extension=" << extNumber << " headersize=" << strlen(cstrHeader) << std::endl;
         //
         // read fits Naxis
         char *cstrNAXIS1 = extKeyword("NAXIS1",cstrHeader);
@@ -239,7 +251,7 @@ int main(int argc, char **argv)
                 //
                 // then do the image crop
                 double *aperImage = NULL;
-                CrabImageCopyCropRect(cstrInput1,&aperImage,iRectI0,iRectJ0,iRectI1,iRectJ1,oldLi,oldLj,oldUi,oldUj,newLi,newLj,newUi,newUj,extNumber);
+                CrabImageCopyCropRect((char *)strFileName.c_str(),&aperImage,iRectI0,iRectJ0,iRectI1,iRectJ1,oldLi,oldLj,oldUi,oldUj,newLi,newLj,newUi,newUj,extNumber);
                 // <TODO> debug
                 // CrabImageCopyCropRect(cstrInput1,&aperImage,iRectI0,iRectJ0,iRectI1,iRectJ1,oldLi,oldLj,oldUi,oldUj,newLi,newLj,newUi,newUj,extNumber,debug);
                 //
