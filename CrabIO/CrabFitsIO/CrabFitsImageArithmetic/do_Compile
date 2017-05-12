@@ -1,0 +1,11 @@
+#!/bin/bash
+# 
+
+
+if [[ $(uname) == "Darwin" ]]; then
+    clang++ -I/usr/include/malloc/ main.cpp CrabFitsIO.cpp -o CrabFitsImageArithmetic_mac
+    cp -i CrabFitsImageArithmetic_mac ~/Cloud/Github/DeepFields.SuperDeblending/Softwares/ds9_mac/
+fi
+
+
+

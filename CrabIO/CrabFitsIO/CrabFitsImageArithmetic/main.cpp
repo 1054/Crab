@@ -18,6 +18,7 @@
  Last update:
      
      2017-02-26   copied from CrabFitsImageCut/CrabFitsImageArithmetic
+     2017-05-12   -replace-nan
  
  
  */
@@ -51,6 +52,7 @@ int main(int argc, char **argv)
     char *cstrNumValue = NULL; double dblNumValue = 0.0;
     char *cstrNewFilePath = NULL;
     int   iRemoveNaN = 0; // in default we keep NaN values
+    char *cstrReplaceNaN = (char *)"0.0"; // the value to replace for NaN pixels
     
     int debug = 0; // <TODO><DEBUG>
     
@@ -62,6 +64,9 @@ int main(int argc, char **argv)
         }
         if(strcasecmp(argv[i],"-remove-nan")==0 ) {
             iRemoveNaN = 1; continue;
+        }
+        if(strcasecmp(argv[i],"-replace-nan")==0 ) {
+            iRemoveNaN = 1; if(i+1<=argc-1) { cstrReplaceNaN = argv[i+1]; } i++; continue;
         }
         if(strcasecmp(argv[i],"-debug")==0 ) {
             debug = 1; continue;
@@ -116,10 +121,11 @@ int main(int argc, char **argv)
             if(0==iRemoveNaN) {
                 for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = NAN; } // need cmath.h
             } else {
+                double dblReplaceNaN = atof(cstrReplaceNaN);
                 if(debug>0) {
-                    std::cout << "DEBUG: removing all NaN values by filling 0.0" << std::endl;
+                    std::cout << "DEBUG: removing all NaN values by filling " << dblReplaceNaN << std::endl;
                 }
-                for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = 0.0; } // need cmath.h
+                for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = dblReplaceNaN; } // need cmath.h
             }
             //
             // check operator
