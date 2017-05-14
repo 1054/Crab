@@ -134,7 +134,7 @@ int main(int argc, char **argv)
             // -- so that we can apply parameter tuning, e.g. elliptical aperture
             int aperTYPE = 1; // 1: circle; 2: ellipse; 3: TODO;
             std::string tempTYPE;
-            if(strncasecmp(cstrInput2,"none",strlen("none"))!=0 && strncasecmp(cstrInput2,"null",strlen("null"))!=0) {
+            if(strncasecmp(cstrInput2,"none",strlen("none"))!=0 && strncasecmp(cstrInput2,"null",strlen("null"))!=0 && strncasecmp(cstrInput2,"noinfo",strlen("noinfo"))!=0) {
                 tempTYPE = CrabTableReadInfo(cstrInput2,"AperType");
                 std::transform(tempTYPE.begin(), tempTYPE.end(), tempTYPE.begin(), ::tolower);
                 if(tempTYPE.find("ellip")!= std::string::npos) {
