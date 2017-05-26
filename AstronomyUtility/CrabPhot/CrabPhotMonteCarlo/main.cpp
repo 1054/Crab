@@ -15,6 +15,7 @@
  Please compile like this:
 
      clang++ -std=c++11 main.cpp -o CrabPhotMonteCarlo_linux_x86_64
+     clang++ -std=c++11 main.cpp -o CrabPhotMonteCarlo_mac
 
  Initialized:
 
@@ -24,6 +25,7 @@
 
      2015-10-17 initializing
      2015-10-29 fixed bug std:;cout
+     2017-05-21 fixed bug cstrInput3; stringstreamSimula.str("");
 
 
 
@@ -35,6 +37,7 @@
 #include <string.h>
 #include <cstring>
 #include <cmath>
+#include <clocale> // under mac
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -81,55 +84,58 @@ int main(int argc, char **argv)
         int   errStatus = 0;
         long  numSimula = 0; numSimula = atol(cstrInput2); if(debug>0) {std::cout << "# CrabPhotMonteCarlo: We will generate " << numSimula << " simulations!" << std::endl;}
         //
-        // set default output name to the input file name if user has no input
-        if(NULL==cstrInput3)
-        {
+        // extract basename from the input file path
+        // method 1:
+        // ref: http://bytes.com/topic/c/answers/545168-basename-c
+        // cstrInput3 = strrchr(cstrInput1, '/');
+        // cstrInput3 = cstrInput3 ? cstrInput3+1 : cstrInput1;
+        // method 2:
+        // ref: http://bytes.com/topic/c/answers/545168-basename-c
+        char *cstrTemp3 = (char *)malloc((strlen(cstrInput1)+1)*sizeof(char)); memset(cstrTemp3,'\0',strlen(cstrInput1)+1); strcpy(cstrTemp3,cstrInput1);
+        char *cstrTemp2 = NULL;
+        char *cstrTemp1 = (char *)malloc((strlen(cstrInput1)+1)*sizeof(char)); memset(cstrTemp1,'\0',strlen(cstrInput1)+1); strcpy(cstrTemp1,cstrInput1);
+        cstrTemp1 = dirname(cstrTemp1); // std::cout << cstrTemp1 << std::endl; // std::cout << strlen(cstrTemp1) << std::endl; // <debug> // dirname will modify the input cstring!
+        cstrTemp3 = basename(cstrTemp3); // std::cout << cstrTemp3 << std::endl; // std::cout << strlen(cstrTemp3) << std::endl; // <debug> // basename will modify the input cstring!
+        if(cstrTemp1) {
+            // if the input file contains a full path, e.g. /home/aaa/flux.dat, then the dir name will be /home/aaa/
+            strDirName = std::string(cstrTemp1);
+        } else {
+            // if the input file is just a file name, then it means the file is under current directory
+            strDirName = std::string(".");
+        }
+        if(cstrTemp3) {
+            // search suffix
+            cstrTemp2 = strrchr(cstrTemp3,'.');
+            // remove suffix
+            if(cstrTemp2) {
+                // get file base name
+                strFileName = std::string(cstrTemp3);
+                strBaseName = strFileName.substr(0,strlen(cstrTemp3)-strlen(cstrTemp2));
+            } else {
+                strFileName = std::string(cstrTemp3);
+                strBaseName = strFileName;
+            }
+        }
+        //
+        // set default output name to the input file name if user has no input, considering the dir path (cstrTemp1) in the original input file path (cstrInput1)
+        if(NULL==cstrInput3) {
             // cstrInput3 = (char *)"";
-            //
-            // extract basename from the input file path
-            // method 1:
-            // ref: http://bytes.com/topic/c/answers/545168-basename-c
-            // cstrInput3 = strrchr(cstrInput1, '/');
-            // cstrInput3 = cstrInput3 ? cstrInput3+1 : cstrInput1;
-            // method 2:
-            // ref: http://bytes.com/topic/c/answers/545168-basename-c
-            char *cstrTemp3 = (char *)malloc((strlen(cstrInput1)+1)*sizeof(char)); memset(cstrTemp3,'\0',strlen(cstrInput1)+1); strcpy(cstrTemp3,cstrInput1);
-            char *cstrTemp2 = NULL;
-            char *cstrTemp1 = (char *)malloc((strlen(cstrInput1)+1)*sizeof(char)); memset(cstrTemp1,'\0',strlen(cstrInput1)+1); strcpy(cstrTemp1,cstrInput1);
-            cstrTemp1 = dirname(cstrTemp1); // std::cout << cstrTemp1 << std::endl; // std::cout << strlen(cstrTemp1) << std::endl; // <debug> // dirname will modify the input cstring!
-            cstrTemp3 = basename(cstrTemp3); // std::cout << cstrTemp3 << std::endl; // std::cout << strlen(cstrTemp3) << std::endl; // <debug> // basename will modify the input cstring!
             if(cstrTemp1) {
-                // if the input file contains a full path, e.g. /home/aaa/flux.dat, then the output dir name will be /home/aaa/flux/.
-                strDirName = std::string(cstrTemp1);
-                // remove suffix
                 cstrInput3 = (char *)malloc((strlen(cstrTemp1)+1+strlen(cstrTemp3)+1)*sizeof(char));
                 memset(cstrInput3,'\0',strlen(cstrTemp1)+1+strlen(cstrTemp3)+1);
                 strncpy(cstrInput3,cstrTemp1,strlen(cstrTemp1)); cstrInput3[strlen(cstrTemp1)]='/'; // if the input cstrInput1 contains a full path, then copy this full path to the output dir name.
-                cstrTemp2 = strrchr(cstrTemp3,'.');
                 if(cstrTemp2) {
                     strncpy(cstrInput3+strlen(cstrTemp1)+1,cstrTemp3,strlen(cstrTemp3)-strlen(cstrTemp2));
-                    strFileName = std::string(cstrTemp3);
-                    strBaseName = strFileName.substr(0,strlen(cstrTemp3)-strlen(cstrTemp2));
                 } else {
                     strncpy(cstrInput3+strlen(cstrTemp1)+1,cstrTemp3,strlen(cstrTemp3));
-                    strFileName = std::string(cstrTemp3);
-                    strBaseName = strFileName;
                 }
             } else {
-                // if the input file is just a file name, then it means the file is under current directory, so the output dir will be created just under current directory.
-                strDirName = std::string(".");
-                // remove suffix
                 cstrInput3 = (char *)malloc((strlen(cstrTemp3)+1)*sizeof(char));
                 memset(cstrInput3,'\0',strlen(cstrTemp3)+1);
-                cstrTemp2 = strrchr(cstrTemp3,'.');
                 if(cstrTemp2) {
                     strncpy(cstrInput3,cstrTemp3,strlen(cstrTemp3)-strlen(cstrTemp2));
-                    strFileName = std::string(cstrTemp3);
-                    strBaseName = strFileName.substr(0,strlen(cstrTemp3)-strlen(cstrTemp2));
                 } else {
                     strncpy(cstrInput3,cstrTemp3,strlen(cstrTemp3));
-                    strFileName = std::string(cstrTemp3);
-                    strBaseName = strFileName;
                 }
             }
         }
@@ -256,7 +262,7 @@ int main(int argc, char **argv)
             stringstreamSimula.fill('0');
             stringstreamSimula.width(int(log10(double(numSimula)))+1);
             stringstreamSimula << i+1;
-            std::string strSimID = stringstreamSimula.str();
+            std::string strSimID = stringstreamSimula.str(); stringstreamSimula.str("");
             std::string strSimDir = std::string(cstrInput3) + "/" + strSimID;
             std::string strSimDat = strSimDir + "/" + strFileName;
             std::cout << "# CrabPhotMonteCarlo: writing to " << strSimDat << std::endl;

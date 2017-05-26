@@ -59,8 +59,8 @@ int main(int argc, char **argv)
     for(int i=1; i<argc; i++) {
         if(strncmp(argv[i],"-ext",4)==0 && i<argc-1) {
             i++;
-            if(cstrExtNumber==NULL) {cstrExtNumber = argv[i]; continue;}
-            if(cstrExtNumberRefImage==NULL) {cstrExtNumberRefImage = argv[i]; continue;}
+            if(strcmp(cstrExtNumber,"0")==0) {cstrExtNumber = argv[i]; continue;}
+            if(strcmp(cstrExtNumberRefImage,"0")==0) {cstrExtNumberRefImage = argv[i]; continue;}
         }
         if(strcasecmp(argv[i],"-remove-nan")==0 ) {
             iRemoveNaN = 1; continue;
