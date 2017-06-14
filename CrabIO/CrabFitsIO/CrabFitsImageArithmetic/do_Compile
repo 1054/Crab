@@ -7,5 +7,8 @@ if [[ $(uname) == "Darwin" ]]; then
     cp -i CrabFitsImageArithmetic_mac ~/Cloud/Github/DeepFields.SuperDeblending/Softwares/ds9_mac/
 fi
 
+if [[ $(uname) == "Linux" ]]; then
+    g++ main.cpp CrabFitsIO.cpp -o CrabFitsImageArithmetic_linux_x86_64
+fi
 
 
