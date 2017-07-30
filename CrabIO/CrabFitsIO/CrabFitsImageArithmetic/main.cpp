@@ -19,6 +19,7 @@
      
      2017-02-26   copied from CrabFitsImageCut/CrabFitsImageArithmetic
      2017-05-12   -replace-nan
+     2017-07-20   also remove NAXIS1 and NAXIS2 in the mainHeader (but not recompiled yet)
  
  
  */
@@ -52,6 +53,7 @@ int main(int argc, char **argv)
     char *cstrNumValue = NULL; double dblNumValue = 0.0;
     char *cstrNewFilePath = NULL;
     int   iRemoveNaN = 0; // in default we keep NaN values
+    int   iCopyWcs = 0; // in default we do not search Wcs keywords, if the user gives '-copy-wcs' keyword, then we search the whole fits header and look for Wcs keywords and copy into the output fits file.
     char *cstrReplaceNaN = (char *)"0.0"; // the value to replace for NaN pixels
     
     int debug = 0; // <TODO><DEBUG>
@@ -70,6 +72,9 @@ int main(int argc, char **argv)
         }
         if(strcasecmp(argv[i],"-debug")==0 ) {
             debug = 1; continue;
+        }
+        if(strcasecmp(argv[i],"-copy-wcs")==0 || strcasecmp(argv[i],"-copywcs")==0 ) {
+            iCopyWcs = 1; continue;
         }
         if(cstrFilePath==NULL && i<=argc-1) { cstrFilePath = argv[i]; continue; }
         if(cstrOperator==NULL && i<=argc-1) { cstrOperator = argv[i]; continue; }
@@ -90,8 +95,58 @@ int main(int argc, char **argv)
         long  posHeaderRefImage = 0;
         long  lenHeaderRefImage = 0;
         //
+        // Wcs
+        int extNumerWcsHeader = 0;
+        long posWcsHeader = 0;
+        long lenWcsHeader = 0;
+        char *cstrWcsHeader = NULL;
+        char *cstrWcsCTYPE1 = NULL;
+        char *cstrWcsCTYPE2 = NULL;
+        char *cstrWcsCRPIX1 = NULL;
+        char *cstrWcsCRPIX2 = NULL;
+        char *cstrWcsCRVAL1 = NULL;
+        char *cstrWcsCRVAL2 = NULL;
+        char *cstrWcsCDELT1 = NULL;
+        char *cstrWcsCDELT2 = NULL;
+        char *cstrWcsCROTA1 = NULL;
+        char *cstrWcsCROTA2 = NULL;
+        char *cstrWcsCUNIT1 = NULL;
+        char *cstrWcsCUNIT2 = NULL;
+        char *cstrWcsCD1_1 = NULL;
+        char *cstrWcsCD1_2 = NULL;
+        char *cstrWcsCD2_1 = NULL;
+        char *cstrWcsCD2_2 = NULL;
+        //
         // check
         std::cout << "CrabFitsImageArithmetic: " << cstrFilePath << " extension=" << atoi(cstrExtNumber) << std::endl;
+        //
+        // read Wcs fits header <20170730>
+        if(iCopyWcs>0) {
+            extNumerWcsHeader = 0;
+            while(extNumerWcsHeader==0 || cstrWcsHeader!=NULL) {
+                std::cout << "CrabFitsImageArithmetic: copy wcs from fits extension " << extNumerWcsHeader << std::endl;
+                errStatus = readFitsHeader(cstrFilePath,extNumerWcsHeader,&cstrWcsHeader,&posWcsHeader,&lenWcsHeader);
+                if(cstrWcsHeader!=NULL) {
+                    if(cstrWcsCTYPE1==NULL) {cstrWcsCTYPE1 = extKeyword("CTYPE1",cstrWcsHeader); if(cstrWcsCTYPE1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CTYPE1 = " << cstrWcsCTYPE1 << std::endl;} }
+                    if(cstrWcsCTYPE2==NULL) {cstrWcsCTYPE2 = extKeyword("CTYPE2",cstrWcsHeader); if(cstrWcsCTYPE2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CTYPE2 = " << cstrWcsCTYPE2 << std::endl;} }
+                    if(cstrWcsCRPIX1==NULL) {cstrWcsCRPIX1 = extKeyword("CRPIX1",cstrWcsHeader); if(cstrWcsCRPIX1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CRPIX1 = " << cstrWcsCRPIX1 << std::endl;} }
+                    if(cstrWcsCRPIX2==NULL) {cstrWcsCRPIX2 = extKeyword("CRPIX2",cstrWcsHeader); if(cstrWcsCRPIX2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CRPIX2 = " << cstrWcsCRPIX2 << std::endl;} }
+                    if(cstrWcsCRVAL1==NULL) {cstrWcsCRVAL1 = extKeyword("CRVAL1",cstrWcsHeader); if(cstrWcsCRVAL1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CRVAL1 = " << cstrWcsCRVAL1 << std::endl;} }
+                    if(cstrWcsCRVAL2==NULL) {cstrWcsCRVAL2 = extKeyword("CRVAL2",cstrWcsHeader); if(cstrWcsCRVAL2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CRVAL2 = " << cstrWcsCRVAL2 << std::endl;} }
+                    if(cstrWcsCDELT1==NULL) {cstrWcsCDELT1 = extKeyword("CDELT1",cstrWcsHeader); if(cstrWcsCDELT1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CDELT1 = " << cstrWcsCDELT1 << std::endl;} }
+                    if(cstrWcsCDELT2==NULL) {cstrWcsCDELT2 = extKeyword("CDELT2",cstrWcsHeader); if(cstrWcsCDELT2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CDELT2 = " << cstrWcsCDELT2 << std::endl;} }
+                    if(cstrWcsCROTA1==NULL) {cstrWcsCROTA1 = extKeyword("CROTA1",cstrWcsHeader); if(cstrWcsCROTA1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CROTA1 = " << cstrWcsCROTA1 << std::endl;} }
+                    if(cstrWcsCROTA2==NULL) {cstrWcsCROTA2 = extKeyword("CROTA2",cstrWcsHeader); if(cstrWcsCROTA2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CROTA2 = " << cstrWcsCROTA2 << std::endl;} }
+                    if(cstrWcsCUNIT1==NULL) {cstrWcsCUNIT1 = extKeyword("CUNIT1",cstrWcsHeader); if(cstrWcsCUNIT1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CUNIT1 = " << cstrWcsCUNIT1 << std::endl;} }
+                    if(cstrWcsCUNIT2==NULL) {cstrWcsCUNIT2 = extKeyword("CUNIT2",cstrWcsHeader); if(cstrWcsCUNIT2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CUNIT2 = " << cstrWcsCUNIT2 << std::endl;} }
+                    if(cstrWcsCD1_1==NULL) {cstrWcsCD1_1 = extKeyword("CD1_1",cstrWcsHeader); if(cstrWcsCD1_1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD1_1 = " << cstrWcsCD1_1 << std::endl;} }
+                    if(cstrWcsCD1_2==NULL) {cstrWcsCD1_2 = extKeyword("CD1_2",cstrWcsHeader); if(cstrWcsCD1_2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD1_2 = " << cstrWcsCD1_2 << std::endl;} }
+                    if(cstrWcsCD2_1==NULL) {cstrWcsCD2_1 = extKeyword("CD2_1",cstrWcsHeader); if(cstrWcsCD2_1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD2_1 = " << cstrWcsCD2_1 << std::endl;} }
+                    if(cstrWcsCD2_2==NULL) {cstrWcsCD2_2 = extKeyword("CD2_2",cstrWcsHeader); if(cstrWcsCD2_2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD2_2 = " << cstrWcsCD2_2 << std::endl;} }
+                }
+                extNumerWcsHeader++;
+            }
+        }
         //
         // read fits header
         errStatus = readFitsHeader(cstrFilePath,extNumber,&cstrHeader,&posHeader,&lenHeader);
@@ -252,6 +307,27 @@ int main(int argc, char **argv)
                     std::cout << "DEBUG: new BITPIX = " << extKeyword("BITPIX",cstrHeader) << std::endl;
                 }
                 //
+                // copy Wcs fits header <20170730>
+                if(iCopyWcs>0) {
+                    //std::cout << "DEBUG: addKeyword" << std::endl;
+                    if(cstrWcsCTYPE1) {addKeyword("CTYPE1",cstrWcsCTYPE1,&cstrHeader);}
+                    if(cstrWcsCTYPE2) {addKeyword("CTYPE2",cstrWcsCTYPE2,&cstrHeader);}
+                    if(cstrWcsCRPIX1) {addKeyword("CRPIX1",cstrWcsCRPIX1,&cstrHeader);}
+                    if(cstrWcsCRPIX2) {addKeyword("CRPIX2",cstrWcsCRPIX2,&cstrHeader);}
+                    if(cstrWcsCRVAL1) {addKeyword("CRVAL1",cstrWcsCRVAL1,&cstrHeader);}
+                    if(cstrWcsCRVAL2) {addKeyword("CRVAL2",cstrWcsCRVAL2,&cstrHeader);}
+                    if(cstrWcsCDELT1) {addKeyword("CDELT1",cstrWcsCDELT1,&cstrHeader);}
+                    if(cstrWcsCDELT2) {addKeyword("CDELT2",cstrWcsCDELT2,&cstrHeader);}
+                    if(cstrWcsCROTA1) {addKeyword("CROTA1",cstrWcsCROTA1,&cstrHeader);}
+                    if(cstrWcsCROTA2) {addKeyword("CROTA2",cstrWcsCROTA2,&cstrHeader);}
+                    if(cstrWcsCUNIT1) {addKeyword("CUNIT1",cstrWcsCUNIT1,&cstrHeader);}
+                    if(cstrWcsCUNIT2) {addKeyword("CUNIT2",cstrWcsCUNIT2,&cstrHeader);}
+                    if(cstrWcsCD1_1) {addKeyword("CD1_1",cstrWcsCD1_1,&cstrHeader);}
+                    if(cstrWcsCD1_2) {addKeyword("CD1_2",cstrWcsCD1_2,&cstrHeader);}
+                    if(cstrWcsCD2_1) {addKeyword("CD2_1",cstrWcsCD2_1,&cstrHeader);}
+                    if(cstrWcsCD2_2) {addKeyword("CD2_2",cstrWcsCD2_2,&cstrHeader);}
+                }
+                //
                 // and remember to copy the main header when (extNumber>0) <TODO> do we need to copy the main header??
                 if(extNumber>0) {                                       // <TODO> do we need to copy the main header??
                     char *mainHeader = readFitsHeader(cstrFilePath,0);
@@ -273,6 +349,12 @@ int main(int argc, char **argv)
                             // free(tempHead80); tempHead80 = NULL;
                             for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
                         }
+                        if(0==strncmp(tempHeader,"NAXIS1  =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20170720 also remove NAXIS1 and NAXIS2 in the mainHeader */
+                        if(0==strncmp(tempHeader,"NAXIS2  =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20170720 also remove NAXIS1 and NAXIS2 in the mainHeader */
                         if(0==strncmp(tempHeader,"BITPIX  =",9)){
                             for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
                         }

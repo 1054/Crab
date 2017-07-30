@@ -1,4 +1,5 @@
 /* CrabFits Updated 2012-09-16 */
+/* CrabFits Updated 2017-07-30 addKeyword() */
 //
 #ifndef MYFITSIO_H
 #define MYFITSIO_H
@@ -11,7 +12,8 @@ int   readFitsHeader(const char *FilePath, int xtension, char **HeaderText, long
 int   readFitsHeaderExtensions(const char *FilePath);
 char *extKeyword(const char *KeywordName, const char *HeaderText);
 int   extKeyword(const char *KeywordName, const char *HeaderText, char **KeywordValue);
-int   modKeyword(const char *strKeyName, const char *strKeyValue, const char *strHeader);
+int   modKeyword(const char *strKeyName, const char *strKeyValue, char *strHeader); // we only need to modify Header str without changing strlen, so we can use char * instead of char **.
+int   addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderPointer, const char *strComment = NULL, int addEmptyLine = 2); // we will change the Header strlen, so we need char ** instead of char *.
 int   addComment(const char *strComment, const char *strHeader);
 int   addHistory(const char *strHistory, const char *strHeader);
 int   isENDmark(char *baLine);

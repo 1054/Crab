@@ -1,3 +1,9 @@
+/*
+ 
+ 20170728 output ds9 region file, now add double quotes to 'point=box color=\"\"' 'point=cross color=\"\"'
+ 
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <malloc.h>
@@ -516,7 +522,7 @@ void blob_print_polygon(std::vector<blob_class> blob_list, std::string output_fi
             //outfile << out_x.at(ipix)+1 << "," << out_y.at(ipix)+1;
             // here +1 because the ds9 coordinate system starts from 1, while subscripts start from 0.
         }
-        //std::cout << ") ";
+        std::cout << ")" << std::endl;
         //outfile << ")\n";
         outfile << "\n";
         
@@ -527,14 +533,13 @@ void blob_print_polygon(std::vector<blob_class> blob_list, std::string output_fi
         std::string output_color_str = output_color_ss.str();
         
         for(int ipix=0; ipix<blob_item.fd.size(); ipix++) {
-            outfile << "point(" << blob_item.xd.at(ipix)+1 << "," << blob_item.yd.at(ipix)+1 << ") # point=box color=#" << output_color_str << "\n";
+            outfile << "point(" << blob_item.xd.at(ipix)+1 << "," << blob_item.yd.at(ipix)+1 << ") # point=box color=\"#" << output_color_str << "\"\n";
             // here +1 because the ds9 coordinate system starts from 1, while subscripts start from 0.
         }
         for(int ipix=0; ipix<out_theta.size(); ipix++) {
-            outfile << "point(" << out_x.at(ipix)+1 << "," << out_y.at(ipix)+1 << ") # point=cross color=#" << output_color_str << "\n";
+            outfile << "point(" << out_x.at(ipix)+1 << "," << out_y.at(ipix)+1 << ") # point=cross color=\"#" << output_color_str << "\"\n";
             // here +1 because the ds9 coordinate system starts from 1, while subscripts start from 0.
         }
-        std::cout << std::endl;
         outfile << "\n";
     }
     std::cout << std::endl;

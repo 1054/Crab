@@ -207,7 +207,10 @@ int main(int argc, char **argv)
             std::cout << "#"
             << setw(11) << "x"
             << setw(12) << "y"
-            << setw(12) << "radius"
+            << setw(12) << "id"
+            << setw(12) << "fc"
+            << setw(12) << "rms"
+            << setw(12) << "snr"
             << std::flush;
             std::cout << std::endl;
             std::cout << "# " << std::endl;
@@ -216,7 +219,10 @@ int main(int argc, char **argv)
             std::cout << "# " << std::endl;
             std::cout << setw(12) << "x"
             << setw(12) << "y"
-            << setw(12) << "radius"
+            << setw(12) << "id"
+            << setw(12) << "fc"
+            << setw(12) << "rms"
+            << setw(12) << "snr"
             << std::flush;
             std::cout << std::endl;
         }
@@ -225,7 +231,7 @@ int main(int argc, char **argv)
         
         
         //
-        // boxlize the input fits image
+        // boxilize the input fits image
         long box_size[2] = {1000,1000};
         long box_buff[2] = {100,100};
         box_size[0] = longWidth; box_size[1] = longHeight; // <TODO> do not boxlize the image
@@ -314,12 +320,20 @@ int main(int argc, char **argv)
                             }
                         }
                         output_pixel_rms = blob_item.getsigma(output_pixel_vec);
-                        std::cout << "Computing rms = " << output_pixel_rms << std::endl;
-                        std::cout << "Computing xc = " << blob_item.xc.at(0)+1 << std::endl; // +1 accounts for ds9 coordinate system starting from 1 instead of 0.
-                        std::cout << "Computing yc = " << blob_item.yc.at(0)+1 << std::endl; // +1 accounts for ds9 coordinate system starting from 1 instead of 0.
-                        std::cout << "Computing fc = " << blob_item.fc.at(0) << std::endl;
-                        std::cout << "Computing snr = " << blob_item.fc.at(0)/output_pixel_rms << std::endl;
-                        std::cout << "--" << std::endl;
+                        //std::cout << "Computing rms = " << output_pixel_rms << std::endl;
+                        //std::cout << "Computing id = " << blob_list.size()+1 << std::endl;
+                        //std::cout << "Computing xc = " << blob_item.xc.at(0)+1 << std::endl; // +1 accounts for ds9 coordinate system starting from 1 instead of 0.
+                        //std::cout << "Computing yc = " << blob_item.yc.at(0)+1 << std::endl; // +1 accounts for ds9 coordinate system starting from 1 instead of 0.
+                        //std::cout << "Computing fc = " << blob_item.fc.at(0) << std::endl;
+                        //std::cout << "Computing snr = " << blob_item.fc.at(0)/output_pixel_rms << std::endl;
+                        //std::cout << "--" << std::endl;
+                        std::cout << setw(12) << blob_item.xc.at(0)+1; // +1 accounts for ds9 coordinate system starting from 1 instead of 0.
+                        std::cout << setw(12) << blob_item.yc.at(0)+1; // +1 accounts for ds9 coordinate system starting from 1 instead of 0.
+                        std::cout << setw(12) << blob_list.size()+1; // id
+                        std::cout << setw(12) << blob_item.fc.at(0); // fc, central pixel value
+                        std::cout << setw(12) << output_pixel_rms; // rms
+                        std::cout << setw(12) << blob_item.fc.at(0)/output_pixel_rms; // snr
+                        std::cout << std::endl;
                         //
                         blob_list.push_back(blob_item);
                     }
