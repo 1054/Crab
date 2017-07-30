@@ -20,6 +20,7 @@
      2017-02-26   copied from CrabFitsImageCut/CrabFitsImageArithmetic
      2017-05-12   -replace-nan
      2017-07-20   also remove NAXIS1 and NAXIS2 in the mainHeader (but not recompiled yet)
+     2017-07-30   -copy-wcs
  
  
  */
@@ -431,6 +432,7 @@ int main(int argc, char **argv)
         std::cout << "Usage: " << std::endl;
         std::cout << "    CrabFitsImageArithmetic FITS_IMAGE.fits 'divides' -0.5 FITS_IMAGE_OUTPUT.fits" << std::endl;
         std::cout << "    CrabFitsImageArithmetic image_sci.fits '*' 0.0 image_zero.fits -remove-nan" << std::endl;
+        std::cout << "    CrabFitsImageArithmetic galfit_fit.fits -ext 3 times 1.0 galfit_residual.fits -copy-wcs" << std::endl;
     }
     return 0;
 }
