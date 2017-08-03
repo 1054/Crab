@@ -1,4 +1,5 @@
 /* CrabFits Updated 2012-09-16 */
+/* CrabFits Updated 2017-08-03 Ziegelhausen */
 //
 //Usage:
 //    char  *header;
@@ -11,7 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <malloc.h>
+//#include <malloc.h>
 //#include <wchar.h>
 #include "CrabFitsIO.h"
 
@@ -2065,6 +2066,7 @@ int writeFitsDS(double *data, int DataWidth, int DataHeight, const char *strFile
     return errorcode;
 }
 
+
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*fits head must be the integer times of 2880 bytes.*/
 int checkHead2880(long headBytes, FILE* writeToFile)
@@ -2080,6 +2082,7 @@ int checkHead2880(long headBytes, FILE* writeToFile)
     }
     return padHead2880;
 }
+
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*fits data must be the integer times of 2880 bytes.*/
@@ -2195,3 +2198,182 @@ char *generateFitsHeaderDS(int DataWidth, int DataHeight)
 
    return header;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/*Modify FITS at a certain insert position (edited 2017-08-03).*/
+/*Note that the input InsertPosI0 and InsertPosJ0 are the pixel coordinate starting from 0 to NAXIS1-1 and NAXIS2-1.*/
+int modifyFitsImage(double *data, int DataWidth, int DataHeight, int InsertPosI0, int InsertPosJ0, const char *strFilePath, int xtension, int debugcode) //TCHAR
+{
+    int errorcode = 0;
+    int i=0,j=0,k=0;
+    FILE *fp;
+    char *dp;
+    
+    /*Read fits header.*/
+    long    HeaderPos  = 0;
+    long    HeaderSize = 0;
+    char   *HeaderData;
+    errorcode = readFitsHeader(strFilePath,xtension,&HeaderData,&HeaderPos,&HeaderSize);
+    if(errorcode!=0) {
+        printf("modifyFitsImage: Error! Could not get fits header from readFitsHeader!\n"); return errorcode;
+    } else {
+        if(debugcode>=1) {
+            printf("modifyFitsImage: FitsHeaderPos %ld, FitsHeaderSize %ld.\n", HeaderPos, HeaderSize);
+        }
+    }
+    
+    /*Read fits header keywords.*/
+    char   *BITPIX = extKeyword("BITPIX",HeaderData);
+    char   *NAXIS1 = extKeyword("NAXIS1",HeaderData);
+    char   *NAXIS2 = extKeyword("NAXIS2",HeaderData);
+    int     ImageBitpix = atoi(BITPIX);
+    int     ImageWidth  = atoi(NAXIS1);
+    int     ImageHeight = atoi(NAXIS2);
+    int     ImageSize = ImageWidth*ImageHeight;
+    if(ImageWidth<=0 || ImageHeight<=0) { printf("modifyFitsImage: Error! Could not get NAXIS from fits header!\n"); return errorcode; }
+    
+    /*Check the insert position.*/
+    int InsertWidth = DataWidth; // the exact image block to be inserted
+    int InsertHeight = DataHeight; // the exact image block to be inserted
+    int DataPosI0 = 0; // the input data block starting Position
+    int DataPosJ0 = 0;
+    if(InsertPosI0<0) { DataPosI0 += (-InsertPosI0); InsertWidth -= (-InsertPosI0); InsertPosI0 = 0; }
+    if(InsertPosJ0<0) { DataPosJ0 += (-InsertPosJ0); InsertHeight -= (-InsertPosJ0); InsertPosJ0 = 0; }
+    // e.g., FitsImage 3x3, DataSize 2x2, InsertPos (-1,-1), i.e. one pixel bottom-left outer the fits image,
+    // ----> DataPos (1,1), InsertSize 1x1, InsertPos (0,0).
+    if(InsertPosI0+InsertWidth>ImageWidth) { InsertWidth -= (InsertPosI0+InsertWidth-ImageWidth); }
+    if(InsertPosJ0+InsertHeight>ImageHeight) { InsertHeight -= (InsertPosJ0+InsertHeight-ImageHeight); }
+    // e.g., FitsImage 4x4, DataSize 3x3, InsertPos (2,2), i.e. one pixels top-right outer the fits image,
+    // ----> DataPos unchanged, InsertSize 1x1, InsertPos unchanged.
+    
+    /*Check the insert width and height.*/
+    if(InsertWidth<=0 || InsertHeight<=0) {
+        printf("modifyFitsImage: Warning! Input image block is out of the field of the target image, no data copied.\n"); return errorcode;
+    } else {
+        if(debugcode>=1) {
+            printf("modifyFitsImage: DataSize %dx%d, DataPos (%d,%d), InsertSize %dx%d, FitsImageSize %dx%d, FitsImageInsertPos (%d,%d).\n", DataWidth, DataHeight, DataPosI0, DataPosJ0, ImageWidth, ImageHeight, InsertWidth, InsertHeight, InsertPosI0, InsertPosJ0);
+        }
+        if(debugcode>=1) {
+            printf("modifyFitsImage: isLittleEndian = %d.\n", isLittleEndian2());
+        }
+    }
+    
+    /*Open fits file for modifying binary data without changing file size.*/
+    fp=fopen(strFilePath,"r+b");
+    if(fp==NULL) { errorcode=5; return errorcode; } // errorcode 5, failed to read file with fopen().
+    
+    /*Modify fits image data bytes.*/
+    if(ImageBitpix==32) // int data type
+    {
+        for(j=0; j<InsertHeight; j++) {
+            /*Move file pointer to the insert position.*/
+            fseek(fp, HeaderPos+HeaderSize+((InsertPosJ0+j)*ImageWidth+(InsertPosI0))*sizeof(int), SEEK_SET);
+            if(debugcode>=2) {
+                printf("modifyFitsImage: fseek %ld.\n", HeaderPos+HeaderSize+((InsertPosJ0+j)*ImageWidth+(InsertPosI0))*sizeof(int));
+            }
+            for(i=0; i<InsertWidth; i++) {
+                /*Copy data.*/
+                int dv = (int)(data[(DataPosJ0+j)*DataWidth+(DataPosI0+i)]);
+                /*swap bytes if LittleEndian.*/
+                dp = (char *)&dv; if(isLittleEndian2()) { for(k=sizeof(int)-1; k>=0; k--) { fwrite(&dp[k],1,1,fp); } } else { fwrite(dp,sizeof(int),1,fp); }
+            }
+        }
+    }
+    else if(ImageBitpix==-32) // float data type
+    {
+        for(j=0; j<InsertHeight; j++) {
+            /*Move file pointer to the insert position.*/
+            fseek(fp, HeaderPos+HeaderSize+((InsertPosJ0+j)*ImageWidth+(InsertPosI0))*sizeof(float), SEEK_SET);
+            if(debugcode>=2) {
+                printf("modifyFitsImage: fseek %ld.\n", HeaderPos+HeaderSize+((InsertPosJ0+j)*ImageWidth+(InsertPosI0))*sizeof(float));
+            }
+            for(i=0; i<InsertWidth; i++) {
+                /*Copy data.*/
+                float dv = (float)(data[(DataPosJ0+j)*DataWidth+(DataPosI0+i)]);
+                /*swap bytes if LittleEndian.*/
+                dp = (char *)&dv; if(isLittleEndian2()) { for(k=sizeof(float)-1; k>=0; k--) { fwrite(&dp[k],1,1,fp); } } else { fwrite(dp,sizeof(float),1,fp); }
+            }
+        }
+    }
+    else if(ImageBitpix==-64) // double data type
+    {
+        for(j=0; j<InsertHeight; j++) {
+            /*Move file pointer to the insert position.*/
+            fseek(fp, HeaderPos+HeaderSize+((InsertPosJ0+j)*ImageWidth+(InsertPosI0))*sizeof(double), SEEK_SET);
+            if(debugcode>=2) {
+                printf("modifyFitsImage: fseek %ld.\n", HeaderPos+HeaderSize+((InsertPosJ0+j)*ImageWidth+(InsertPosI0))*sizeof(double));
+            }
+            for(i=0; i<InsertWidth; i++) {
+                /*Copy data.*/
+                double dv = (double)(data[(DataPosJ0+j)*DataWidth+(DataPosI0+i)]);
+                /*swap bytes if LittleEndian.*/
+                dp = (char *)&dv; if(isLittleEndian2()) { for(k=sizeof(double)-1; k>=0; k--) { fwrite(&dp[k],1,1,fp); } } else { fwrite(dp,sizeof(double),1,fp); }
+            }
+        }
+    }
+    
+    fclose(fp);
+    return errorcode;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

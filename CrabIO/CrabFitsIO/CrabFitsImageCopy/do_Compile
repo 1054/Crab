@@ -1,0 +1,9 @@
+#!/bin/bash
+# 
+
+if [[ $(uname) == "Darwin" ]]; then
+    clang++ main.cpp ../CrabFitsIO.cpp -o CrabFitsImageCopy_mac
+else
+    g++ main.cpp ../CrabFitsIO.cpp -o CrabFitsImageCopy_linux_x86_64
+fi
+
