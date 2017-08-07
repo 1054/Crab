@@ -12,7 +12,7 @@ Suffix_str=""
 if [[ $(uname) == "Darwin" ]]; then
     Suffix_str="mac_"$(date +"%Y%m%d")
 else
-    Suffix_str="linux_"$(uname -m)"_ldd_"$(ldd --version | head -n 1 | sed -e 's/ldd \(.*\) *//g' | sed -e 's/\./_/g')"_v"$(date +"%Y%m%d")
+    Suffix_str="linux_"$(uname -m)"_ldd_"$(ldd --version | head -n 1 | sed -e 's/[^0-9.]//g' | sed -e 's/\./_/g')"_v"$(date +"%Y%m%d")
 fi
 
 echo "Compiler_bin = ${Compiler_bin}"
