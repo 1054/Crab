@@ -12,8 +12,8 @@
  
  Please compile like this:
  
-     clang++ main.cpp CrabFitsIO.cpp -o CrabFitsImageArithmetic_linux_x86_64
-     clang++ -I/usr/include/malloc/ main.cpp CrabFitsIO.cpp -o CrabFitsImageArithmetic_mac; cp -i CrabFitsImageArithmetic_mac ~/Cloud/Github/DeepFields.SuperDeblending/Softwares/ds9_mac/
+     clang++ main.cpp ../CrabFitsIO.cpp -o CrabFitsImageArithmetic_linux_x86_64
+     clang++ -I/usr/include/malloc/ main.cpp ../CrabFitsIO.cpp -o CrabFitsImageArithmetic_mac; cp -i CrabFitsImageArithmetic_mac ~/Cloud/Github/DeepFields.SuperDeblending/Softwares/ds9_mac/
  
  Last update:
      
@@ -32,7 +32,7 @@
 #include <fstream>
 #include <iostream>
 #include <iomanip>
-#include "CrabFitsIO.h"
+#include "../CrabFitsIO.h"
 #include "exprtk.hpp"
 
 using namespace std;
@@ -48,8 +48,8 @@ int main(int argc, char **argv)
         std::cout << argv[i] << std::endl;
     }
     **/
-    char *cstrFilePath = NULL; char *cstrExtNumber = (char *)"0";
-    char *cstrFilePathRefImage = NULL; char *cstrExtNumberRefImage = (char *)"0";
+    char *cstrFilePath = NULL; char *cstrExtNumber = NULL;
+    char *cstrFilePathRefImage = NULL; char *cstrExtNumberRefImage = NULL;
     char *cstrOperator = NULL;
     char *cstrNumValue = NULL; double dblNumValue = 0.0;
     char *cstrNewFilePath = NULL;
@@ -61,18 +61,18 @@ int main(int argc, char **argv)
     
     for(int i=1; i<argc; i++) {
         if(strncmp(argv[i],"-ext",4)==0 && i<argc-1) {
-            i++;
-            if(strcmp(cstrExtNumber,"0")==0) {cstrExtNumber = argv[i]; continue;}
-            if(strcmp(cstrExtNumberRefImage,"0")==0) {cstrExtNumberRefImage = argv[i]; continue;}
+            if(cstrExtNumber==NULL) {i++; cstrExtNumber = argv[i]; continue;}
+            if(cstrExtNumberRefImage==NULL) {i++; cstrExtNumberRefImage = argv[i]; continue;}
+            continue;
         }
         if(strcasecmp(argv[i],"-remove-nan")==0 ) {
             iRemoveNaN = 1; continue;
         }
         if(strcasecmp(argv[i],"-replace-nan")==0 ) {
-            iRemoveNaN = 1; if(i+1<=argc-1) { cstrReplaceNaN = argv[i+1]; } i++; continue;
+            iRemoveNaN = 1; if(i+1<=argc-1) { i++; cstrReplaceNaN = argv[i+1]; } continue;
         }
         if(strcasecmp(argv[i],"-debug")==0 ) {
-            debug = 1; continue;
+            debug++; continue;
         }
         if(strcasecmp(argv[i],"-copy-wcs")==0 || strcasecmp(argv[i],"-copywcs")==0 ) {
             iCopyWcs = 1; continue;
@@ -128,22 +128,22 @@ int main(int argc, char **argv)
                 std::cout << "CrabFitsImageArithmetic: copy wcs from fits extension " << extNumerWcsHeader << std::endl;
                 errStatus = readFitsHeader(cstrFilePath,extNumerWcsHeader,&cstrWcsHeader,&posWcsHeader,&lenWcsHeader);
                 if(cstrWcsHeader!=NULL) {
-                    if(cstrWcsCTYPE1==NULL) {cstrWcsCTYPE1 = extKeyword("CTYPE1",cstrWcsHeader); if(cstrWcsCTYPE1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CTYPE1 = " << cstrWcsCTYPE1 << std::endl;} }
-                    if(cstrWcsCTYPE2==NULL) {cstrWcsCTYPE2 = extKeyword("CTYPE2",cstrWcsHeader); if(cstrWcsCTYPE2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CTYPE2 = " << cstrWcsCTYPE2 << std::endl;} }
-                    if(cstrWcsCRPIX1==NULL) {cstrWcsCRPIX1 = extKeyword("CRPIX1",cstrWcsHeader); if(cstrWcsCRPIX1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CRPIX1 = " << cstrWcsCRPIX1 << std::endl;} }
-                    if(cstrWcsCRPIX2==NULL) {cstrWcsCRPIX2 = extKeyword("CRPIX2",cstrWcsHeader); if(cstrWcsCRPIX2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CRPIX2 = " << cstrWcsCRPIX2 << std::endl;} }
-                    if(cstrWcsCRVAL1==NULL) {cstrWcsCRVAL1 = extKeyword("CRVAL1",cstrWcsHeader); if(cstrWcsCRVAL1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CRVAL1 = " << cstrWcsCRVAL1 << std::endl;} }
-                    if(cstrWcsCRVAL2==NULL) {cstrWcsCRVAL2 = extKeyword("CRVAL2",cstrWcsHeader); if(cstrWcsCRVAL2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CRVAL2 = " << cstrWcsCRVAL2 << std::endl;} }
-                    if(cstrWcsCDELT1==NULL) {cstrWcsCDELT1 = extKeyword("CDELT1",cstrWcsHeader); if(cstrWcsCDELT1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CDELT1 = " << cstrWcsCDELT1 << std::endl;} }
-                    if(cstrWcsCDELT2==NULL) {cstrWcsCDELT2 = extKeyword("CDELT2",cstrWcsHeader); if(cstrWcsCDELT2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CDELT2 = " << cstrWcsCDELT2 << std::endl;} }
-                    if(cstrWcsCROTA1==NULL) {cstrWcsCROTA1 = extKeyword("CROTA1",cstrWcsHeader); if(cstrWcsCROTA1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CROTA1 = " << cstrWcsCROTA1 << std::endl;} }
-                    if(cstrWcsCROTA2==NULL) {cstrWcsCROTA2 = extKeyword("CROTA2",cstrWcsHeader); if(cstrWcsCROTA2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CROTA2 = " << cstrWcsCROTA2 << std::endl;} }
-                    if(cstrWcsCUNIT1==NULL) {cstrWcsCUNIT1 = extKeyword("CUNIT1",cstrWcsHeader); if(cstrWcsCUNIT1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CUNIT1 = " << cstrWcsCUNIT1 << std::endl;} }
-                    if(cstrWcsCUNIT2==NULL) {cstrWcsCUNIT2 = extKeyword("CUNIT2",cstrWcsHeader); if(cstrWcsCUNIT2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CUNIT2 = " << cstrWcsCUNIT2 << std::endl;} }
-                    if(cstrWcsCD1_1==NULL) {cstrWcsCD1_1 = extKeyword("CD1_1",cstrWcsHeader); if(cstrWcsCD1_1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD1_1 = " << cstrWcsCD1_1 << std::endl;} }
-                    if(cstrWcsCD1_2==NULL) {cstrWcsCD1_2 = extKeyword("CD1_2",cstrWcsHeader); if(cstrWcsCD1_2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD1_2 = " << cstrWcsCD1_2 << std::endl;} }
-                    if(cstrWcsCD2_1==NULL) {cstrWcsCD2_1 = extKeyword("CD2_1",cstrWcsHeader); if(cstrWcsCD2_1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD2_1 = " << cstrWcsCD2_1 << std::endl;} }
-                    if(cstrWcsCD2_2==NULL) {cstrWcsCD2_2 = extKeyword("CD2_2",cstrWcsHeader); if(cstrWcsCD2_2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD2_2 = " << cstrWcsCD2_2 << std::endl;} }
+                    if(cstrWcsCTYPE1==NULL) {cstrWcsCTYPE1 = extKeyword("CTYPE1",cstrWcsHeader,1); if(cstrWcsCTYPE1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CTYPE1 = " << cstrWcsCTYPE1 << std::endl;} }
+                    if(cstrWcsCTYPE2==NULL) {cstrWcsCTYPE2 = extKeyword("CTYPE2",cstrWcsHeader,1); if(cstrWcsCTYPE2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CTYPE2 = " << cstrWcsCTYPE2 << std::endl;} }
+                    if(cstrWcsCRPIX1==NULL) {cstrWcsCRPIX1 = extKeyword("CRPIX1",cstrWcsHeader,1); if(cstrWcsCRPIX1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CRPIX1 = " << cstrWcsCRPIX1 << std::endl;} }
+                    if(cstrWcsCRPIX2==NULL) {cstrWcsCRPIX2 = extKeyword("CRPIX2",cstrWcsHeader,1); if(cstrWcsCRPIX2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CRPIX2 = " << cstrWcsCRPIX2 << std::endl;} }
+                    if(cstrWcsCRVAL1==NULL) {cstrWcsCRVAL1 = extKeyword("CRVAL1",cstrWcsHeader,1); if(cstrWcsCRVAL1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CRVAL1 = " << cstrWcsCRVAL1 << std::endl;} }
+                    if(cstrWcsCRVAL2==NULL) {cstrWcsCRVAL2 = extKeyword("CRVAL2",cstrWcsHeader,1); if(cstrWcsCRVAL2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CRVAL2 = " << cstrWcsCRVAL2 << std::endl;} }
+                    if(cstrWcsCDELT1==NULL) {cstrWcsCDELT1 = extKeyword("CDELT1",cstrWcsHeader,1); if(cstrWcsCDELT1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CDELT1 = " << cstrWcsCDELT1 << std::endl;} }
+                    if(cstrWcsCDELT2==NULL) {cstrWcsCDELT2 = extKeyword("CDELT2",cstrWcsHeader,1); if(cstrWcsCDELT2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CDELT2 = " << cstrWcsCDELT2 << std::endl;} }
+                    if(cstrWcsCROTA1==NULL) {cstrWcsCROTA1 = extKeyword("CROTA1",cstrWcsHeader,1); if(cstrWcsCROTA1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CROTA1 = " << cstrWcsCROTA1 << std::endl;} }
+                    if(cstrWcsCROTA2==NULL) {cstrWcsCROTA2 = extKeyword("CROTA2",cstrWcsHeader,1); if(cstrWcsCROTA2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CROTA2 = " << cstrWcsCROTA2 << std::endl;} }
+                    if(cstrWcsCUNIT1==NULL) {cstrWcsCUNIT1 = extKeyword("CUNIT1",cstrWcsHeader,1); if(cstrWcsCUNIT1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CUNIT1 = " << cstrWcsCUNIT1 << std::endl;} }
+                    if(cstrWcsCUNIT2==NULL) {cstrWcsCUNIT2 = extKeyword("CUNIT2",cstrWcsHeader,1); if(cstrWcsCUNIT2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CUNIT2 = " << cstrWcsCUNIT2 << std::endl;} }
+                    if(cstrWcsCD1_1==NULL) {cstrWcsCD1_1 = extKeyword("CD1_1",cstrWcsHeader,1); if(cstrWcsCD1_1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD1_1 = " << cstrWcsCD1_1 << std::endl;} }
+                    if(cstrWcsCD1_2==NULL) {cstrWcsCD1_2 = extKeyword("CD1_2",cstrWcsHeader,1); if(cstrWcsCD1_2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD1_2 = " << cstrWcsCD1_2 << std::endl;} }
+                    if(cstrWcsCD2_1==NULL) {cstrWcsCD2_1 = extKeyword("CD2_1",cstrWcsHeader,1); if(cstrWcsCD2_1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD2_1 = " << cstrWcsCD2_1 << std::endl;} }
+                    if(cstrWcsCD2_2==NULL) {cstrWcsCD2_2 = extKeyword("CD2_2",cstrWcsHeader,1); if(cstrWcsCD2_2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD2_2 = " << cstrWcsCD2_2 << std::endl;} }
                 }
                 extNumerWcsHeader++;
             }
@@ -311,22 +311,22 @@ int main(int argc, char **argv)
                 // copy Wcs fits header <20170730>
                 if(iCopyWcs>0) {
                     //std::cout << "DEBUG: addKeyword" << std::endl;
-                    if(cstrWcsCTYPE1) {addKeyword("CTYPE1",cstrWcsCTYPE1,&cstrHeader);}
-                    if(cstrWcsCTYPE2) {addKeyword("CTYPE2",cstrWcsCTYPE2,&cstrHeader);}
-                    if(cstrWcsCRPIX1) {addKeyword("CRPIX1",cstrWcsCRPIX1,&cstrHeader);}
-                    if(cstrWcsCRPIX2) {addKeyword("CRPIX2",cstrWcsCRPIX2,&cstrHeader);}
-                    if(cstrWcsCRVAL1) {addKeyword("CRVAL1",cstrWcsCRVAL1,&cstrHeader);}
-                    if(cstrWcsCRVAL2) {addKeyword("CRVAL2",cstrWcsCRVAL2,&cstrHeader);}
-                    if(cstrWcsCDELT1) {addKeyword("CDELT1",cstrWcsCDELT1,&cstrHeader);}
-                    if(cstrWcsCDELT2) {addKeyword("CDELT2",cstrWcsCDELT2,&cstrHeader);}
-                    if(cstrWcsCROTA1) {addKeyword("CROTA1",cstrWcsCROTA1,&cstrHeader);}
-                    if(cstrWcsCROTA2) {addKeyword("CROTA2",cstrWcsCROTA2,&cstrHeader);}
-                    if(cstrWcsCUNIT1) {addKeyword("CUNIT1",cstrWcsCUNIT1,&cstrHeader);}
-                    if(cstrWcsCUNIT2) {addKeyword("CUNIT2",cstrWcsCUNIT2,&cstrHeader);}
-                    if(cstrWcsCD1_1) {addKeyword("CD1_1",cstrWcsCD1_1,&cstrHeader);}
-                    if(cstrWcsCD1_2) {addKeyword("CD1_2",cstrWcsCD1_2,&cstrHeader);}
-                    if(cstrWcsCD2_1) {addKeyword("CD2_1",cstrWcsCD2_1,&cstrHeader);}
-                    if(cstrWcsCD2_2) {addKeyword("CD2_2",cstrWcsCD2_2,&cstrHeader);}
+                    if(cstrWcsCTYPE1) {addKeyword("CTYPE1",cstrWcsCTYPE1,&cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CTYPE1 " << cstrWcsCTYPE1 << std::endl;} }
+                    if(cstrWcsCTYPE2) {addKeyword("CTYPE2",cstrWcsCTYPE2,&cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CTYPE2 " << cstrWcsCTYPE2 << std::endl;} }
+                    if(cstrWcsCRPIX1) {addKeyword("CRPIX1",cstrWcsCRPIX1,&cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CRPIX1 " << cstrWcsCRPIX1 << std::endl;} }
+                    if(cstrWcsCRPIX2) {addKeyword("CRPIX2",cstrWcsCRPIX2,&cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CRPIX2 " << cstrWcsCRPIX2 << std::endl;} }
+                    if(cstrWcsCRVAL1) {addKeyword("CRVAL1",cstrWcsCRVAL1,&cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CRVAL1 " << cstrWcsCRVAL1 << std::endl;} }
+                    if(cstrWcsCRVAL2) {addKeyword("CRVAL2",cstrWcsCRVAL2,&cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CRVAL2 " << cstrWcsCRVAL2 << std::endl;} }
+                    if(cstrWcsCDELT1) {addKeyword("CDELT1",cstrWcsCDELT1,&cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CDELT1 " << cstrWcsCDELT1 << std::endl;} }
+                    if(cstrWcsCDELT2) {addKeyword("CDELT2",cstrWcsCDELT2,&cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CDELT2 " << cstrWcsCDELT2 << std::endl;} }
+                    if(cstrWcsCROTA1) {addKeyword("CROTA1",cstrWcsCROTA1,&cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CROTA1 " << cstrWcsCROTA1 << std::endl;} }
+                    if(cstrWcsCROTA2) {addKeyword("CROTA2",cstrWcsCROTA2,&cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CROTA2 " << cstrWcsCROTA2 << std::endl;} }
+                    if(cstrWcsCUNIT1) {addKeyword("CUNIT1",cstrWcsCUNIT1,&cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CUNIT1 " << cstrWcsCUNIT1 << std::endl;} }
+                    if(cstrWcsCUNIT2) {addKeyword("CUNIT2",cstrWcsCUNIT2,&cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CUNIT2 " << cstrWcsCUNIT2 << std::endl;} }
+                    if(cstrWcsCD1_1)  {addKeyword("CD1_1", cstrWcsCD1_1, &cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CD1_1 "  << cstrWcsCD1_1  << std::endl;} }
+                    if(cstrWcsCD1_2)  {addKeyword("CD1_2", cstrWcsCD1_2, &cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CD1_2 "  << cstrWcsCD1_2  << std::endl;} }
+                    if(cstrWcsCD2_1)  {addKeyword("CD2_1", cstrWcsCD2_1, &cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CD2_1 "  << cstrWcsCD2_1  << std::endl;} }
+                    if(cstrWcsCD2_2)  {addKeyword("CD2_2", cstrWcsCD2_2, &cstrHeader,NULL,1,debug-1); if(debug>=2) {std::cout << "DEBUG: addKeyword " << "CD2_2 "  << cstrWcsCD2_2  << std::endl;} }
                 }
                 //
                 // and remember to copy the main header when (extNumber>0) <TODO> do we need to copy the main header??

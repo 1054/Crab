@@ -70,7 +70,7 @@ int main(int argc, char **argv)
             if(cstrOutputExtNumber==NULL) {
                 if(strspn(argv[i+1],"+-.eE0123456789")==strlen(argv[i+1])) { i++; cstrOutputExtNumber = argv[i]; continue; }
             }
-            i++; continue;
+            continue;
         }
         if(strncmp(argv[i],"-cen",4)==0 && i<argc-3) {
             i++; cstrCenX = argv[i];
@@ -94,7 +94,7 @@ int main(int argc, char **argv)
                 if(strspn(argv[i+1],"+-.eE0123456789")==strlen(argv[i+1])) {i++; cstrOutputRectJ1 = argv[i];} else {std::cout << "CrabFitsImageCopy: Input Error! -rect should be followed with 4 number values (i0,j0,i1,j1)!" << std::endl; return -1; }
                 continue;
             }
-            i++; continue;
+            continue;
             
         }
         if(strncmp(argv[i],"-debug",6)==0) {

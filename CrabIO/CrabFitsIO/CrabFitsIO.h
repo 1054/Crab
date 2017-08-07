@@ -1,6 +1,8 @@
 /* CrabFits Updated 2012-09-16 */
 /* CrabFits Updated 2017-07-30 addKeyword() */
-/* CrabFits Updated 2017-08-03 modifyFitsImage(); */
+/* CrabFits Updated 2017-08-03 modifyFitsImage() */
+/* CrabFits Updated 2017-08-07 addKeyword() added input argument "debugcode" */
+/* CrabFits Updated 2017-08-07 extKeyword() added input argument "KeepQuotes" and "debugcode" */
 //
 #ifndef MYFITSIO_H
 #define MYFITSIO_H
@@ -11,10 +13,10 @@ char *readFitsHeader(const char *FilePath, int xtension);
 int   readFitsHeader(const char *FilePath, char **HeaderText);
 int   readFitsHeader(const char *FilePath, int xtension, char **HeaderText, long *HeaderPosition, long *HeaderSize);
 int   readFitsHeaderExtensions(const char *FilePath);
-char *extKeyword(const char *KeywordName, const char *HeaderText);
-int   extKeyword(const char *KeywordName, const char *HeaderText, char **KeywordValue);
+char *extKeyword(const char *KeywordName, const char *HeaderText, int KeepQuotes = 0, int debugcode = 0);
+int   extKeyword(const char *KeywordName, const char *HeaderText, char **KeywordValue, int KeepQuotes = 0, int debugcode = 0);
 int   modKeyword(const char *strKeyName, const char *strKeyValue, char *strHeader); // we only need to modify Header str without changing strlen, so we can use char * instead of char **.
-int   addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderPointer, const char *strComment = NULL, int addEmptyLine = 2); // we will change the Header strlen, so we need char ** instead of char *.
+int   addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderPointer, const char *strComment = NULL, int addEmptyLine = 2, int debugcode = 0); // we will change the Header strlen, so we need char ** instead of char *.
 int   addComment(const char *strComment, const char *strHeader);
 int   addHistory(const char *strHistory, const char *strHeader);
 int   isENDmark(char *baLine);

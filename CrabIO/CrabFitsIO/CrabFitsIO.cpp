@@ -202,15 +202,16 @@ int readFitsHeaderExtensions(const char *FilePath)
 }
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*find and extract a keyword value.*/
-char *extKeyword(const char *KeywordName, const char *HeaderText)
+char *extKeyword(const char *KeywordName, const char *HeaderText, int KeepQuotes, int debugcode)
 {
     char *KeywordValue=NULL;
-    extKeyword(KeywordName,HeaderText,&KeywordValue);
+    extKeyword(KeywordName,HeaderText,&KeywordValue,KeepQuotes,debugcode);
     return KeywordValue;
 }
 
-int extKeyword(const char *KeywordName, const char *HeaderText, char **KeywordValue)
+int extKeyword(const char *KeywordName, const char *HeaderText, char **KeywordValue, int KeepQuotes, int debugcode)
 {
+    //20170807: added input argument "KeepQuotes". If KeepQuotes == 1 then keep all kinds of quotes. If KeepQuotes == 2 then keep only 0x22 QUOTATION MARK. If KeepQuotes == 3 then keep only 0x27 APOSTROPHE.
     int errorcode=0;
     int i=0,j=0;
     unsigned int k=0;
@@ -265,18 +266,35 @@ int extKeyword(const char *KeywordName, const char *HeaderText, char **KeywordVa
             {
                 kValue[k--]=0x0;
             }
-            //trim quote pair if exists.
-            k = strlen(kValue)-1;
-            if(0x27==kValue[0] && 0x27==kValue[k])
-            {
-                kValue[k]=0x0; //this will make strlen(kValue) decrese 1.
-                k=0;
-                while(k < strlen(kValue)-1)
+            //trim quote pair (0x27 APOSTROPHE) if exists.
+            if(1!=KeepQuotes && 3!=KeepQuotes) {
+                k = strlen(kValue)-1;
+                if(0x27==kValue[0] && 0x27==kValue[k])
                 {
-                    kValue[k]=kValue[k+1];
-                    k++;
+                    kValue[k]=0x0; //this will make strlen(kValue) decrese 1.
+                    k=0;
+                    while(k < strlen(kValue)-1)
+                    {
+                        kValue[k]=kValue[k+1];
+                        k++;
+                    }
+                    kValue[k]=0x0; //this time k == strlen(kValue)-1.
                 }
-                kValue[k]=0x0; //this time k == strlen(kValue)-1.
+            }
+            //trim quote pair (0x22 QUOTATION MARK) if exists.
+            if(1!=KeepQuotes && 2!=KeepQuotes) {
+                k = strlen(kValue)-1;
+                if(0x22==kValue[0] && 0x22==kValue[k])
+                {
+                    kValue[k]=0x0; //this will make strlen(kValue) decrese 1.
+                    k=0;
+                    while(k < strlen(kValue)-1)
+                    {
+                        kValue[k]=kValue[k+1];
+                        k++;
+                    }
+                    kValue[k]=0x0; //this time k == strlen(kValue)-1.
+                }
             }
             //trim blank space at begin
             while(0x20==kValue[0])
@@ -457,10 +475,10 @@ int modKeyword(const char *strKeyName, const char *strKeyValue, char *strHeader)
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*add a keyword value.*/
-int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderPointer, const char *strComment, int addEmptyLine)
+int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderPointer, const char *strComment, int addEmptyLine, int debugcode)
 {
+    //int debugcode=0;
     int errorcode=0;
-    int debugcode=0;
     int i=0,k=0;
     int isHeader=0;          //whether this line is simple text (header).
     int countLines=0;
