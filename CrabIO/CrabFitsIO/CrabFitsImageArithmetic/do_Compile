@@ -8,7 +8,7 @@ if [[ $(uname) == "Darwin" ]]; then
 fi
 
 if [[ $(uname) == "Linux" ]]; then
-    g++ main.cpp CrabFitsIO.cpp -o CrabFitsImageArithmetic_linux_x86_64
+    g++ ../CrabFitsIO.cpp main.cpp -o CrabFitsImageArithmetic_linux_x86_64
 fi
 
 
