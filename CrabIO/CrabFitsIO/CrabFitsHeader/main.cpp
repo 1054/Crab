@@ -2,8 +2,9 @@
  
  Please compile like this:
  
-     clang++ main.cpp CrabFitsIO.cpp -o CrabFitsHeader_linux_x86_64
-     g++ -static-libstdc++ main.cpp CrabFitsIO.cpp -o CrabFitsHeader_linux_x86_64
+     clang++ ../CrabFitsIO.cpp main.cpp -o CrabFitsHeader_mac_v20170807
+     g++ ../CrabFitsIO.cpp main.cpp -o CrabFitsHeader_linux_x86_64
+     #-static-libstdc++
  
  Last update:
      
@@ -18,7 +19,7 @@
 #include <string.h>
 #include <iostream>
 #include <iomanip>
-#include "CrabFitsIO.h"
+#include "../CrabFitsIO.h"
 
 using namespace std;
 

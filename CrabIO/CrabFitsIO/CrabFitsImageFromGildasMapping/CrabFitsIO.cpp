@@ -1,4 +1,5 @@
 /* CrabFits Updated 2012-09-16 */
+/* CrabFits Updated 2017-08-03 Ziegelhausen */
 //
 //Usage:
 //    char  *header;
@@ -11,7 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <malloc.h>
+//#include <malloc.h>
 //#include <wchar.h>
 #include "CrabFitsIO.h"
 
@@ -53,6 +54,7 @@ int readFitsHeader(const char *FilePath, char **HeaderText)
 
 int readFitsHeader(const char *FilePath, int xtension, char **HeaderText, long *HeaderPosition, long *HeaderSize)
 {
+    int debugflag=0; //set to 1 to debug
     int errorcode=0;
     int isHeader=0;    //whether this line is simple text (header).
     int isEnded=0;     //whether this header section has ended.
@@ -98,6 +100,9 @@ int readFitsHeader(const char *FilePath, int xtension, char **HeaderText, long *
                 break;
             xtensionPosition=currentPosition-80;
             isEnded=0;
+            if(debugflag>0) {
+                printf("readFitsHeader: debug: found extension %ld at position %ld.\n", xtensionSection, xtensionPosition);
+            }
         }
         else if(isENDmark(baLine)) //if it's END mark, then close the section.
         {
@@ -115,6 +120,9 @@ int readFitsHeader(const char *FilePath, int xtension, char **HeaderText, long *
             {
                 isHeader=1;
                 xtensionSize+=80;
+                if(debugflag>0) {
+                    printf("readFitsHeader: debug: reading extension %ld at position %ld.\n", xtensionSection, xtensionPosition+xtensionSize);
+                }
             }
             else         //after END mark.
             {
@@ -194,15 +202,16 @@ int readFitsHeaderExtensions(const char *FilePath)
 }
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*find and extract a keyword value.*/
-char *extKeyword(const char *KeywordName, const char *HeaderText)
+char *extKeyword(const char *KeywordName, const char *HeaderText, int KeepQuotes, int debugcode)
 {
     char *KeywordValue=NULL;
-    extKeyword(KeywordName,HeaderText,&KeywordValue);
+    extKeyword(KeywordName,HeaderText,&KeywordValue,KeepQuotes,debugcode);
     return KeywordValue;
 }
 
-int extKeyword(const char *KeywordName, const char *HeaderText, char **KeywordValue)
+int extKeyword(const char *KeywordName, const char *HeaderText, char **KeywordValue, int KeepQuotes, int debugcode)
 {
+    //20170807: added input argument "KeepQuotes". If KeepQuotes == 1 then keep all kinds of quotes. If KeepQuotes == 2 then keep only 0x22 QUOTATION MARK. If KeepQuotes == 3 then keep only 0x27 APOSTROPHE.
     int errorcode=0;
     int i=0,j=0;
     unsigned int k=0;
@@ -215,7 +224,7 @@ int extKeyword(const char *KeywordName, const char *HeaderText, char **KeywordVa
     char *kValue;
     int isTrimmed=0;
     /*check input HeaderText*/
-    if(NULL==HeaderText) { printf("extKeyword: Error! Input HeaderText is NULL!"); errorcode=-1; return errorcode; } //<added><20141031><dzliu>
+    if(NULL==HeaderText) { printf("extKeyword: Error! Input HeaderText is NULL!\n"); errorcode=-1; return errorcode; } //<added><20141031><dzliu>
     baLine = (char *)malloc(81*sizeof(char));
     kValue = (char *)malloc(72*sizeof(char));
     memset(baLine,0x0,81);
@@ -257,18 +266,35 @@ int extKeyword(const char *KeywordName, const char *HeaderText, char **KeywordVa
             {
                 kValue[k--]=0x0;
             }
-            //trim quote pair if exists.
-            k = strlen(kValue)-1;
-            if(0x27==kValue[0] && 0x27==kValue[k])
-            {
-                kValue[k]=0x0; //this will make strlen(kValue) decrese 1.
-                k=0;
-                while(k < strlen(kValue)-1)
+            //trim quote pair (0x27 APOSTROPHE) if exists.
+            if(1!=KeepQuotes && 3!=KeepQuotes) {
+                k = strlen(kValue)-1;
+                if(0x27==kValue[0] && 0x27==kValue[k])
                 {
-                    kValue[k]=kValue[k+1];
-                    k++;
+                    kValue[k]=0x0; //this will make strlen(kValue) decrese 1.
+                    k=0;
+                    while(k < strlen(kValue)-1)
+                    {
+                        kValue[k]=kValue[k+1];
+                        k++;
+                    }
+                    kValue[k]=0x0; //this time k == strlen(kValue)-1.
                 }
-                kValue[k]=0x0; //this time k == strlen(kValue)-1.
+            }
+            //trim quote pair (0x22 QUOTATION MARK) if exists.
+            if(1!=KeepQuotes && 2!=KeepQuotes) {
+                k = strlen(kValue)-1;
+                if(0x22==kValue[0] && 0x22==kValue[k])
+                {
+                    kValue[k]=0x0; //this will make strlen(kValue) decrese 1.
+                    k=0;
+                    while(k < strlen(kValue)-1)
+                    {
+                        kValue[k]=kValue[k+1];
+                        k++;
+                    }
+                    kValue[k]=0x0; //this time k == strlen(kValue)-1.
+                }
             }
             //trim blank space at begin
             while(0x20==kValue[0])
@@ -449,19 +475,24 @@ int modKeyword(const char *strKeyName, const char *strKeyValue, char *strHeader)
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*add a keyword value.*/
-int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderText, const char *strComment)
+int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderPointer, const char *strComment, int addEmptyLine, int debugcode)
 {
+    //int debugcode=0;
     int errorcode=0;
     int i=0,k=0;
     int isHeader=0;          //whether this line is simple text (header).
     int countLines=0;
     int countBytes=0;
     int isBlank=0,flagENDmark=0;
-    char *strHeader = (*HeaderText);
+    char *strHeader = (*HeaderPointer);
     long oldHeaderSize=strlen(strHeader); // should be integer times of 36*80=2880
+    long oldHeaderValidLine=0;
     long oldHeaderEmptyLine=0;
-    long oldHeaderValidSize=0;
+    long oldHeaderEndedLine=0;
     long  newHeaderSize = 0;
+    long  newHeaderInsertLine = 0;
+    long  newHeaderEndingLine = 0;
+    long  newHeaderAddedBytes = 0;
     char *newHeader = NULL;
     char *newHeaderPtr = NULL;
     char *strKeywordName = NULL;
@@ -471,13 +502,15 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderTex
     int   intKeywordCommentBytes;
     char *baLine = NULL; //byte array containing a line.
     baLine = (char *)malloc((80+1)*sizeof(char)); //Prepare input header line container
+    if(debugcode>0) {printf("addKeyword: begin\n");}
     /*Check whether keyword exists.*/
     errorcode = modKeyword(strKeyName,strKeyValue,strHeader);
     if(errorcode==-1) {
         errorcode=-1;
+        if(debugcode>0) {printf("addKeyword: No existing keyword, adding a new one.\n");}
         // new keyword! Now start to add the keyword after the last header text line.
         //
-        /*Begin loop.*/
+        /*Begin loop to read header text.*/
         isHeader=1;
         while(isHeader==1) {
             //read line by line
@@ -491,23 +524,31 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderTex
             if(!isSimpleText(baLine))     isHeader=0;
             else if(isBlankSpace(baLine)) isBlank=1;
             else if(isENDmark(baLine)) flagENDmark=1;
-            //Find the last keyword keyvalue line
-            if(1==isHeader && 0==isBlank && 0==flagENDmark) { oldHeaderValidSize = countBytes + 80; }
+            //Find the last blank line
+            if(1==isHeader && 0==isBlank && 0==flagENDmark) { oldHeaderValidLine = countBytes/80+1; }
+            if(1==isHeader && 1==isBlank && 0==flagENDmark) { oldHeaderEmptyLine = countBytes/80+1; }
             //Untill we touch the last header line with END mark
             if(1==flagENDmark) {
                 //Record current old header END position
-                long lonByteAtEnd = countBytes;
-                //Determine how to add new keyword line, insert or append.
-                int intByteToAdd = 0; // add how many keyword bytes, one line is 80bytes
-                if(oldHeaderValidSize <= oldHeaderSize-80-80) {
-                    //There has blank line, no need to add new header block lines.
-                    intByteToAdd = 0; // add 0 keyword line (0*80bytes)
+                oldHeaderEndedLine = countBytes/80;
+                if(debugcode>0) {printf("addKeyword: oldHeaderValidLine = %ld\n",oldHeaderValidLine);}
+                if(debugcode>0) {printf("addKeyword: oldHeaderEmptyLine = %ld\n",oldHeaderEmptyLine);}
+                if(debugcode>0) {printf("addKeyword: oldHeaderEndedLine = %ld\n",oldHeaderEndedLine);}
+                //Insert the new keyword line two lines after the oldHeaderValidLine.
+                newHeaderInsertLine = oldHeaderValidLine + addEmptyLine + 1;
+                if(debugcode>0) {printf("addKeyword: Will insert at the %ld-th line.\n",newHeaderInsertLine);}
+                //If the insert line is after the END line, then add one new header block of 2880 bytes.
+                if(newHeaderInsertLine>=oldHeaderEndedLine) {
+                    if(debugcode>0) {printf("addKeyword: Will add a new header block.\n");}
+                    newHeaderSize = (long(oldHeaderSize/2880)+1) * 2880; // Add one new header block, i.e. 36 lines (36*80bytes=2880bytes)
+                    newHeaderEndingLine = (long(oldHeaderEndedLine/36)+1) * 36;
                 } else {
-                    //Add new header block lines, 2880bytes/80bytes=36lines.
-                    intByteToAdd = 2880; // add 36 keyword line (36*80bytes=2880bytes)
+                    newHeaderSize = (long(oldHeaderSize/2880)) * 2880;
+                    newHeaderEndingLine = (long(oldHeaderEndedLine/36)) * 36;
                 }
+                //
+                long lonByteAtEnd = countBytes; //TODO:delete
                 //Prepare output new header buffer
-                newHeaderSize = oldHeaderSize + intByteToAdd;
                 newHeader = (char *)malloc((newHeaderSize+1)*sizeof(char));
                 memset(newHeader,0x20,newHeaderSize);
                 memset(newHeader+newHeaderSize,0x00,1);
@@ -522,21 +563,28 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderTex
                 //Copy and trim the new keyword value.
                 strKeywordValue = strtrim2(strKeyValue);
                 intKeywordValueBytes = strlen(strKeywordValue);
-                if(intKeywordValueBytes>71) intKeywordValueBytes=71; //check the input outflow. the input value size should be .LE. 71.
-                //printf("strlen of the keyvalue is %d \n",intKeywordValueBytes);
+                if(debugcode>0) {printf("addKeyword: strlen of the input key value is %d bytes!\n",intKeywordValueBytes);}
+                if(intKeywordValueBytes>71) {
+                    intKeywordValueBytes=71; //check the input outflow. the input value size should be .LE. 71.
+                    if(debugcode>0) {printf("addKeyword: Warning! Trimming the input key value to 71 bytes!\n");}
+                }
                 //Copy and trim the new keyword comment.
                 if(strComment) {
                     strKeywordComment = strtrim2(strComment);
                     intKeywordCommentBytes = strlen(strKeywordComment);
                     if(intKeywordValueBytes+intKeywordCommentBytes>71-3) intKeywordCommentBytes=71-3-intKeywordValueBytes; //check the input outflow. if value is too long, then there will be no place for intKeywordCommentBytes. Note that there has a 3 bytes string " / " between key value and key comment.
-                    //printf("strlen of the keycomment is %d \n",intKeywordCommentBytes);
+                    if(debugcode>0) {printf("addKeyword: strlen of the input key comment is %d bytes.\n",intKeywordCommentBytes);}
                 } else {
                     intKeywordCommentBytes = 0;
                 }
                 //Copy the header from old header buffer to new header buffer, for only valid header lines, i.e. not empty lines
                 newHeaderPtr = newHeader;
-                strncpy(newHeaderPtr,strHeader,oldHeaderValidSize);
-                newHeaderPtr+=oldHeaderValidSize;
+                strncpy(newHeaderPtr,strHeader,oldHeaderValidLine*80);
+                newHeaderPtr+=(oldHeaderValidLine*80);
+                if(debugcode>0) {printf("addKeyword: copied %ld lines from old header %p to new header %p.\n",oldHeaderValidLine,&strHeader,&newHeader);}
+                //Adding two empty lines
+                newHeaderPtr+=(addEmptyLine*80);
+                if(debugcode>0) {printf("addKeyword: skiped %d lines as separation.\n",addEmptyLine);}
                 //Insert new keyword line, 80bytes, and append the rest of old header contents.
                 int intByteAdded = 0; // adedd how many keyword bytes, one line is 80bytes
                 strncpy(newHeaderPtr,strKeywordName,8);
@@ -561,16 +609,21 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderTex
                     newHeaderPtr+=1;
                     intByteAdded+=1;
                 }
+                newHeaderAddedBytes = intByteAdded;
+                if(debugcode>0) {printf("addKeyword: added %ld bytes as the new keyword at the %ld-th line of the new header.\n",newHeaderAddedBytes,newHeaderInsertLine);}
                 //Copy the last lines
-                if(0) {
-                printf("\ndebug:newHeader+%ld oldHeader+%ld size=%ld\n",
-                                  newHeaderSize-(oldHeaderSize-lonByteAtEnd),
-                                                               lonByteAtEnd,
-                                                 oldHeaderSize-lonByteAtEnd);
-                }
-                strncpy(newHeader+newHeaderSize-(oldHeaderSize-lonByteAtEnd),
-                                                     strHeader+lonByteAtEnd,
-                                                 oldHeaderSize-lonByteAtEnd);
+                //if(0) {
+                //printf("\ndebug:newHeader+%ld oldHeader+%ld size=%ld\n",
+                //                  newHeaderSize-(oldHeaderSize-lonByteAtEnd),
+                //                                               lonByteAtEnd,
+                //                                 oldHeaderSize-lonByteAtEnd);
+                //}
+                //strncpy(newHeader+newHeaderSize-(oldHeaderSize-lonByteAtEnd),
+                //                                     strHeader+lonByteAtEnd,
+                //                                 oldHeaderSize-lonByteAtEnd);
+                newHeaderPtr = newHeader + newHeaderEndingLine*80;
+                strncpy(newHeaderPtr,"END",3);
+                if(debugcode>0) {printf("addKeyword: the new header ends at the %ld-th line.\n",newHeaderEndingLine);}
                 //<OLD><BEFORE><20160704>// newHeaderPtr+=intByteToAdd;
                 //<OLD><BEFORE><20160704>// strncpy(newHeaderPtr,strHeader+oldHeaderValidSize,oldHeaderSize-oldHeaderValidSize);
                 // printf("\ndebug:strlen(newHeader)=%d\n",strlen(newHeader));
@@ -584,12 +637,12 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderTex
             //next
             countBytes+=80; countLines++;
         }
-        if(0){
-            printf("debug:strKeywordName = %s\n", strKeywordName);
-            printf("debug:strKeywordValue = %s\n", strKeywordValue);
-            printf("debug:oldHeaderSize=%ld\n",strlen(strHeader));
-            printf("debug:newHeaderSize=%ld\n",strlen(newHeader));
-        }
+        //if(0){
+        //    printf("debug:strKeywordName = %s\n", strKeywordName);
+        //    printf("debug:strKeywordValue = %s\n", strKeywordValue);
+        //    printf("debug:oldHeaderSize=%ld\n",strlen(strHeader));
+        //    printf("debug:newHeaderSize=%ld\n",strlen(newHeader));
+        //}
         if(baLine) { free(baLine); baLine=NULL; }
         if(strKeywordName) { free(strKeywordName); strKeywordName=NULL; }
         // printf("\ndebug:strHeader=%d\n",strHeader);
@@ -598,7 +651,11 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderTex
         // printf("\ndebug:\n%s\n",newHeader);
         // if(strHeader) { printf("debug freeing old header %d (strlen=%d)\n", strHeader, strlen(strHeader)); free(strHeader); }
         if(newHeader) {
-            if(strHeader) { free(strHeader); strHeader=NULL; } (*HeaderText)=newHeader; newHeaderPtr=NULL; newHeader=NULL;
+            if(debugcode>0) {printf("addKeyword: old header is %p.\n",strHeader);}
+            if(strHeader) { free(strHeader); strHeader=NULL; }
+            if(debugcode>0) {printf("addKeyword: new header is %p.\n",newHeader);}
+            *HeaderPointer = newHeader;
+            // (*HeaderText)=newHeader; newHeaderPtr=NULL; newHeader=NULL;
             // strHeader = (char *)realloc(strHeader,(strlen(newHeader)+1)*sizeof(char));
             // memset(strHeader,0x0,(strlen(newHeader)+1));
             // strncpy(strHeader,newHeader,newHeaderSize);
@@ -608,6 +665,7 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderTex
             //// printf("debug:newHeader=0x%x\n",newHeader);
         }
     }
+    if(debugcode>0) {printf("addKeyword: done with errorcode %d (0=ok)\n",errorcode);}
     return errorcode;
 }
 
@@ -1953,6 +2011,7 @@ int writeFitsFS(float *data, int DataWidth, int DataHeight, const char *strFileP
     int flag=0,m=0;
     FILE *fp;
     char *header;
+    char *generateFitsHeaderFS(int DataWidth, int DataHeight);
     char *dp;
 
     fp=fopen(strFilePath,"wb"); //TODO: support Chinese Path?
@@ -1990,8 +2049,8 @@ int writeFitsDS(double *data, int DataWidth, int DataHeight, const char *strFile
     int errorcode = 0;
     int flag=0,m=0;
     FILE *fp;
-    const char *header;
-    const char *generateFitsHeaderDS(int DataWidth, int DataHeight);
+    char *header;
+    char *generateFitsHeaderDS(int DataWidth, int DataHeight);
     char *dp;
 
     fp=fopen(strFilePath,"wb"); //TODO: support Chinese Path?
@@ -2025,6 +2084,7 @@ int writeFitsDS(double *data, int DataWidth, int DataHeight, const char *strFile
     return errorcode;
 }
 
+
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*fits head must be the integer times of 2880 bytes.*/
 int checkHead2880(long headBytes, FILE* writeToFile)
@@ -2040,6 +2100,7 @@ int checkHead2880(long headBytes, FILE* writeToFile)
     }
     return padHead2880;
 }
+
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*fits data must be the integer times of 2880 bytes.*/
@@ -2110,7 +2171,7 @@ char *generateFitsHeaderFS(int DataWidth, int DataHeight)
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*generateFitsHeader double(-64bits) Simplest(contains no RA,Dec info).*/
-const char *generateFitsHeaderDS(int DataWidth, int DataHeight)
+char *generateFitsHeaderDS(int DataWidth, int DataHeight)
 {
    int   i=0,j=0,m=0,temp1=0,temp2=0,nnX=998,nnY=1006;
    char line1[81] ="SIMPLE  =                    T / Fits standard                                  "; //actually it's 80 bytes.
@@ -2124,7 +2185,7 @@ const char *generateFitsHeaderDS(int DataWidth, int DataHeight)
    char chrnnX[7];
    char chrnnY[7];
    char *header=NULL;
-   const char *header2;
+   // const char *header2;
 
    nnX = DataWidth;
    nnY = DataHeight;
@@ -2151,7 +2212,186 @@ const char *generateFitsHeaderDS(int DataWidth, int DataHeight)
    for(m=6*80;m<35*80 ;m++,i++) header[m]=0x20;
    for(m=35*80,i=0;i<80;m++,i++) header[m]=line36[i];
 
-   header2 = (const char *)header;
+   // header2 = (const char *)header;
 
-   return header2;
+   return header;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/*Modify FITS at a certain insert position (edited 2017-08-03).*/
+/*Note that the input InsertPosI0 and InsertPosJ0 are the pixel coordinate starting from 0 to NAXIS1-1 and NAXIS2-1.*/
+int modifyFitsImage(double *data, int DataWidth, int DataHeight, int InsertPosI0, int InsertPosJ0, const char *strFilePath, int xtension, int debugcode) //TCHAR
+{
+    int errorcode = 0;
+    int i=0,j=0,k=0;
+    FILE *fp;
+    char *dp;
+    
+    /*Read fits header.*/
+    long    HeaderPos  = 0;
+    long    HeaderSize = 0;
+    char   *HeaderData;
+    errorcode = readFitsHeader(strFilePath,xtension,&HeaderData,&HeaderPos,&HeaderSize);
+    if(errorcode!=0) {
+        printf("modifyFitsImage: Error! Could not get fits header from readFitsHeader!\n"); return errorcode;
+    } else {
+        if(debugcode>=1) {
+            printf("modifyFitsImage: FitsHeaderPos %ld, FitsHeaderSize %ld.\n", HeaderPos, HeaderSize);
+        }
+    }
+    
+    /*Read fits header keywords.*/
+    char   *BITPIX = extKeyword("BITPIX",HeaderData);
+    char   *NAXIS1 = extKeyword("NAXIS1",HeaderData);
+    char   *NAXIS2 = extKeyword("NAXIS2",HeaderData);
+    int     ImageBitpix = atoi(BITPIX);
+    int     ImageWidth  = atoi(NAXIS1);
+    int     ImageHeight = atoi(NAXIS2);
+    int     ImageSize = ImageWidth*ImageHeight;
+    if(ImageWidth<=0 || ImageHeight<=0) { printf("modifyFitsImage: Error! Could not get NAXIS from fits header!\n"); return errorcode; }
+    
+    /*Check the insert position.*/
+    int InsertWidth = DataWidth; // the exact image block to be inserted
+    int InsertHeight = DataHeight; // the exact image block to be inserted
+    int DataPosI0 = 0; // the input data block starting Position
+    int DataPosJ0 = 0;
+    if(InsertPosI0<0) { DataPosI0 += (-InsertPosI0); InsertWidth -= (-InsertPosI0); InsertPosI0 = 0; }
+    if(InsertPosJ0<0) { DataPosJ0 += (-InsertPosJ0); InsertHeight -= (-InsertPosJ0); InsertPosJ0 = 0; }
+    // e.g., FitsImage 3x3, DataSize 2x2, InsertPos (-1,-1), i.e. one pixel bottom-left outer the fits image,
+    // ----> DataPos (1,1), InsertSize 1x1, InsertPos (0,0).
+    if(InsertPosI0+InsertWidth>ImageWidth) { InsertWidth -= (InsertPosI0+InsertWidth-ImageWidth); }
+    if(InsertPosJ0+InsertHeight>ImageHeight) { InsertHeight -= (InsertPosJ0+InsertHeight-ImageHeight); }
+    // e.g., FitsImage 4x4, DataSize 3x3, InsertPos (2,2), i.e. one pixels top-right outer the fits image,
+    // ----> DataPos unchanged, InsertSize 1x1, InsertPos unchanged.
+    
+    /*Check the insert width and height.*/
+    if(InsertWidth<=0 || InsertHeight<=0) {
+        printf("modifyFitsImage: Warning! Input image block is out of the field of the target image, no data copied.\n"); return errorcode;
+    } else {
+        if(debugcode>=1) {
+            printf("modifyFitsImage: DataSize %dx%d, DataPos (%d,%d), InsertSize %dx%d, FitsImageSize %dx%d, FitsImageInsertPos (%d,%d).\n", DataWidth, DataHeight, DataPosI0, DataPosJ0, ImageWidth, ImageHeight, InsertWidth, InsertHeight, InsertPosI0, InsertPosJ0);
+        }
+        if(debugcode>=1) {
+            printf("modifyFitsImage: isLittleEndian = %d.\n", isLittleEndian2());
+        }
+    }
+    
+    /*Open fits file for modifying binary data without changing file size.*/
+    fp=fopen(strFilePath,"r+b");
+    if(fp==NULL) { errorcode=5; return errorcode; } // errorcode 5, failed to read file with fopen().
+    
+    /*Modify fits image data bytes.*/
+    if(ImageBitpix==32) // int data type
+    {
+        for(j=0; j<InsertHeight; j++) {
+            /*Move file pointer to the insert position.*/
+            fseek(fp, HeaderPos+HeaderSize+((InsertPosJ0+j)*ImageWidth+(InsertPosI0))*sizeof(int), SEEK_SET);
+            if(debugcode>=2) {
+                printf("modifyFitsImage: fseek %ld.\n", HeaderPos+HeaderSize+((InsertPosJ0+j)*ImageWidth+(InsertPosI0))*sizeof(int));
+            }
+            for(i=0; i<InsertWidth; i++) {
+                /*Copy data.*/
+                int dv = (int)(data[(DataPosJ0+j)*DataWidth+(DataPosI0+i)]);
+                /*swap bytes if LittleEndian.*/
+                dp = (char *)&dv; if(isLittleEndian2()) { for(k=sizeof(int)-1; k>=0; k--) { fwrite(&dp[k],1,1,fp); } } else { fwrite(dp,sizeof(int),1,fp); }
+            }
+        }
+    }
+    else if(ImageBitpix==-32) // float data type
+    {
+        for(j=0; j<InsertHeight; j++) {
+            /*Move file pointer to the insert position.*/
+            fseek(fp, HeaderPos+HeaderSize+((InsertPosJ0+j)*ImageWidth+(InsertPosI0))*sizeof(float), SEEK_SET);
+            if(debugcode>=2) {
+                printf("modifyFitsImage: fseek %ld.\n", HeaderPos+HeaderSize+((InsertPosJ0+j)*ImageWidth+(InsertPosI0))*sizeof(float));
+            }
+            for(i=0; i<InsertWidth; i++) {
+                /*Copy data.*/
+                float dv = (float)(data[(DataPosJ0+j)*DataWidth+(DataPosI0+i)]);
+                /*swap bytes if LittleEndian.*/
+                dp = (char *)&dv; if(isLittleEndian2()) { for(k=sizeof(float)-1; k>=0; k--) { fwrite(&dp[k],1,1,fp); } } else { fwrite(dp,sizeof(float),1,fp); }
+            }
+        }
+    }
+    else if(ImageBitpix==-64) // double data type
+    {
+        for(j=0; j<InsertHeight; j++) {
+            /*Move file pointer to the insert position.*/
+            fseek(fp, HeaderPos+HeaderSize+((InsertPosJ0+j)*ImageWidth+(InsertPosI0))*sizeof(double), SEEK_SET);
+            if(debugcode>=2) {
+                printf("modifyFitsImage: fseek %ld.\n", HeaderPos+HeaderSize+((InsertPosJ0+j)*ImageWidth+(InsertPosI0))*sizeof(double));
+            }
+            for(i=0; i<InsertWidth; i++) {
+                /*Copy data.*/
+                double dv = (double)(data[(DataPosJ0+j)*DataWidth+(DataPosI0+i)]);
+                /*swap bytes if LittleEndian.*/
+                dp = (char *)&dv; if(isLittleEndian2()) { for(k=sizeof(double)-1; k>=0; k--) { fwrite(&dp[k],1,1,fp); } } else { fwrite(dp,sizeof(double),1,fp); }
+            }
+        }
+    }
+    
+    fclose(fp);
+    return errorcode;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

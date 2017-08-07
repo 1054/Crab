@@ -64,6 +64,9 @@ int writeFitsDS(double *data, int DataWidth, int DataHeight, const char *strFile
 int checkHead2880(long headBytes, FILE* writeToFile = NULL);
 int checkData2880(long dataBytes, FILE* writeToFile = NULL);
 
+char *generateFitsHeaderFS(int DataWidth, int DataHeight);
+char *generateFitsHeaderDS(int DataWidth, int DataHeight);
+
 /*modifyFitsImage*/
 int modifyFitsImage(double *data, int DataWidth, int DataHeight, int InsertPosI0, int InsertPosJ0, const char *strFilePath, int xtension = 0, int debugcode = 0);
 

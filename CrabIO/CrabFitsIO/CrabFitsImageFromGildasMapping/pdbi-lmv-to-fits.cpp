@@ -78,10 +78,10 @@ int main(int argc, char **argv)
     std::string strPixScaleY; // in degree
     int         intHeaderType = 1; // lonHeaderBytes = 512*intHeaderType
     int         intStokesNumb = 1;
-    uint64_t    lonHeaderBytes = 0;
-    uint64_t    lonNAXIS1 = 0;
-    uint64_t    lonNAXIS2 = 0;
-    uint64_t    lonNAXIS3 = 0;
+    long        lonHeaderBytes = 0;
+    long        lonNAXIS1 = 0;
+    long        lonNAXIS2 = 0;
+    long        lonNAXIS3 = 0;
     double      dblCDELT1 = 0.0;
     double      dblCDELT2 = 0.0;
     double      dblCDELT3 = 0.0;
