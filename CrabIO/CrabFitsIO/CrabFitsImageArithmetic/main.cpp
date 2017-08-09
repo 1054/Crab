@@ -69,7 +69,7 @@ int main(int argc, char **argv)
             iRemoveNaN = 1; continue;
         }
         if(strcasecmp(argv[i],"-replace-nan")==0 ) {
-            iRemoveNaN = 1; if(i+1<=argc-1) { i++; cstrReplaceNaN = argv[i+1]; } continue;
+            iRemoveNaN = 1; if(i<argc-1) { i++; cstrReplaceNaN = argv[i]; } continue;
         }
         if(strcasecmp(argv[i],"-debug")==0 ) {
             debug++; continue;
