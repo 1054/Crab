@@ -119,7 +119,7 @@ int main(int argc, char **argv)
         char *cstrWcsCD2_2 = NULL;
         //
         // check
-        std::cout << "CrabFitsImageArithmetic: " << cstrFilePath << " extension=" << atoi(cstrExtNumber) << std::endl;
+        std::cout << "CrabFitsImageArithmetic: " << cstrFilePath << " extension=" << extNumber << std::endl;
         //
         // read Wcs fits header <20170730>
         if(iCopyWcs>0) {
@@ -242,7 +242,7 @@ int main(int argc, char **argv)
                 cstrFilePathRefImage = (char *)strRefImage.c_str();
                 //
                 // check
-                std::cout << "CrabFitsImageArithmetic: " << cstrFilePathRefImage << " extension=" << atoi(cstrExtNumberRefImage) << std::endl;
+                std::cout << "CrabFitsImageArithmetic: " << cstrFilePathRefImage << " extension=" << extNumberRefImage << std::endl;
                 //
                 // read fits header
                 errStatus = readFitsHeader(cstrFilePathRefImage,extNumberRefImage,&cstrHeaderRefImage,&posHeaderRefImage,&lenHeaderRefImage);
