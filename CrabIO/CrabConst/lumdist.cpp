@@ -33,6 +33,9 @@ int main(int argc, char **argv)
         const char* str_LM = "";
         const char* str_rz = "";
         int verbose = 0;
+        int output_kpc2arcsec = 0;
+        int output_angdist = 0;
+        const long double PI = 3.141592653589793238L;
         // read the first non -XXX arg as redshift
         // for(int i=1; i<argc; i++) {
         //     if(0<strlen(argv[i]) && 0!=strncmp(argv[i],"-",1)) {
@@ -62,6 +65,12 @@ int main(int argc, char **argv)
             if(0==strncmp(argv[i],"-simple",8)) {
                 verbose = -1; continue;
             }
+            if(0==strncmp(argv[i],"-kpc2arcsec",8)) {
+                output_kpc2arcsec = 1; verbose = -1; continue;
+            }
+            if(0==strncmp(argv[i],"-angular-distance",17) || 0==strncmp(argv[i],"-angdist",8) || 0==strncmp(argv[i],"-angular",8)) {
+                output_angdist = 1; verbose = -1; continue;
+            }
             if(0<strlen(argv[i]) && 0!=strncmp(argv[i],"-",1)) {
                 str_rz = argv[i]; continue;
             }
@@ -86,12 +95,18 @@ int main(int argc, char **argv)
         if(verbose>=0) {
             std::cout << "lumdist = " << lumdistance << " Mpc" << std::endl;
         } else {
-            std::cout << lumdistance << std::endl;
+            if(output_kpc2arcsec==0 && output_angdist==0) {
+                std::cout << lumdistance << std::endl;
+            } else if(output_angdist>0) {
+                std::cout << lumdistance/(1.0+var_rz)/(1.0+var_rz) << std::endl;
+            } else if(output_kpc2arcsec>0) {
+                std::cout << 1e-3/(lumdistance/(1.0+var_rz)/(1.0+var_rz))/PI*180.0*3600.0 << std::endl;
+            }
         }
         
     } else {
         
-        std::cout << "Usage: lumdist z [-simple] -h0 73 -matter 0.27 -vaccum 0.73 [-verbose]" << std::endl;
+        std::cout << "Usage: lumdist z [-simple] -h0 73 -matter 0.27 -vaccum 0.73 [-verbose] [-angular]" << std::endl;
     }
     return 0;
 }
