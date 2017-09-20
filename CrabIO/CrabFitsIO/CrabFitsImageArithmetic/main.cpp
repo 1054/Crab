@@ -21,6 +21,7 @@
      2017-05-12   -replace-nan
      2017-07-20   also remove NAXIS1 and NAXIS2 in the mainHeader (but not recompiled yet)
      2017-07-30   -copy-wcs
+     2017-09-20   found bug when run 'CrabFitsImageArithmetic fit_3_bug_20170920a.fits -ext 2 times 1.0 fit_3_bug_20170920a.model.fits -copy-wcs -debug -debug'. Should be the bug in 'addKeyword()'.
  
  
  */
@@ -144,6 +145,19 @@ int main(int argc, char **argv)
                     if(cstrWcsCD1_2==NULL) {cstrWcsCD1_2 = extKeyword("CD1_2",cstrWcsHeader,1); if(cstrWcsCD1_2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD1_2 = " << cstrWcsCD1_2 << std::endl;} }
                     if(cstrWcsCD2_1==NULL) {cstrWcsCD2_1 = extKeyword("CD2_1",cstrWcsHeader,1); if(cstrWcsCD2_1!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD2_1 = " << cstrWcsCD2_1 << std::endl;} }
                     if(cstrWcsCD2_2==NULL) {cstrWcsCD2_2 = extKeyword("CD2_2",cstrWcsHeader,1); if(cstrWcsCD2_2!=NULL) {std::cout << "CrabFitsImageArithmetic: copy wcs CD2_2 = " << cstrWcsCD2_2 << std::endl;} }
+                    //
+                    // <20170920> if got all needed keywords then break. -- no, do not adopt this.
+                    /* if(cstrWcsCTYPE1!=NULL && cstrWcsCTYPE2!=NULL &&
+                       cstrWcsCRPIX1!=NULL && cstrWcsCRPIX2!=NULL &&
+                       cstrWcsCRVAL1!=NULL && cstrWcsCRVAL2!=NULL) {
+                        if(cstrWcsCDELT1!=NULL && cstrWcsCDELT2!=NULL) {
+                            break;
+                        } else if(cstrWcsCD1_1!=NULL && cstrWcsCD1_2!=NULL &&
+                                  cstrWcsCD2_1!=NULL && cstrWcsCD2_2!=NULL) {
+                            break;
+                        }
+                    }
+                    */
                 }
                 extNumerWcsHeader++;
             }
@@ -340,7 +354,7 @@ int main(int argc, char **argv)
                     // <DONE> now compatible with galfit: use -remove-nan option! (filling all NaN values by 0.0, but note that 0.0 is not exactly 0 due to the precision of the system.
                     // <DONE>
                     errStatus = modKeyword("EXTEND","F",mainHeader);
-                    tempHeader = mainHeader;
+                    tempHeader = mainHeader; // pointer to the mainHeader
                     while(*tempHeader!='\0'){
                         if(0==strncmp(tempHeader,"NAXIS   =",9)){
                             // char *tempHead80 = (char *)malloc(80*sizeof(char)); strncpy(tempHead80,tempHeader,80);
@@ -364,7 +378,7 @@ int main(int argc, char **argv)
                         }
                         tempHeader++;
                     }
-                    tempHeader = cstrHeader;
+                    tempHeader = cstrHeader; // pointer to the cstrHeader
                     while(*tempHeader!='\0'){
                         if(0==strncmp(tempHeader,"XTENSION=",9)){
                             for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;

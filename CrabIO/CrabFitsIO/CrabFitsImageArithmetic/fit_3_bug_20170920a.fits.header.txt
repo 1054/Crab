@@ -1,0 +1,185 @@
+SIMPLE  =                    T / file does conform to FITS standard             
+BITPIX  =                  -32 / number of bits per data pixel                  
+NAXIS   =                    2 / number of data axes                            
+NAXIS1  =                   51 / length of data axis 1                          
+NAXIS2  =                   51 / length of data axis 2                          
+EXTEND  =                    T / FITS dataset may contain extensions            
+COMMENT   FITS (Flexible Image Transport System) format is defined in 'Astronomy
+COMMENT   and Astrophysics', volume 376, page 359; bibcode: 2001A&A...376..359H 
+END                                                                             
+
+XTENSION= 'IMAGE   '           / IMAGE extension                                
+BITPIX  =                  -64 / Bits per pixel- floating point                 
+NAXIS   =                    2 /                                                
+NAXIS1  =                   51 / Length of data axis 1                          
+NAXIS2  =                   51 / Length of data axis 2                          
+PCOUNT  =                    0 / number of random group parameters              
+GCOUNT  =                    1 / number of random groups                        
+TELESCOP= 'Spitzer '           / SPITZER Space Telescope                        
+INSTRUME= 'IRAC    '           / SPITZER Space Telescope instrument ID          
+CHNLNUM =                    2 / 1 digit instrument channel number              
+EXPTYPE = 'sci     '           / Exposure Type                                  
+FOVID   =                   67 / Field of View ID                               
+FOVNAME = 'IRAC_Center_of_3.6&5.8umArray' / Field of View Name                  
+PRODTYPE= 'IMAGE   '           / type of this data                              
+OBSRVR  = 'David Sanders'      / Observer Name (Last, First)                    
+OBSRVRID=                14897 / Observer ID of Principal Investigator          
+PROCYCL =                    5 / Proposal Cycle                                 
+PROGID  =                20070 / Program ID                                     
+DATE_OBS= '2005-12-31T02:56:38.350' / Date & time (UTC) at DCE start            
+CRVAL1  =           150.093096 / [deg] RA at CRPIX1,CRPIX2                      
+CRVAL2  =             2.182762 / [deg] DEC at CRPIX1,CRPIX2                     
+RADESYS = 'ICRS    '           / International Celestial Reference System       
+EQUINOX =                2000. / Equinox for ICRS celestial coord. system       
+CTYPE1  = 'RA---TAN'           / RA projection type                             
+CTYPE2  = 'DEC--TAN'           / DEC projection type                            
+CRPIX1  =               71.832 / Reference pixel along axis 1                   
+CRPIX2  =             -885.591 / Reference pixel along axis 2                   
+CD1_1   =          -0.00016667 / CD matrix element with Pointing Recon          
+CD1_2   =                  -0. / CD matrix element with Pointing Recon          
+CD2_1   =                  -0. / CD matrix element with Pointing Recon          
+CD2_2   =           0.00016667 / CD matrix element with Pointing Recon          
+BUNIT   = 'MJy/sr  '           / Units of image data                            
+AORKEY  =             15536640 / AOR or EIR key. Astrnmy Obs Req/Instr Eng Req  
+DPID    =            342566993 / Data Product Instance ID                       
+INT_MTHD=                    2 / Interp Scheme:1 default,2 drizzl,3 numeric,4 bi
+DRIZ_FAC=                  0.5 / Drizzle factor used                            
+REFINED =                    0 / redefine_pointing applied. 1 is yes            
+COMMENT = Photons in Well = Flux[photons/sec/pixel] * FRAMTIME                  
+COMMENT = DN per pixel = Flux[photons/sec/pixel] / GAIN * EXPTIME               
+COMMENT = XSTRPCORR Module Version 1.3 corrected image created                  
+COMMENT = d Dec 22 09:31:56 2010                                                
+COMMENT MOSAIC_INT Module Version 6.2 image created                             
+COMMENT Thu Oct 31 10:50:58 2013                                                
+COMMENT MOSAIC_COADD Module Version 5.0 image created                           
+COMMENT Thu Oct 31 19:21:13 2013                                                
+PXSCAL1 =            -0.600012 / [arcsec/pix] Scale for axis 1 at CRPIX1, CRPIX2
+PXSCAL2 =             0.600012 / [arcsec/pix] Scale for axis 2 at CRPIX1, CRPIX2
+PA      =                  -0. / [deg] Position angle of axis 2 (E of N)        
+COMMENT MOSAIC_COMBINE Module Version 2.5 image created                         
+COMMENT Thu Oct 31 19:21:34 2013                                                
+COMMENT CROTA2 = 0.000000 /[deg] Orientation of axis 2 (W of N, +=CW)           
+COMMENT CDELT1 = -0.000167 /[deg/pix] Scale for axis 1                          
+COMMENT CDELT2 = 0.000167 /[deg/pix] Scale for axis 1                           
+TOTALBCD=                63735 / Total number of BCD's used in this mosaic      
+OBJECT  = '[1:51,1:51]'        / Component type                                 
+LOGFILE = 'galfit.04'          / GALFIT best-fit menu file                      
+END                                                                             
+
+XTENSION= 'IMAGE   '           / IMAGE extension                                
+BITPIX  =                  -32 / Bits per pixel                                 
+NAXIS   =                    2 / Number of axes                                 
+NAXIS1  =                   51 / Length of data axis 1                          
+NAXIS2  =                   51 / Length of data axis 2                          
+OBJECT  = 'model   '           / Component type                                 
+COMMENT ========== GALFIT Input Parameters ==========                           
+INITFILE= 'fit_3.input'        / GALFIT input file                              
+DATAIN  = 'image_sci.fits'     / Input data image                               
+SIGMA   = 'image_rms.fits'     / Input sigma image                              
+PSF     = 'image_psf.fits '    / Convolution PSF and kernel                     
+CONSTRNT= 'fit_3.limit'        / Parameter constraint file                      
+MASK    = 'none    '           / Input mask image                               
+FITSECT = '[1:51,1:51]'        / Image section fitted                           
+CONVBOX = '26, 26  '           / Convolution box size                           
+MAGZPT  =                   0. / Magnitude zeropoint                            
+COMMENT ========== GALFIT Final Parameters ==========                           
+COMP_1  = 'sersic  '           / Component type                                 
+1_XC    = '6.4456 +/- 0.0507'  / X center [pixel]                               
+1_YC    = '23.1472 +/- 0.0419' / Y center [pixel]                               
+1_MAG   = '1.3956 +/- 0.0657'  / Integrated magnitude [mag]                     
+1_RE    = '1.4211 +/- 0.0983'  / Effective radius Re [pixels]                   
+1_N     = '1.3557 +/- 0.3054'  / Sersic index                                   
+1_AR    = '0.7787 +/- 0.0745'  / Axis ratio (b/a)                               
+1_PA    = '66.5668 +/- 13.0732' / Position Angle (PA) [degrees: Up=0, Left=90]  
+COMMENT ------------------------------------------------------------------------
+COMP_2  = 'sersic  '           / Component type                                 
+2_XC    = '7.5113 +/- 0.0121'  / X center [pixel]                               
+2_YC    = '26.5873 +/- 0.0144' / Y center [pixel]                               
+2_MAG   = '0.2350 +/- 0.0170'  / Integrated magnitude [mag]                     
+2_RE    = '1.3128 +/- 0.0242'  / Effective radius Re [pixels]                   
+2_N     = '1.0571 +/- 0.0550'  / Sersic index                                   
+2_AR    = '0.8597 +/- 0.0193'  / Axis ratio (b/a)                               
+2_PA    = '20.1908 +/- 7.2387' / Position Angle (PA) [degrees: Up=0, Left=90]   
+COMMENT ------------------------------------------------------------------------
+COMP_3  = 'sersic  '           / Component type                                 
+3_XC    = '40.2064 +/- 0.0534' / X center [pixel]                               
+3_YC    = '29.9834 +/- 0.0587' / Y center [pixel]                               
+3_MAG   = '0.9051 +/- 0.2149'  / Integrated magnitude [mag]                     
+3_RE    = '4.3123 +/- 1.6647'  / Effective radius Re [pixels]                   
+3_N     = '4.0000 +/- 1.1551'  / Sersic index                                   
+3_AR    = '0.4743 +/- 0.0580'  / Axis ratio (b/a)                               
+3_PA    = '-17.0206 +/- 4.5758' / Position Angle (PA) [degrees: Up=0, Left=90]  
+COMMENT ------------------------------------------------------------------------
+COMP_4  = 'sersic  '           / Component type                                 
+4_XC    = '40.1802 +/- 0.0054' / X center [pixel]                               
+4_YC    = '22.2300 +/- 0.0061' / Y center [pixel]                               
+4_MAG   = '-1.0296 +/- 0.0053' / Integrated magnitude [mag]                     
+4_RE    = '1.6163 +/- 0.0122'  / Effective radius Re [pixels]                   
+4_N     = '1.2633 +/- 0.0293'  / Sersic index                                   
+4_AR    = '0.8166 +/- 0.0068'  / Axis ratio (b/a)                               
+4_PA    = '27.6681 +/- 1.5963' / Position Angle (PA) [degrees: Up=0, Left=90]   
+COMMENT ------------------------------------------------------------------------
+COMP_5  = 'psf     '           / Component type                                 
+5_XC    = '[22.3990]'          / X center [pixel]                               
+5_YC    = '[47.0960]'          / Y center [pixel]                               
+5_MAG   = '6.5267 +/- 1.7445'  / Integrated magnitude                           
+COMMENT ------------------------------------------------------------------------
+COMP_6  = 'sersic  '           / Component type                                 
+6_XC    = '24.7499 +/- 0.0498' / X center [pixel]                               
+6_YC    = '44.5715 +/- 0.0566' / Y center [pixel]                               
+6_MAG   = '1.7778 +/- 0.0472'  / Integrated magnitude [mag]                     
+6_RE    = '1.5327 +/- 0.1226'  / Effective radius Re [pixels]                   
+6_N     = '0.9033 +/- 0.2591'  / Sersic index                                   
+6_AR    = '0.7972 +/- 0.0805'  / Axis ratio (b/a)                               
+6_PA    = '59.5791 +/- 16.1923' / Position Angle (PA) [degrees: Up=0, Left=90]  
+COMMENT ------------------------------------------------------------------------
+COMP_7  = 'psf     '           / Component type                                 
+7_XC    = '[4.0530]'           / X center [pixel]                               
+7_YC    = '[50.5340]'          / Y center [pixel]                               
+7_MAG   = '5.3899 +/- 0.6405'  / Integrated magnitude                           
+COMMENT ------------------------------------------------------------------------
+COMP_8  = 'sersic  '           / Component type                                 
+8_XC    = '50.5750 +/- 0.1219' / X center [pixel]                               
+8_YC    = '49.0099 +/- 0.1322' / Y center [pixel]                               
+8_MAG   = '1.2432 +/- 0.6067'  / Integrated magnitude [mag]                     
+8_RE    = '5.1000 +/- 5.0915'  / Effective radius Re [pixels]                   
+8_N     = '3.7535 +/- 2.3177'  / Sersic index                                   
+8_AR    = '0.8117 +/- 0.1888'  / Axis ratio (b/a)                               
+8_PA    = '-0.1585 +/- 37.4532' / Position Angle (PA) [degrees: Up=0, Left=90]  
+COMMENT ------------------------------------------------------------------------
+COMP_9  = 'sersic  '           / Component type                                 
+9_XC    = '2.6379 +/- 0.0394'  / X center [pixel]                               
+9_YC    = '47.9542 +/- 0.0361' / Y center [pixel]                               
+9_MAG   = '1.3083 +/- 0.0422'  / Integrated magnitude [mag]                     
+9_RE    = '1.1682 +/- 0.0858'  / Effective radius Re [pixels]                   
+9_N     = '1.2694 +/- 0.2721'  / Sersic index                                   
+9_AR    = '0.8848 +/- 0.0794'  / Axis ratio (b/a)                               
+9_PA    = '59.9107 +/- 23.5137' / Position Angle (PA) [degrees: Up=0, Left=90]  
+COMMENT ------------------------------------------------------------------------
+COMP_10 = 'sky     '           / Component type                                 
+10_XC   = '[26.0000]'          / X center [pixel]                               
+10_YC   = '[26.0000]'          / Y center [pixel]                               
+10_SKY  = '-1.069e-03 +/- 2.199e-05' / Sky background [ADUs]                    
+10_DSDX = '[0.000e+00]'        / x sky gradient [ADUs]                          
+10_DSDY = '[0.000e+00]'        / y sky gradient [ADUs]                          
+COMMENT ------------------------------------------------------------------------
+FLAGS   = 'H-3 H-4 H-1 A-3 A-4 2 ' / See `galfit -help' for details.            
+COMMENT ------------------------------------------------------------------------
+CHISQ   =     42469.5336763424 / Chi^2 of fit                                   
+NDOF    =                 2549 / Degrees of freedom                             
+NFREE   =                   52 / Number of free parameters                      
+NFIX    =                    6 / Number of fixed parameters                     
+CHI2NU  =             16.66125 / Reduced Chi^2                                  
+LOGFILE = 'galfit.04'          / Output logfile                                 
+COMMENT =============================================                           
+COMMENT                                                                         
+END                                                                             
+
+XTENSION= 'IMAGE   '           / IMAGE extension                                
+BITPIX  =                  -32 / Bits per pixel                                 
+NAXIS   =                    2 / Number of axes                                 
+NAXIS1  =                   51 / Length of data axis 1                          
+NAXIS2  =                   51 / Length of data axis 2                          
+OBJECT  = 'residual map'       / Component type                                 
+END                                                                             
+

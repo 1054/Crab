@@ -506,7 +506,7 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderPoi
     /*Check whether keyword exists.*/
     errorcode = modKeyword(strKeyName,strKeyValue,strHeader);
     if(errorcode==-1) {
-        errorcode=-1;
+        errorcode=0; // <20170920> errorcode=-1;
         if(debugcode>0) {printf("addKeyword: No existing keyword, adding a new one.\n");}
         // new keyword! Now start to add the keyword after the last header text line.
         //
@@ -524,16 +524,20 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderPoi
             if(!isSimpleText(baLine))     isHeader=0;
             else if(isBlankSpace(baLine)) isBlank=1;
             else if(isENDmark(baLine)) flagENDmark=1;
+            if(debugcode>1) {printf("addKeyword: header line %04d: %s\n",countBytes/80+1,baLine);} // <20170920><debug>
             //Find the last blank line
-            if(1==isHeader && 0==isBlank && 0==flagENDmark) { oldHeaderValidLine = countBytes/80+1; }
-            if(1==isHeader && 1==isBlank && 0==flagENDmark) { oldHeaderEmptyLine = countBytes/80+1; }
+            // <20170920><buggy> if(1==isHeader && 0==isBlank && 0==flagENDmark) { oldHeaderValidLine = countBytes/80+1; }
+            // <20170920><buggy> if(1==isHeader && 1==isBlank && 0==flagENDmark) { oldHeaderEmptyLine = countBytes/80+1; }
+            if(1==isHeader && 0==isBlank && 0==flagENDmark) { oldHeaderValidLine = countBytes/80+1; oldHeaderEmptyLine=-1; } // <20170920>
+            if(1==isHeader && 1==isBlank && 0==flagENDmark && oldHeaderEmptyLine==-1) { oldHeaderEmptyLine = countBytes/80+1; } // <20170920>
             //Untill we touch the last header line with END mark
             if(1==flagENDmark) {
                 //Record current old header END position
-                oldHeaderEndedLine = countBytes/80;
+                oldHeaderEndedLine = countBytes/80+1; // <20170920> oldHeaderEndedLine = countBytes/80;
                 if(debugcode>0) {printf("addKeyword: oldHeaderValidLine = %ld\n",oldHeaderValidLine);}
                 if(debugcode>0) {printf("addKeyword: oldHeaderEmptyLine = %ld\n",oldHeaderEmptyLine);}
                 if(debugcode>0) {printf("addKeyword: oldHeaderEndedLine = %ld\n",oldHeaderEndedLine);}
+                if(debugcode>0) {printf("addKeyword: addEmptyLine = %d\n",addEmptyLine);}
                 //Insert the new keyword line two lines after the oldHeaderValidLine.
                 newHeaderInsertLine = oldHeaderValidLine + addEmptyLine + 1;
                 if(debugcode>0) {printf("addKeyword: Will insert at the %ld-th line.\n",newHeaderInsertLine);}
@@ -541,10 +545,14 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderPoi
                 if(newHeaderInsertLine>=oldHeaderEndedLine) {
                     if(debugcode>0) {printf("addKeyword: Will add a new header block.\n");}
                     newHeaderSize = (long(oldHeaderSize/2880)+1) * 2880; // Add one new header block, i.e. 36 lines (36*80bytes=2880bytes)
-                    newHeaderEndingLine = (long(oldHeaderEndedLine/36)+1) * 36;
+                    newHeaderEndingLine = newHeaderSize / 80; // <buggy><20170920> (long(oldHeaderEndedLine/36)+1) * 36;
+                    if(debugcode>0) {printf("addKeyword: The new header will have %ld bytes (the old header has %ld bytes).\n",newHeaderSize,oldHeaderSize);}
+                    if(debugcode>0) {printf("addKeyword: The new header will have %ld lines (the old header has %ld lines).\n",newHeaderEndingLine,oldHeaderEndedLine);}
                 } else {
                     newHeaderSize = (long(oldHeaderSize/2880)) * 2880;
                     newHeaderEndingLine = (long(oldHeaderEndedLine/36)) * 36;
+                    if(debugcode>0) {printf("addKeyword: The new header will have %ld bytes (the old header has %ld bytes).\n",newHeaderSize,oldHeaderSize);}
+                    if(debugcode>0) {printf("addKeyword: The new header will have %ld lines (same as the old header).\n",newHeaderEndingLine);}
                 }
                 //
                 long lonByteAtEnd = countBytes; //TODO:delete
@@ -610,7 +618,7 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderPoi
                     intByteAdded+=1;
                 }
                 newHeaderAddedBytes = intByteAdded;
-                if(debugcode>0) {printf("addKeyword: added %ld bytes as the new keyword at the %ld-th line of the new header.\n",newHeaderAddedBytes,newHeaderInsertLine);}
+                if(debugcode>0) {printf("addKeyword: added %ld bytes as the new keyword-value line at the %ld-th line of the new header.\n",newHeaderAddedBytes,newHeaderInsertLine);}
                 //Copy the last lines
                 //if(0) {
                 //printf("\ndebug:newHeader+%ld oldHeader+%ld size=%ld\n",
@@ -621,7 +629,9 @@ int addKeyword(const char *strKeyName, const char *strKeyValue, char **HeaderPoi
                 //strncpy(newHeader+newHeaderSize-(oldHeaderSize-lonByteAtEnd),
                 //                                     strHeader+lonByteAtEnd,
                 //                                 oldHeaderSize-lonByteAtEnd);
-                newHeaderPtr = newHeader + newHeaderEndingLine*80;
+                newHeaderPtr = newHeader + (newHeaderEndingLine-1)*80; // <20170920> newHeaderPtr = newHeader + newHeaderEndingLine*80;
+                memset(newHeaderPtr,0x20,80);
+                memset(newHeaderPtr+80,0x00,1);
                 strncpy(newHeaderPtr,"END",3);
                 if(debugcode>0) {printf("addKeyword: the new header ends at the %ld-th line.\n",newHeaderEndingLine);}
                 //<OLD><BEFORE><20160704>// newHeaderPtr+=intByteToAdd;
