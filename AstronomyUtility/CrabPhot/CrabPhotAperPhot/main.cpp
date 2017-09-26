@@ -57,7 +57,8 @@
 //#define DEF_Version "2016-04-30"
 //#define DEF_Version "2017-02-28"
 //#define DEF_Version "2017-03-04"
-#define DEF_Version "2017-05-08"
+//#define DEF_Version "2017-05-08"
+#define DEF_Version "2017-09-23"
 
 using namespace std;
 
@@ -196,10 +197,14 @@ int main(int argc, char **argv)
                           << setw(13) << "min"
                           << setw(13) << "max"
                           << setw(13) << "mean"
+                          << setw(13) << "median"
+                          << setw(13) << "stddev"
                           << setw(13) << "rms"
                           << std::flush;
                 std::cout << setw(13) << "npix_int"
                           << setw(13) << "sum_int"
+                          << setw(13) << "min_int"
+                          << setw(13) << "max_int"
                           << setw(13) << "mean_int"
                           << setw(13) << "median_int"
                           << setw(13) << "stddev_int"
@@ -220,10 +225,14 @@ int main(int argc, char **argv)
                           << setw(13) << "min"
                           << setw(13) << "max"
                           << setw(13) << "mean"
+                          << setw(13) << "median"
+                          << setw(13) << "stddev"
                           << setw(13) << "rms"
                           << std::flush;
                 std::cout << setw(13) << "npix_int"
                           << setw(13) << "sum_int"
+                          << setw(13) << "min_int"
+                          << setw(13) << "max_int"
                           << setw(13) << "mean_int"
                           << setw(13) << "median_int"
                           << setw(13) << "stddev_int"
@@ -368,6 +377,10 @@ int main(int argc, char **argv)
                                 // <modified><20151218><dzliu> if(aperImage[tempK]>0.0) {aperRmsF1 += aperImage[tempK] * aperImage[tempK] * aperMask1[tempK];}
                                 aperRmsF1 += aperImage[tempK]*aperImage[tempK]*aperMask1[tempK]*aperMask1[tempK];
                                 aperSumN1 += aperMask1[tempK];
+                                // <20170923><dzliu> added this so that we account for pixels which are only fractionally covered by the aperture circle
+                                //                   this is important for radius <~ 1 pixel.
+                                if(aperMinF1!=aperMinF1) {aperMinF1 = aperImage[tempK];} else if(aperImage[tempK]<aperMinF1) {aperMinF1 = aperImage[tempK];}
+                                if(aperMaxF1!=aperMaxF1) {aperMaxF1 = aperImage[tempK];} else if(aperImage[tempK]>aperMaxF1) {aperMaxF1 = aperImage[tempK];}
                             } else {
                                 aperMask1[tempK] = 0.0;
                             }
@@ -413,10 +426,14 @@ int main(int argc, char **argv)
                           << setw(13) << aperMinF1
                           << setw(13) << aperMaxF1
                           << setw(13) << aperMeaF1
+                          << setw(13) << aperMedF1
+                          << setw(13) << aperSaiF1
                           << setw(13) << aperRmsF1
                           << std::flush;
                 std::cout << setw(13) << aperSumM1
                           << setw(13) << aperSumS1
+                          << setw(13) << aperMinS1
+                          << setw(13) << aperMaxS1
                           << setw(13) << aperMeaS1
                           << setw(13) << aperMedS1
                           << setw(13) << aperSaiS1
@@ -445,9 +462,9 @@ int main(int argc, char **argv)
     } else {
         // print usage
         std::cout << "Usage: "
-                  << "\n    CrabPhot NGC1068_PACS160.fits NGC1068_Info.txt NGC1068_Apertures.txt -ext 1"
-                  << "\n    CrabPhot NGC1068_PACS160.fits NGC1068_Info.txt NGC1068_Apertures.txt -ext 1 -header-no-comment"
-                  << "\n    CrabPhot NGC1068_PACS160.fits NGC1068_Info.txt NGC1068_Apertures.txt -ext 1 -header-in-comment"
+                  << "\n    CrabPhotAperPhot NGC1068_PACS160.fits NGC1068_Info.txt NGC1068_Apertures.txt -ext 1"
+                  << "\n    CrabPhotAperPhot NGC1068_PACS160.fits NGC1068_Info.txt NGC1068_Apertures.txt -ext 1 -header-no-comment"
+                  << "\n    CrabPhotAperPhot NGC1068_PACS160.fits NGC1068_Info.txt NGC1068_Apertures.txt -ext 1 -header-in-comment"
                   << "\n    (It is ok to provide a non-exist NGC1068_Info.txt if you have no galaxy information e.g. redshift, distance, etc.)"
                   << "\n    (The aperture list file NGC1068_Apertures.txt should be ascii character space separated column aligned table.)"
                   << "\n    (The default output format is header-no-comment, the first line will be the column headers.)"
