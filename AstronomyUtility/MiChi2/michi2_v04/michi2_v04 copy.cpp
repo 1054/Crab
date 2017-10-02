@@ -43,9 +43,8 @@
 
 
 
+
 #include "michi2_v04.h"
-
-
 
 
 
@@ -76,7 +75,7 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
         if(DCLIB->X[j]>LibRangeXMax){LibRangeXMax=DCLIB->X[j];}
     }
 
-    //debug = 3; // <Debug> // <20160718> now put in argument
+    //debug = 1; // <Debug> // <20160718> now put in argument
 
     double OnePlusRedshift = 1.0; //
     if(strlen(InfoRedshift)>0) { OnePlusRedshift = 1.0+atof(InfoRedshift); }
@@ -121,17 +120,7 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                 std::string TempFilterCurveFilePath; TempFilterCurveFilePath.clear();
                 std::vector<double> FilterCurveX; FilterCurveX.clear();
                 std::vector<double> FilterCurveY; FilterCurveY.clear();
-                if(FilterCurves.size()>k) {
-                    if(FilterCurves[k]) {
-                        // re-use global variable
-                        //FilterCurveX.resize(FilterCurves[k]->X.size()); FilterCurveX.assign(FilterCurves[k]->X.begin(), FilterCurves[k]->X.end());
-                        //FilterCurveY.resize(FilterCurves[k]->Y.size()); FilterCurveY.assign(FilterCurves[k]->Y.begin(), FilterCurves[k]->Y.end());
-                        FilterCurveX.clear(); FilterCurveX.assign(FilterCurves[k]->X.begin(), FilterCurves[k]->X.end());
-                        FilterCurveY.clear(); FilterCurveY.assign(FilterCurves[k]->Y.begin(), FilterCurves[k]->Y.end());
-                        if(debug>=1) { std::cout << "michi2MatchObs: debugging: applying filter curve from FilterCurves[" << k << "]" << std::endl; }
-                    }
-                }
-                if((FilterCurveX.size()==0 || FilterCurveY.size()==0) && DCOBS->FilterCurveFilePath.size()>k) {
+                if(DCOBS->FilterCurveFilePath.size()>k) {
                     if(!DCOBS->FilterCurveFilePath[k].empty()) {
                         if(DCOBS->FilterCurveFilePath[k].find("none")==std::string::npos &&
                            DCOBS->FilterCurveFilePath[k].find("null")==std::string::npos &&
@@ -141,7 +130,7 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                             //if(debug) { std::cout << "michi2MatchObs: debugging: set TempFilterCurveFilePath = DCOBS->FilterCurveFilePath[" << k << "]" << std::endl; }
                             // read filter curve file, assuming two columns ascii file
                             if(!TempFilterCurveFilePath.empty()) {
-                                if(debug>=1) { std::cout << "michi2MatchObs: debugging: applying filter curve from file \"" << TempFilterCurveFilePath << "\"" << std::endl; }
+                                if(debug) { std::cout << "michi2MatchObs: debugging: applying filter curve from file \"" << TempFilterCurveFilePath << "\"" << std::endl; }
                                 std::ifstream FilterCurveFileStream(TempFilterCurveFilePath.c_str());
                                 if(FilterCurveFileStream.is_open()) {
                                     std::string FilterCurveFileLine;
@@ -159,7 +148,7 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                                             double temp_y1 = atof(FilterCurveFileLineStrList[1].c_str());
                                             FilterCurveX.push_back(temp_x1);
                                             FilterCurveY.push_back(temp_y1);
-                                            //if(debug>=3) { std::cout << "michi2MatchObs: debugging: applying filter curve from file: FilterCurveX = " << FilterCurveX[FilterCurveX.size()-1] << ", FilterCurveY = " << FilterCurveY[FilterCurveY.size()-1] << std::endl;  }
+                                            if(debug>=3) { std::cout << "michi2MatchObs: debugging: applying filter curve from file: FilterCurveX = " << FilterCurveX[FilterCurveX.size()-1] << ", FilterCurveY = " << FilterCurveY[FilterCurveY.size()-1] << std::endl;  }
                                         }
                                         FilterCurveFileLineStrStream.clear();
                                     }
@@ -173,6 +162,11 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                         }
                     }
                 }
+                if(FilterCurves.size()>k) {
+                    // re-use global variable
+                    FilterCurveX.resize(FilterCurves[k]->X.size()); FilterCurveX.assign(FilterCurves[k]->X.begin(), FilterCurves[k]->X.end());
+                    FilterCurveY.resize(FilterCurves[k]->Y.size()); FilterCurveY.assign(FilterCurves[k]->Y.begin(), FilterCurves[k]->Y.end());
+                }
                 if(FilterCurveX.size()>0 && FilterCurveY.size()>0 && FilterCurveX.size() == FilterCurveY.size()) {
                     // apply filter curve to the LIB data
                     // spline FilterCurveX FilterCurveY LIBX FilterFactorY
@@ -183,21 +177,10 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                     }
                     //
                     std::vector<double> FilterCurveY_Matched;
-                    //for(int i1=0; i1<DCLIB->X.size(); i1++) {
-                        //if(DCLIB->X[i1]>=FilterCurveX.front()/OnePlusRedshift && DCLIB->X[i1]<=FilterCurveX.back()/OnePlusRedshift) {
-                        //    FilterCurveY_Matched[i1] = 1.0;
-                        //} else {
-                        //    FilterCurveY_Matched[i1] = 0.0;
-                        //}
-                    //}
+                    FilterCurveY_Matched.resize(DCLIB->X.size());
+                    for(int i1=0; i1<DCLIB->X.size(); i1++) { FilterCurveY_Matched[i1] = 1.0; }
                     //std::cout << "michi2MatchObs: debugging: FilterCurveY_Matched=0x" << std::hex << (size_t)&FilterCurveY_Matched << std::endl;
-                    
-                    FilterCurveY_Matched = spline(FilterCurveX, FilterCurveY, DCLIB->X);
-                    //double FilterCurveY_Matched_Total = 0.0;
-                    //for(int i1=0; i1<DCLIB->X.size(); i1++) {
-                    //    FilterCurveY_Matched_Total += FilterCurveY_Matched[i1];
-                    //    //std::cout << "michi2MatchObs: debugging: splining filter curve value " << FilterCurveY_Matched[i1] << std::endl;
-                    //}
+                    //FilterCurveY_Matched = spline(FilterCurveX, FilterCurveY, DCLIB->X);
                     //std::cout << "michi2MatchObs: debugging: FilterCurveY_Matched=0x" << std::hex << (size_t)&FilterCurveY_Matched << std::endl;
                     //std::cout << "michi2MatchObs: debugging: DCLIB=0x" << std::hex << (size_t)&DCLIB << std::endl;
                     //std::cout << "michi2MatchObs: debugging: DCLIB->X=0x" << std::hex << (size_t)&DCLIB->X << std::endl;
@@ -207,38 +190,31 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                     //std::cout << "michi2MatchObs: debugging: DCOBS->FilterCurveFilePath=0x" << std::hex << (size_t)&DCOBS->FilterCurveFilePath << std::endl;
                     //
                     if(debug>=2) { std::cout << "michi2MatchObs: debugging: splining filter curve done" << std::endl; }
-                    if(DCLIB->X.front()<FilterCurveX.back() && DCLIB->X.back()>FilterCurveX.front()) {
-                        if(debug>=2) { std::cout << "michi2MatchObs: debugging: calculating filter curve integral" << std::endl;  }
-                        double FilterCurveIntegrated1 = 0.0; // \int R(\lambda) f(\lambda) d\lambda
-                        double FilterCurveIntegrated2 = 0.0; // \int R(\lambda) d\lambda
-                        for(int i1=0; i1<DCLIB->X.size(); i1++) {
-                            if(DCLIB->X[i1]>=FilterCurveX.front() && DCLIB->X[i1]<=FilterCurveX.back()) {
-                                FilterCurveIntegrated1 += DCLIB->Y[i1] * FilterCurveY_Matched[i1];
-                                FilterCurveIntegrated2 += FilterCurveY_Matched[i1];
-                                if(debug>=3) { std::cout << "michi2MatchObs: debugging: calculating filter curve integral: DCLIB->Y[i1] * FilterCurveY_Matched[i1] = " << DCLIB->Y[i1] << " * " << FilterCurveY_Matched[i1] << std::endl;  }
-                            }
+                    if(debug>=2) { std::cout << "michi2MatchObs: debugging: calculating filter curve integral" << std::endl;  }
+                    double FilterCurveIntegrated1 = 0.0; // \int R(\lambda) f(\lambda) d\lambda
+                    double FilterCurveIntegrated2 = 0.0; // \int R(\lambda) d\lambda
+                    for(int i1=0; i1<DCLIB->X.size(); i1++) {
+                        if(DCLIB->X[i1]>=FilterCurveX.front() && DCLIB->X[i1]<=FilterCurveX.back()) {
+                            FilterCurveIntegrated1 += DCLIB->Y[i1] * FilterCurveY_Matched[i1];
+                            FilterCurveIntegrated2 += FilterCurveY_Matched[i1];
+                            if(debug>=3) { std::cout << "michi2MatchObs: debugging: calculating filter curve integral: DCLIB->Y[i1] * FilterCurveY_Matched[i1] = " << DCLIB->Y[i1] << " * " << FilterCurveY_Matched[i1] << std::endl;  }
                         }
-                        if(debug>=2) { std::cout << "michi2MatchObs: debugging: calculating filter curve integral done" << std::endl; }
-                        if(debug>=1) { std::cout << "michi2MatchObs: debugging: the lib Y value before applying filter curve: " << MatchedLibY << std::endl; }
-                        if(FilterCurveIntegrated2>0) {
-                            MatchedLibY = FilterCurveIntegrated1 / FilterCurveIntegrated2; // now applied filter curve (aka transmission curve)
-                        } else {
-                            MatchedLibY = 0.0;
-                        }
-                        if(debug>=1) { std::cout << "michi2MatchObs: debugging: the lib Y value after applying filter curve: " << MatchedLibY << std::endl; }
                     }
+                    if(debug>=2) { std::cout << "michi2MatchObs: debugging: calculating filter curve integral done" << std::endl; }
+                    if(debug>=1) { std::cout << "michi2MatchObs: debugging: the lib Y value before applying filter curve: " << MatchedLibY << std::endl; }
+                    MatchedLibY = FilterCurveIntegrated1 / FilterCurveIntegrated2; // now applied filter curve (aka transmission curve)
+                    if(debug>=1) { std::cout << "michi2MatchObs: debugging: the lib Y value after applying filter curve: " << MatchedLibY << std::endl; }
                     //
                     // store into global variable FilterCurves for re-using
                     if(FilterCurves.size()<=k) {
-                        for(int i1=0; i1<FilterCurveX.size(); i1++) {
-                            FilterCurveX[i1] = FilterCurveX[i1] * OnePlusRedshift;
-                        }
                         FilterCurves.resize(k+1);
                         FilterCurves[k] = new FilterCurveXY();
+                        FilterCurves[k]->X.resize(FilterCurveX.size());
                         FilterCurves[k]->X.assign(FilterCurveX.begin(), FilterCurveX.end());
+                        FilterCurves[k]->Y.resize(FilterCurveY.size());
                         FilterCurves[k]->Y.assign(FilterCurveY.begin(), FilterCurveY.end());
                         FilterCurves[k]->Name = TempFilterCurveFilePath;
-                        if(debug>=1) { std::cout << "michi2MatchObs: debugging: stored filter curve into FilterCurves[" << k << "]" << std::endl; }
+                        if(debug) { std::cout << "michi2MatchObs: debugging: stored FilterCurveXY into FilterCurves[" << k << "]" << std::endl; }
                     }
                 }
                 //
@@ -251,22 +227,19 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                 MatchedDAT.f1.push_back(MatchedLibY);
                 if(debug>=1) { std::cout << "michi2MatchObs: debugging: got matched lib Y value " << MatchedLibY << " comparing to obs Y value " << DCOBS->Y[k] << " at obs X value " << DCOBS->X[k] << "/" << OnePlusRedshift << "=" << DCOBS->X[k]/OnePlusRedshift << std::endl; }
                 // std::cout << "michi2MatchObs: debugging: got it! " << DCOBS->X[k]/OnePlusRedshift << " " << DCOBS->Y[k]/OnePlusRedshift << " " << DCLIB->Y[j];
-                //if(debug>=2) {std::cout << "michi2MatchObs: debugging: FilterCurves=0x" << std::hex << (size_t)&FilterCurves << std::endl;}
+                if(debug>=2) {std::cout << "michi2MatchObs: debugging: FilterCurves=0x" << std::hex << (size_t)&FilterCurves << std::endl;}
                 
                 
                 // <TODO><20171001> program stacked here when jumping out of this level
                 // michi2_v04_test(80272,0x7000075bd000) malloc: *** error for object 0x7fec0fc04628: incorrect checksum for freed object - object was probably modified after being freed.
                 // why?
-                // SOLVED!
-                // THE BUG IS IN spline.cpp !!!
-                // because the code is pthread, even with Qt Creator debugging, I could not find out where is the bug. FINALLY BY EYE AND WITH A LOT OF EFFORT!
                 
                 
             } else {
                 // no nearest LIB data found to OBS data? <TODO>
                 if(debug>=1) { std::cout << "michi2MatchObs: debugging: got no matched lib data within lib X range " << LibRangeXMin << " " << LibRangeXMax << "? (This should not happen!)" << std::endl; }
             }
-            //if(debug>=2) {std::cout << "michi2MatchObs: debugging: FilterCurves=0x" << std::hex << (size_t)&FilterCurves << std::endl;}
+            if(debug>=2) {std::cout << "michi2MatchObs: debugging: FilterCurves=0x" << std::hex << (size_t)&FilterCurves << std::endl;}
         } else {
             DCOBS->Matched[k]=1;
             MatchedDAT.j0.push_back(DCOBS->X[k]/OnePlusRedshift); // obs
@@ -278,7 +251,7 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
         }
     }
     
-    //if(debug>=2) {std::cout << "michi2MatchObs: debugging: FilterCurves=0x" << std::hex << (size_t)&FilterCurves << std::endl;}
+    if(debug>=2) {std::cout << "michi2MatchObs: debugging: FilterCurves=0x" << std::hex << (size_t)&FilterCurves << std::endl;}
     
     return MatchedDAT;
 }

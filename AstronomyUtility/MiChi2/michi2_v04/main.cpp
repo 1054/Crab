@@ -27,15 +27,6 @@
 
 using namespace std;
 
-const std::string currentDateTime();
-
-std::vector<double> extractStringDouble(std::string InputStr);
-
-const char *InfoRedshift = "";
-
-int NumbParallel = 2; // number of parallel subprocesses
-
-std::vector<ConstraintStructure*> Constraints; // --> ./michi2_v04_201607 -obs test/... terminated by signal SIGSEGV (Address boundary error)
 
 
 
@@ -54,9 +45,11 @@ int main(int argc, char **argv)
         // michi2("flux-co.dat","lib.lvg");
         // m2chi2("flux-co.dat","lib.lvg","lib.lvg");
         // m2chi2("flux-co.dat","flower.lvg","flower.lvg");
-        std::vector<std::string> FileObsList;
-        std::vector<std::string> FileLibList;
-        std::vector<std::string> FileOutList;
+        std::vector<std::string> FileObsList; // Obs Flux & FlueErr List
+        std::vector<std::string> FileLibList; // Lib
+        std::vector<std::string> FileOutList; // Out
+        std::vector<std::string> InputFilterCurveList; // Obs Filter Curve List
+        Constraints.clear();
         std::cout << "Welcome!" << std::endl << std::endl;
         int i=0;
         while(i<argc) {
@@ -70,12 +63,12 @@ int main(int argc, char **argv)
                     i++;
                 }
             }
-            else if(0==strncmp(argv[i],"-lib",4))
+            else if(0==strncmp(argv[i],"-filter",7))
             {
                 i++;
                 while(i<argc) {
                     if(0!=strncmp(argv[i],"-",1)) {
-                        FileLibList.push_back(argv[i]);
+                        InputFilterCurveList.push_back(argv[i]);
                     } else {break;}
                     i++;
                 }
@@ -122,127 +115,14 @@ int main(int argc, char **argv)
                     }
                 }
             }
-            else if(0==strncmp(argv[i],"-constrain",10) || 0==strcmp(argv[i],"-s"))
+            else if(0==strncmp(argv[i],"-constrain",10) || 0==strncmp(argv[i],"-con",4) || 0==strcmp(argv[i],"-s"))
             {
                 // i++;
                 // a valid constraint requires 5 arguments:
                 // LIB1 PAR1 OPERATOR LIB2 PAR2
                 // for example -constraint LIB3-DL07 PAR1-UMIN EQ LIB4-DL07 PAR1-UMIN
                 if((i+5)<argc) {
-                    ConstraintStructure *TempConstraint = new ConstraintStructure();
-                    std::string TempConstraintStr;
-                    std::string TempConstraintStrCopy;
-                    std::cout << "Input Constraint:";
-                    for(int j=1; j<=5; j++) {
-                        TempConstraintStr = argv[i+j];
-                        std::transform(TempConstraintStr.begin(),TempConstraintStr.end(),TempConstraintStr.begin(),::toupper);
-                        //std::cout << " " << TempConstraintStr;
-                        if(j==1) {TempConstraintStrCopy=TempConstraintStr;} // TempConstraintStrCopy is used as previous container.
-                        //
-                        // if input "lib3" LIB id, then set constraint from/to LIB 3 (number starting from 1).
-                        // if input "full" then set constraint from/to full SED.
-                        //
-                        // if input "index" then set constraint on index.
-                        // if input "integration" then set constraint on integration.
-                        // if input "par3" LIB PAR id, then set constraint on LIB PAR.
-                        //
-                        if (TempConstraintStr=="SED" || (std::string::npos!=TempConstraintStr.find("FULL"))) {
-                            // it's FULL SED INTEGRAT mode, set constraint with integration of full SED
-                            if(j==4) {TempConstraint->fromLIB = -1;}
-                            else if(j==1) {TempConstraint->toLIB = -1;}
-                        } else if (TempConstraintStr=="L" || TempConstraintStr=="INT" || (std::string::npos!=TempConstraintStr.find("INTEGRAT"))) {
-                            // it's INTEGRAT mode, set constraint with integration of full SED or LIB SED
-                            if(j==5) {TempConstraint->fromPAR = -1; TempConstraint->fromFactor = 1.0; TempConstraint->fromLowerX = 0.0; TempConstraint->fromUpperX = 0.0;}
-                            else if(j==2) {TempConstraint->toPAR = -1; TempConstraint->toFactor = 1.0; TempConstraint->toLowerX = 0.0; TempConstraint->toUpperX = 0.0;}
-                            // now read integration normalization factor if available
-                            std::vector<double> TempConstraintDbl = extractStringDouble(TempConstraintStr);
-                            if(TempConstraintDbl.size()>=1) {
-                                if(j==5) {TempConstraint->fromFactor = TempConstraintDbl[0]; }
-                                else if(j==2) {TempConstraint->toFactor = TempConstraintDbl[0]; }
-                            } TempConstraintDbl.clear();
-                            // now read integration x range if available
-                            TempConstraintDbl = extractStringDouble(TempConstraintStrCopy); // if it is INTEGRAT mode, then we also need to read LIB X range
-                            if(TempConstraintDbl.size()>=3) {
-                                if(j==5) {TempConstraint->fromLowerX = TempConstraintDbl[1]; TempConstraint->fromUpperX = TempConstraintDbl[2];}
-                                else if(j==2) {TempConstraint->toLowerX = TempConstraintDbl[1]; TempConstraint->toUpperX = TempConstraintDbl[2];}
-                            } TempConstraintDbl.clear();
-                        }  else if (TempConstraintStr=="F" || (std::string::npos!=TempConstraintStr.find("FLUX"))) {
-                            // it's FLUX mode, set constraint with the flux at X position of full SED or LIB SED
-                            if(j==5) {TempConstraint->fromPAR = -2; TempConstraint->fromFactor = 1.0; TempConstraint->fromLowerX = 0.0; TempConstraint->fromUpperX = 0.0;}
-                            else if(j==2) {TempConstraint->toPAR = -2; TempConstraint->toFactor = 1.0; TempConstraint->toLowerX = 0.0; TempConstraint->toUpperX = 0.0;}
-                            // now read FLUX normalization factor if available
-                            std::vector<double> TempConstraintDbl = extractStringDouble(TempConstraintStr);
-                            if(TempConstraintDbl.size()>=1) {
-                                if(j==5) {TempConstraint->fromFactor = TempConstraintDbl[0]; }
-                                else if(j==2) {TempConstraint->toFactor = TempConstraintDbl[0]; }
-                            } TempConstraintDbl.clear();
-                            // now read FLUX X position if available
-                            TempConstraintDbl = extractStringDouble(TempConstraintStrCopy); // if it is FLUX mode, then we also need to read LIB X position
-                            if(TempConstraintDbl.size()>=2) {
-                                if(j==5) {TempConstraint->fromLowerX = TempConstraintDbl[1]; TempConstraint->fromUpperX = TempConstraintDbl[1];}
-                                else if(j==2) {TempConstraint->toLowerX = TempConstraintDbl[1]; TempConstraint->toUpperX = TempConstraintDbl[1];}
-                            } TempConstraintDbl.clear();
-                        } else if (TempConstraintStr=="I" || (std::string::npos!=TempConstraintStr.find("INDEX"))) {
-                            // it's INDEX mode, set constraint on LIB index rather then LIB PAR
-                            if(j==5) {TempConstraint->fromPAR = 0;}
-                            else if(j==2) {TempConstraint->toPAR = 0;}
-                        } else if(std::string::npos != TempConstraintStr.find_first_of("0123456789")) {
-                            // it's normal mode, set constraint on some PAR of some LIB
-                            TempConstraintStr = TempConstraintStr.substr(TempConstraintStr.find_first_of("0123456789"));
-                            if(j==1){TempConstraint->toLIB = std::stoi(TempConstraintStr);}
-                            else if(j==2){TempConstraint->toPAR = std::stoi(TempConstraintStr);}
-                            else if(j==4){TempConstraint->fromLIB = std::stoi(TempConstraintStr);}
-                            else if(j==5){TempConstraint->fromPAR = std::stoi(TempConstraintStr);}
-                        } else if(j==3) {
-                            if     (std::string::npos != TempConstraintStr.find("=")  ) {TempConstraint->OperatorType=0;  TempConstraint->OperatorTypeStr="EQ";}
-                            else if(std::string::npos != TempConstraintStr.find(">=") ) {TempConstraint->OperatorType=1;  TempConstraint->OperatorTypeStr="GE";}
-                            else if(std::string::npos != TempConstraintStr.find("<=") ) {TempConstraint->OperatorType=-1; TempConstraint->OperatorTypeStr="LE";}
-                            else if(std::string::npos != TempConstraintStr.find(">")  ) {TempConstraint->OperatorType=2;  TempConstraint->OperatorTypeStr="GT";}
-                            else if(std::string::npos != TempConstraintStr.find("<")  ) {TempConstraint->OperatorType=-2; TempConstraint->OperatorTypeStr="LT";}
-                            else if(std::string::npos != TempConstraintStr.find("EQ") ) {TempConstraint->OperatorType=0;  TempConstraint->OperatorTypeStr="EQ";}
-                            else if(std::string::npos != TempConstraintStr.find("GE") ) {TempConstraint->OperatorType=1;  TempConstraint->OperatorTypeStr="GE";}
-                            else if(std::string::npos != TempConstraintStr.find("LE") ) {TempConstraint->OperatorType=-1; TempConstraint->OperatorTypeStr="LE";}
-                            else if(std::string::npos != TempConstraintStr.find("GT") ) {TempConstraint->OperatorType=2;  TempConstraint->OperatorTypeStr="GT";}
-                            else if(std::string::npos != TempConstraintStr.find("LT") ) {TempConstraint->OperatorType=-2; TempConstraint->OperatorTypeStr="LT";}
-                            else {
-                                std::cout << std::endl;
-                                std::cout << "Error! The input constraint operator " << argv[i+j] << " could not be understood!" << std::endl;
-                                std::cout << std::endl;
-                                return -1;
-                            }
-                        } else {
-                            std::cout << std::endl;
-                            std::cout << "Error! The input constraint argument " << argv[i+j] << " could not be understood!" << std::endl;
-                            std::cout << std::endl;
-                            return -1;
-                        }
-                        TempConstraintStrCopy = TempConstraintStr;
-                    }
-                    std::cout << std::endl;
-                    std::cout << "\t";
-                    //
-                    std::cout << "LIB" << TempConstraint->toLIB;
-                    if(TempConstraint->toPAR<=0) {std::cout << "[" << TempConstraint->toLowerX << ":" << TempConstraint->toUpperX << "]";}
-                    std::cout << " ";
-                    if(TempConstraint->toPAR>0) {std::cout << "PAR" << TempConstraint->toPAR << "*" << TempConstraint->fromFactor;}
-                    else if(TempConstraint->toPAR==0) {std::cout << "INDEX";}
-                    else if(TempConstraint->toPAR==-1) {std::cout << "INTEGRATION" << "*" << TempConstraint->toFactor;}
-                    else if(TempConstraint->toPAR==-2) {std::cout << "FLUX" << "*" << TempConstraint->toFactor;}
-                    //
-                    std::cout << " ";
-                    std::cout << " " << TempConstraint->OperatorTypeStr << " ";
-                    std::cout << " ";
-                    //
-                    std::cout << "LIB" << TempConstraint->fromLIB;
-                    if(TempConstraint->fromPAR<=0) {std::cout << "[" << TempConstraint->fromLowerX << ":" << TempConstraint->fromUpperX << "]";}
-                    std::cout << " ";
-                    if(TempConstraint->fromPAR>0) {std::cout << "PAR" << TempConstraint->fromPAR << "*" << TempConstraint->fromFactor;}
-                    else if(TempConstraint->fromPAR==0) {std::cout << "INDEX";}
-                    else if(TempConstraint->fromPAR==-1) {std::cout << "INTEGRATION" << "*" << TempConstraint->fromFactor;}
-                    else if(TempConstraint->fromPAR==-2) {std::cout << "FLUX" << "*" << TempConstraint->fromFactor;}
-                    //
-                    std::cout << std::endl;
-                    std::cout << std::endl;
+                    michi2Constraint *TempConstraint = new michi2Constraint(argv[i+1], argv[i+2], argv[i+3], argv[i+4], argv[i+5]);
                     Constraints.push_back(TempConstraint);
                     i+=5;
                 } else {
@@ -304,7 +184,7 @@ int main(int argc, char **argv)
         // }
 
         //<TODO><UNCOMMNET>//
-        mnchi2(FileObsList,FileLibList,FileOutList);
+        mnchi2(FileObsList,FileLibList,FileOutList,InputFilterCurveList);
         //<TODO><UNCOMMNET>//
         
 //        if(argc>=2) {
@@ -341,49 +221,5 @@ int main(int argc, char **argv)
          */
     }
     return 0;
-}
-
-
-
-// Get current date/time, format is YYYY-MM-DD.HH:mm:ss
-// http://stackoverflow.com/questions/997946/how-to-get-current-time-and-date-in-c
-const std::string currentDateTime() {
-    time_t     now = time(0);
-    struct tm  tstruct;
-    char       buf[80];
-    tstruct = *localtime(&now);
-    // Visit http://en.cppreference.com/w/cpp/chrono/c/strftime
-    // for more information about date/time format
-    strftime(buf, sizeof(buf), "%Y-%m-%d %X %Z", &tstruct);
-    return buf;
-}
-
-
-// Extract double numbers from a given string
-// loop to extract all possible double numbers
-std::vector<double> extractStringDouble(std::string InputStr) {
-    double TempDbl = 0.0;
-    std::string TempStr = InputStr+" "; // in case the string got empty
-    std::string ExctStr = ""; // extracted str
-    std::vector<double> OutputDbl;
-    while (std::string::npos != TempStr.find_first_of(".+-Ee0123456789")) {
-        TempStr = TempStr.substr(TempStr.find_first_of(".+-Ee0123456789"));
-        size_t TempPos = TempStr.find_first_not_of(".+-Ee0123456789");
-        if(std::string::npos != TempPos) {
-            ExctStr = TempStr.substr(0,TempPos);
-            TempStr = TempStr.substr(TempPos);
-        } else {
-            ExctStr = TempStr;
-        }
-        if(ExctStr!="") {
-            if(0 == ExctStr.find_first_of(".+-0123456789")) {
-                //std::cout << "DEBUG: ExctStr = " << ExctStr << std::endl;
-                TempDbl = std::stod(ExctStr.c_str());
-                OutputDbl.push_back(TempDbl);
-            }
-            ExctStr="";
-        }
-    }
-    return OutputDbl;
 }
 

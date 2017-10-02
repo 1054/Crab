@@ -1,3 +1,11 @@
+/*
+ 
+ last update:
+ 
+ 2015-06-15 add argument BreakupMark in functions
+ 
+ */
+
 #ifndef H_CrabStringReadColumn
 #define H_CrabStringReadColumn
 #include <stdio.h>
@@ -17,9 +25,9 @@ long csrcstrfindwholeword(const string &t, const string &strsearch, const string
 
 string csrcstrfindwholeword(const string &t, size_t pos, const string &BreakupMark = " ");
 
-std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText, const char *InputColHead, const char * CommentMark = "#");
+std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText, const char *InputColHead, const char *CommentMark = "#", const char *BreakupMark = " ");
 
-std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText, int InputColNumber, const char * CommentMark = "#");
+std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText, int InputColNumber, const char *CommentMark = "#", const char *BreakupMark = " ");
 
 
 
@@ -108,7 +116,7 @@ string csrcstrfindwholeword(const string &t, size_t pos, const string &BreakupMa
 
 
 
-std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText, const char *InputColHead, const char * CommentMark)
+std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText, const char *InputColHead, const char * CommentMark, const char *BreakupMark)
 {
     //
     std::vector<std::string> OutputArray;
@@ -120,6 +128,7 @@ std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText
         std::string colname(InputColHead); // From char * to string: http://stackoverflow.com/questions/2573834/c-convert-string-or-char-to-string-or-wchar-t
         std::string colvalue;
         std::string commark(CommentMark); // From char * to string: http://stackoverflow.com/questions/2573834/c-convert-string-or-char-to-string-or-wchar-t
+        std::string breakup(BreakupMark); // <added><20150615><dzliu>
         long colpos = -1;
         if (InputText.size()>0) {
             for (int i=0; i<InputText.size(); i++) {
@@ -137,7 +146,7 @@ std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText
                 }
                 // whether this is header line? (we take the first non-comment line as the header line.)
                 if(-1==colpos) {
-                    colpos = csrcstrfindwholeword(line,colname);
+                    colpos = csrcstrfindwholeword(line,colname,breakup); // <updated><20150615><dzliu>,breakup
                     if(string::npos==colpos) {
                         std::cout << "CrabStringReadColumn: Column Header not found!" << std::endl;
                         break;
@@ -146,7 +155,7 @@ std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText
                 // whether this is content line? (we read String content by matching the vertical position!)
                 if(colpos>=0) {
                     for(int j=0; j<colname.length(); j++) {
-                        colvalue = csrcstrfindwholeword(line,colpos+j);
+                        colvalue = csrcstrfindwholeword(line,colpos+j,breakup); // <updated><20150615><dzliu>,breakup
                         if(!colvalue.empty()){
                             colvalue = csrcstrtrim(colvalue);
                             OutputArray.push_back(colvalue);
@@ -167,7 +176,7 @@ std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText
 
 
 
-std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText, int InputColNumber, const char * CommentMark)
+std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText, int InputColNumber, const char * CommentMark, const char *BreakupMark)
 {
     //
     std::vector<std::string> OutputArray;
@@ -179,6 +188,7 @@ std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText
         std::string colname;
         std::string colvalue;
         std::string commark(CommentMark); // From char * to string: http://stackoverflow.com/questions/2573834/c-convert-string-or-char-to-string-or-wchar-t
+        std::string breakup(BreakupMark); // <added><20150615><dzliu>
         long colpos = -1;
         if (InputText.size()>0) {
             for (int i=0; i<InputText.size(); i++) {
@@ -198,7 +208,7 @@ std::vector<std::string> CrabStringReadColumn(std::vector<std::string> InputText
                 if(1==1) {
                     colpos = 0; 
                     for(long j=0; j<line.length(); j++) {
-                        colvalue = csrcstrfindwholeword(line,j);
+                        colvalue = csrcstrfindwholeword(line,j,breakup); // <updated><20150615><dzliu>,breakup
                         if(!colvalue.empty()){
                             colpos--;
                             if((-colpos)==InputColNumber) {

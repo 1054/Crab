@@ -6,6 +6,7 @@
 #include <vector>
 #include <iostream>
 #include <sstream>
+#include <regex>
 #include "CrabTableReadColumn.cpp"
 #include "CrabStringReadColumn.cpp"
 #include "CrabTableReadInfo.cpp"
@@ -26,13 +27,14 @@ using namespace std;
  */
 class michi2DataClass {
 public:
-    std::vector<double> X;    std::vector<double> Y;    std::vector<double> YErr;    std::vector<int>  Matched;
-    std::vector<string> XStr; std::vector<string> YStr; std::vector<string> YErrStr; long XCol; long YCol; long YErrCol; long XNum; long YNum;
+    std::vector<double> X;    std::vector<double> Y;    std::vector<double>  YErr;     std::vector<int>  Matched;
+    std::vector<string> XStr; std::vector<string> YStr; std::vector<string>  YErrStr;  long XCol; long YCol; long YErrCol; long XNum; long YNum;
     std::vector<std::vector<double> > FVAR;             std::vector<long>    NVAR;     std::vector<long> CVAR;
     std::vector<std::vector<double> > FPAR;             std::vector<long>    NPAR;     std::vector<long> CPAR;   std::vector<string> TPAR;
     std::ifstream                     FileStream;       std::string          FilePath;
     // FVAR[0] = X,    FVAR[1] = Y
     // FPAR[0] = PAR1, FPAR[1] = PAR2, ...
+    std::vector<string> FilterCurveFilePath; // <added><20171001>
     michi2DataClass(const char * InputFile);
     ~michi2DataClass();
     const char *michi2sprint(const char* wsPrefix, long wi, const char* wsSuffix);
@@ -40,7 +42,8 @@ public:
     int michi2wstoi(wstring wstr);
     std::vector<double> michi2stod(std::vector<string> strVec);
     std::vector<double> michi2wstod(std::vector<wstring> wstrVec);
-    std::vector<std::string> getDataBlock(long lineNumber, long lineCount, int debug = 0);
+    std::vector<std::string> getDataBlock(long lineNumber, long lineCount, int debug = 0); // this function load data block into this->X, this->Y
+    std::vector<std::string> readFilterCurveListFile(const char * InputFile);
 };
 
 
@@ -97,6 +100,7 @@ michi2DataClass::michi2DataClass(const char *InputFile)
         this->Y = michi2stod(this->YStr);
         this->YErr = michi2stod(this->YErrStr);
         this->Matched.resize(this->Y.size()); this->Matched.assign(this->Y.size(),0); // * 0.0;
+        
     } else {
         if(InNVAR.size()!=2) { std::cout << "michi2DataClass: Error! Could not determine NVAR1 and NVAR2 from " << InputFile << "!" << std::endl; return; }
         // std::cout << "michi2DataClass: We will take column " << InCVAR[0] << " as X, column " << InCVAR[1] << " as Y, and column " << InCVAR[1]+1 << " as YErr if possible, from the file " << InputFile << std::endl;
@@ -113,12 +117,19 @@ michi2DataClass::michi2DataClass(const char *InputFile)
     this->XCol = InCVAR[0];
     this->YCol = InCVAR[1];
     this->YErrCol = InCVAR[1]+1;
+    
+    // std::cout << "DEBUG: michi2DataClass this->X=0x" << std::hex << (size_t)&this->X << std::endl;
+    // std::cout << "DEBUG: michi2DataClass this->XNum=0x" << std::hex << (size_t)&this->XNum << std::endl;
+    // std::cout << "DEBUG: michi2DataClass this->Y=0x" << std::hex << (size_t)&this->Y << std::endl;
+    // std::cout << "DEBUG: michi2DataClass this->YNum=0x" << std::hex << (size_t)&this->YNum << std::endl;
 }
 
 
 michi2DataClass::~michi2DataClass()
 {
     if(this->FileStream.is_open()) { this->FileStream.close(); }
+    FilterCurveFilePath.clear(); FilePath.clear();
+    X.clear(); Y.clear();
 }
 
 
@@ -238,6 +249,38 @@ std::vector<std::string> michi2DataClass::getDataBlock(long lineNumber, long lin
     // return
     return textblock;
 }
+
+
+std::vector<std::string> michi2DataClass::readFilterCurveListFile(const char * InputFile)
+{
+    // The FilterCurveListFile should contains two columns,
+    // first is wavelength, same as input OBS file,
+    // second is the filter curve file path for each wavelength.
+    //std::cout << "michi2DataClass::readFilterCurveListFile()" << std::endl;
+    //int ReadRowNumber = 0;
+    this->FilterCurveFilePath = CrabTableReadColumn(InputFile, 2); // we use two white space to separate columns
+    if(this->FilterCurveFilePath.size()!=this->X.size()) {this->FilterCurveFilePath.clear();}
+    if(this->FilterCurveFilePath.size()==0) {this->FilterCurveFilePath.resize(this->X.size());}
+    for(int i=0; i<this->FilterCurveFilePath.size(); i++) {
+        if(!this->FilterCurveFilePath.empty()) {
+            //std::cout << "this->FilterCurveFilePath[" << i << "] = \"" << this->FilterCurveFilePath[i] << "\"" << std::endl;
+            this->FilterCurveFilePath[i] = std::regex_replace(this->FilterCurveFilePath[i], std::regex("^ +$"), "");
+            if(this->FilterCurveFilePath.at(i).front() == '"' && this->FilterCurveFilePath.at(i).back() == '"') {
+                this->FilterCurveFilePath[i].erase( 0, 1 ); // erase the first character
+                this->FilterCurveFilePath[i].erase( this->FilterCurveFilePath[i].size() - 1 ); // erase the last character
+            }
+            if(this->FilterCurveFilePath[i].find("/")!=0) {
+                std::string InputFileStr(InputFile);
+                if (InputFileStr.find_last_of("/")!=std::string::npos) {
+                    this->FilterCurveFilePath[i] = InputFileStr.substr(0,InputFileStr.find_last_of("/")+1).append(this->FilterCurveFilePath[i]);
+                }
+            }
+        }
+        //std::cout << "this->FilterCurveFilePath[" << i << "] = \"" << this->FilterCurveFilePath[i] << "\"" << std::endl;
+    }
+    return this->FilterCurveFilePath;
+}
+
 
 
 #endif

@@ -26,10 +26,21 @@
 using namespace std;
 
 
-std::vector<double> michi2MinPack_fOBS;
-std::vector<double> michi2MinPack_eOBS;
-std::vector<std::vector<double> > michi2MinPack_fLIB;
-long michi2MinPack_ncount = 0;
+std::vector<double>                 michi2MinPack_fOBS;
+std::vector<double>                 michi2MinPack_eOBS;
+std::vector<double>                 michi2MinPack_aCOE;
+std::vector<std::vector<double> >   michi2MinPack_fLIB;
+long                                michi2MinPack_ncount = 0;
+struct michi2MinPack_constraint { int to=-1; std::vector<int> from; std::vector<double> multiplication; double addition=0.0; }; //<Added><20171001> allow to constraint aCOE of LIB, for example, lock LIB1 normalization coefficient = LIB2 normalization coefficient * 100, this is useful in locking radio SED to IR(8-1000um) via the IR-radio correlation.
+std::vector<michi2MinPack_constraint *> michi2MinPack_constraints; //<Added><20171001>
+
+
+
+
+
+
+
+
 
 
 void michi2MinPack_func(const int *m, const int *n, const double *x, double *fvec, int *iflag);
@@ -38,15 +49,47 @@ void michi2MinPack_func(const int *m, const int *n, const double *x, double *fve
 {
     /* calculate the functions at x and return the values in fvec[0] through fvec[m-1] -- from cminpack manual html */
     // m is NVAR[0], in LVG, it's the mol line count, in SED, it's the band count.
+    // n is the LIB number
     int debug = 0;
     double chi2sum = 0.0;
     for (int iim=0; iim<(*m); iim++) {
         double fsum = 0.0; // sum of multiple libs at one band
-        double acoe[*n];
-        // for (int iin=0; iin<(*n); iin++) { if(x[iin]<0.0) acoe[iin]=0.0; else acoe[iin]=x[iin]; } // <TODO> how to prevent coeff a to be negative?
-        // for (int iin=0; iin<(*n); iin++) { fsum += acoe[iin] * michi2MinPack_fLIB[iin][iim]; } // x is the coefficiency a
-        for (int iin=0; iin<(*n); iin++) { if(!isnan(michi2MinPack_fLIB[iin][iim])) { fsum += x[iin] * michi2MinPack_fLIB[iin][iim];
-            /* std::cout << x[iin] << "*" << michi2MinPack_fLIB[iin][iim] << std::endl; */ } } // x is the coefficiency a // <Corrected><20140922><DzLIU> fLib smaller than fObs!
+        double *acoe = (double *)x; // x is the coefficiency a
+        for (int iin=0; iin<(*n); iin++) { if(x[iin]<0.0) acoe[iin]=0.0; else acoe[iin]=x[iin]; } // <TODO> how to prevent coeff a to be negative?
+        //
+        // <added><20171001> apply constraints directly on LIB normalization factors (i.e. aCOE)
+        if(michi2MinPack_constraints.size()>0) {
+            for(int iicon=0; iicon<michi2MinPack_constraints.size(); iicon++) {
+                michi2MinPack_constraint *temp_constraint = michi2MinPack_constraints[iicon];
+                if(temp_constraint->to>=1 && temp_constraint->to<=(*n)) {
+                    acoe[temp_constraint->to-1] = 0.0;
+                    for(int ijcon=0; ijcon<temp_constraint->from.size(); ijcon++) {
+                        if(temp_constraint->from[ijcon]>=1 && temp_constraint->from[ijcon]<=(*n)) {
+                            acoe[temp_constraint->to-1] += acoe[temp_constraint->from[ijcon]-1] * temp_constraint->multiplication[ijcon];
+                        }
+                    }
+                    acoe[temp_constraint->to-1] = acoe[temp_constraint->to-1] + temp_constraint->addition;
+                    //<DEBUG><20171001> acoe[temp_constraint->to-1] = 1.0;
+                }
+            }
+        }
+        //
+        //for (int iin=0; iin<(*n); iin++) { michi2MinPack_aCOE[iin] = acoe[iin]; } // <TODO> how to prevent coeff a to be negative?
+        //
+        for (int iin=0; iin<(*n); iin++) {
+            if(!isnan(michi2MinPack_fLIB[iin][iim])) {
+                fsum += acoe[iin] * michi2MinPack_fLIB[iin][iim];
+                //<DEBUG><20171001> std::cout << "acoe[" << iin << "] " << acoe[iin] << " * " << michi2MinPack_fLIB[iin][iim] << std::endl; //<DEBUG><20171001>
+            }
+        }
+        //
+        //for (int iin=0; iin<(*n); iin++) {
+        //    if(!isnan(michi2MinPack_fLIB[iin][iim])) {
+        //        fsum += x[iin] * michi2MinPack_fLIB[iin][iim];
+        //    /* std::cout << x[iin] << "*" << michi2MinPack_fLIB[iin][iim] << std::endl; */
+        //    }
+        //} // <Corrected><20140922><DzLIU> fLib smaller than fObs!
+        //
         fvec[iim] = abs(fsum - michi2MinPack_fOBS[iim]); // chi
         if(!michi2MinPack_eOBS.empty()) { fvec[iim] = fvec[iim]/michi2MinPack_eOBS[iim]; } // chi weighted by obs err
         // fvec[iim] = fvec[iim] * fvec[iim]; // chi-square DO NOT SQUARE THE fvec BY OURSELVES! <Corrected><20140822><DzLIU>
@@ -81,6 +124,8 @@ public:
     michi2MinPack(std::vector<std::vector<double> > Input_fLIB, std::vector<double> Input_fOBS, std::vector<double> Input_eOBS, int Input_debug = 0);
     void func(const int *m, const int *n, const double *x, double *fvec, int *iflag);
     void init(std::vector<std::vector<double> > Input_fLIB, std::vector<double> Input_fOBS, std::vector<double> Input_eOBS, int Input_debug = 0);
+    void constrain(int toLib, std::vector<int> fromLibs, std::vector<double> multiplication_factors);
+    void constrain(int toLib, int fromLib, double multiplication_factor);
     void fit(int Input_debug = 0);
     double mean(std::vector<double> data);
 };
@@ -99,7 +144,7 @@ michi2MinPack::michi2MinPack(std::vector<std::vector<double> > Input_fLIB, std::
     //
     init(Input_fLIB, Input_fOBS, Input_eOBS, Input_debug);
     // 
-    fit(Input_debug);
+    //fit(Input_debug);
     //
 }
 
@@ -120,6 +165,8 @@ void michi2MinPack::init(std::vector<std::vector<double> > Input_fLIB, std::vect
     // initialize fitting parameter vector
     this->aCOE.clear();
     this->aCOE.resize(this->fLIB.size());
+    michi2MinPack_aCOE.clear();
+    michi2MinPack_aCOE.resize(this->fLIB.size());
     for(int i=0; i<this->aCOE.size(); i++) {
 //        double vLIB = 0.0;
 //        double vOBS = 0.0;
@@ -134,6 +181,7 @@ void michi2MinPack::init(std::vector<std::vector<double> > Input_fLIB, std::vect
             }
         } /* <Fixed><20141113><DzLIU> */
         this->aCOE[i] = iniCOE;
+        michi2MinPack_aCOE[i] = iniCOE;
         // this->aCOE[i] = 0.1;
         // this->aCOE[i] = 100.0;
         if(debug) { std::cout << " a[" << i << "]=" << iniCOE; }
@@ -148,13 +196,35 @@ void michi2MinPack::init(std::vector<std::vector<double> > Input_fLIB, std::vect
 
 
 
+void michi2MinPack::constrain(int toLib, std::vector<int> fromLibs, std::vector<double> multiplication_factors)
+{
+    // <20171001>
+    michi2MinPack_constraint *temp_constraint = new michi2MinPack_constraint();
+    temp_constraint->to = toLib;
+    temp_constraint->from.resize(fromLibs.size()); for(int k=0; k<fromLibs.size(); k++) {temp_constraint->from[k] = fromLibs[k];}
+    temp_constraint->multiplication.resize(multiplication_factors.size()); for(int k=0; k<multiplication_factors.size(); k++) {temp_constraint->multiplication[k] = multiplication_factors[k];}
+    michi2MinPack_constraints.push_back(temp_constraint);
+}
+
+void michi2MinPack::constrain(int toLib, int fromLib, double multiplication_factor)
+{
+    // <20171001>
+    michi2MinPack_constraint *temp_constraint = new michi2MinPack_constraint();
+    temp_constraint->to = toLib;
+    temp_constraint->from.resize(1); for(int k=0; k<1; k++) {temp_constraint->from[k] = fromLib;}
+    temp_constraint->multiplication.resize(1); for(int k=0; k<1; k++) {temp_constraint->multiplication[k] = multiplication_factor;}
+    michi2MinPack_constraints.push_back(temp_constraint);
+}
+
+
+
 void michi2MinPack::fit(int Input_debug)
 {
     //
     int m = this->fOBS.size();     // NVAR[0]  N_independent_variables
     int n = this->fLIB.size();     // NCOE     N_composit_coefficients
-    this->aCOE.resize(n);
-    double *x = this->aCOE.data(); // parameters vector
+    //this->aCOE.resize(n);
+    double *x = new double[n]; for(int i=0; i<n; i++) { x[i] = this->aCOE[i]; } // michi2MinPack_aCOE.data(); // this->aCOE.data(); // parameters vector
     double *fvec = new double[m];  // chi-function vector
     double *chisq = new double[m]; // chi-square vector // the square of fvec
     double ftol = 1e-15;           // tolerance <TODO>
@@ -164,6 +234,15 @@ void michi2MinPack::fit(int Input_debug)
     int *iwa = new int[n];         // for internal use
     //
     lmdif1_( michi2MinPack_func, &m, &n, x, fvec, &ftol, &info, iwa, wa, &lwa );
+    //
+    // get result
+    for(int i=0; i<n; i++) { this->aCOE[i] = x[i]; }
+    //
+    // prevent from negative COE <20171001>
+    //for(int i=0; i<n; i++) { this->aCOE[i] = michi2MinPack_aCOE[i]>0 ? michi2MinPack_aCOE[i] : 0.0; }
+    //for(int i=0; i<n; i++) { if(this->aCOE[i]<0.0) {this->aCOE[i] = 0.0;}; michi2MinPack_func(&m, &n, x, fvec, iwa); }
+    //
+    // calc chisq
     for(int i=0; i<m; i++) { chisq[i] = fvec[i]*fvec[i]; }
     //
     // save to class

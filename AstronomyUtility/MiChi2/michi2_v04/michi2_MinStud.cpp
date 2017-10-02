@@ -12,6 +12,16 @@
 #include "CrabStringReadColumn.cpp"
 #include "CrabTableReadInfo.cpp"
 #include "CrabTableGetLineCount.cpp"
+#include "cminpack/minpack.h"
+#include "cminpack/lmdif1_.c"
+#include "cminpack/lmdif_.c"
+#include "cminpack/lmpar_.c"
+#include "cminpack/dpmpar_.c"
+#include "cminpack/enorm_.c"
+#include "cminpack/fdjac2_.c"
+#include "cminpack/qrfac_.c"
+#include "cminpack/qrsolv_.c"
+
 using namespace std;
 
 
