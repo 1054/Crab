@@ -7,6 +7,7 @@
 #include <iostream>
 #include <sstream>
 #include <regex>
+#include <iterator>
 #include "CrabTableReadColumn.cpp"
 #include "CrabStringReadColumn.cpp"
 #include "CrabTableReadInfo.cpp"
