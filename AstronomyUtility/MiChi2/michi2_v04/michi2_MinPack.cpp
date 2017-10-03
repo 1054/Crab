@@ -77,14 +77,14 @@ void michi2MinPack_func(const int *m, const int *n, const double *x, double *fve
         //for (int iin=0; iin<(*n); iin++) { michi2MinPack_aCOE[iin] = acoe[iin]; } // <TODO> how to prevent coeff a to be negative?
         //
         for (int iin=0; iin<(*n); iin++) {
-            if(!isnan(michi2MinPack_fLIB[iin][iim])) {
+            if(!std::isnan(michi2MinPack_fLIB[iin][iim])) {
                 fsum += acoe[iin] * michi2MinPack_fLIB[iin][iim];
                 //<DEBUG><20171001> std::cout << "acoe[" << iin << "] " << acoe[iin] << " * " << michi2MinPack_fLIB[iin][iim] << std::endl; //<DEBUG><20171001>
             }
         }
         //
         //for (int iin=0; iin<(*n); iin++) {
-        //    if(!isnan(michi2MinPack_fLIB[iin][iim])) {
+        //    if(!std::isnan(michi2MinPack_fLIB[iin][iim])) {
         //        fsum += x[iin] * michi2MinPack_fLIB[iin][iim];
         //    /* std::cout << x[iin] << "*" << michi2MinPack_fLIB[iin][iim] << std::endl; */
         //    }
