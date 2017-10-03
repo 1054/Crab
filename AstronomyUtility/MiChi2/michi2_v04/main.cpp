@@ -207,7 +207,8 @@ int main(int argc, char **argv)
         std::cout << "       \n\t michi2_v04 -obs flux-co.dat -lib Star.SED DL07Lo.SED DL07Hi.SED -out output.csv" << std::endl;
         // std::cout << "Version: \n\t michi2_v04 " << "2014-08-22 Orme des Merisiers" << " copyleft " << std::endl;
         // std::cout << "Version: \n\t michi2_v04 " << "2015-04-09 Orme des Merisiers" << std::endl;
-        std::cout << "Version: \n\t michi2_v04 " << "2016-07-14 Nanjing" << std::endl;
+        // std::cout << "Version: \n\t michi2_v04 " << "2016-07-14 Nanjing" << std::endl;
+        std::cout << "Version: \n\t michi2_v04 " << "2017-10-01 Heidelberg" << std::endl;
         std::cout << std::endl;
         
         /*
