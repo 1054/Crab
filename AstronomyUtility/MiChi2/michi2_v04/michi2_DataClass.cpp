@@ -6,14 +6,21 @@
 #include <vector>
 #include <iostream>
 #include <sstream>
-#include <regex>
-#include <iterator>
-#include "CrabTableReadColumn.cpp"
+//#include <regex> gcc >=4.9 (CentOS >=8)
+//#include <iterator>
+#include "CrabStringClean.cpp"
 #include "CrabStringReadColumn.cpp"
+#include "CrabTableReadColumn.cpp"
 #include "CrabTableReadInfo.cpp"
 #include "CrabTableGetLineCount.cpp"
 
 using namespace std;
+
+extern std::string CrabStringTrim(const string &t, int trimflag);
+
+
+
+
 
 /* Struct Data Class */
 /*
@@ -265,7 +272,8 @@ std::vector<std::string> michi2DataClass::readFilterCurveListFile(const char * I
     for(int i=0; i<this->FilterCurveFilePath.size(); i++) {
         if(!this->FilterCurveFilePath.empty()) {
             //std::cout << "this->FilterCurveFilePath[" << i << "] = \"" << this->FilterCurveFilePath[i] << "\"" << std::endl;
-            this->FilterCurveFilePath[i] = std::regex_replace(this->FilterCurveFilePath[i], std::regex("^ +$"), "");
+            //this->FilterCurveFilePath[i] = std::regex_replace(this->FilterCurveFilePath[i], std::regex("^ +$"), ""); // this requires gcc >=4.9 (CentOS >=8)
+            this->FilterCurveFilePath[i] = CrabStringTrim(this->FilterCurveFilePath[i]);
             if(this->FilterCurveFilePath.at(i).front() == '"' && this->FilterCurveFilePath.at(i).back() == '"') {
                 this->FilterCurveFilePath[i].erase( 0, 1 ); // erase the first character
                 this->FilterCurveFilePath[i].erase( this->FilterCurveFilePath[i].size() - 1 ); // erase the last character
