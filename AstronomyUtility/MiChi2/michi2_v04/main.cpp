@@ -202,13 +202,37 @@ int main(int argc, char **argv)
     {
         
         std::cout << std::endl;
-        std::cout << "Usage: \n\t michi2_v04 -obs flux-co.dat -lib lib.lvg -out output.csv" << std::endl;
-        std::cout << "       \n\t michi2_v04 -obs flux-co.dat -lib lib.lvg lib.lvg -out output.csv" << std::endl;
-        std::cout << "       \n\t michi2_v04 -obs flux-co.dat -lib Star.SED DL07Lo.SED DL07Hi.SED -out output.csv" << std::endl;
+        std::cout << "Usage: \n";
+        std::cout << "       michi2_v04 -obs flux-co.dat -lib lib.lvg -out output.csv\n";
+        std::cout << "       \n";
+        std::cout << "       michi2_v04 -obs flux-co.dat -lib lib.lvg lib.lvg -out output.csv\n";
+        std::cout << "       \n";
+        std::cout << "       michi2_v04 -obs flux-co.dat -lib Star.SED DL07Lo.SED DL07Hi.SED -out output.csv\n";
+        std::cout << "       \n";
         // std::cout << "Version: \n\t michi2_v04 " << "2014-08-22 Orme des Merisiers" << " copyleft " << std::endl;
         // std::cout << "Version: \n\t michi2_v04 " << "2015-04-09 Orme des Merisiers" << std::endl;
         // std::cout << "Version: \n\t michi2_v04 " << "2016-07-14 Nanjing" << std::endl;
-        std::cout << "Version: \n\t michi2_v04 " << "2017-10-01 Heidelberg" << std::endl;
+        std::cout << "       michi2_v04 -obs flux-obsframe.dat \\\n";
+        std::cout << "                  -redshift 6.3 \\\n";
+        std::cout << "                  -lib Star.SED AGN.SED DL07Hi.SED DL07Lo.SED Radio.SED \\\n";
+        std::cout << "                  -out output.dat \\\n";
+        std::cout << "                  -constrain LIB3 INDEX EQ LIB4 INDEX \\\n";
+        std::cout << "                  -constrain LIB5 NORM EQ SED \"vLv(8,1000)*1.061619121e-06\" \\\n";
+        std::cout << "                  -filter filter.list\n";
+        std::cout << "                  # (*) The first constraint means that we lock the index of DL07Hi.SED and\n";
+        std::cout << "                  #     DL07Lo.SED to be the same, i.e. same Umin, qPAH, etc.\n";
+        std::cout << "                  # (*) The second constraint means that we lock the normalization of Radio.SED\n";
+        std::cout << "                  #     to total IR luminosity vLv(8,1000) following the IR-radio correlation,\n";
+        std::cout << "                  #     i.e. with q_IR = 2.4, S_(1.4GHz)/S_(IR,8-1000) = 1.0/3750/10^2.4 = 1.061619121e-06\n";
+        std::cout << "                  # (*) We can also read filter curves according to the input \"filter.list\" file,\n";
+        std::cout << "                  #     which should have two columns, wavelength and filter curve file path without white space,\n";
+        std::cout << "                  #     and rows should exactly correspond to \"flux-obsframe.dat\".\n";
+        std::cout << "                  #     For wavelength without applicable filter curve, just put \"none\" in the second column.\n";
+        std::cout << "                  #     The filter curve file path should refer to a two-column ASCII file which contains\n";
+        std::cout << "                  #     obs-frame wavelength and filter transmission value normalized to 1.\n";
+        std::cout << "       \n";
+        std::cout << "Version: \n";
+        std::cout << "         michi2_v04 " << "2017-10-01 Heidelberg" << std::endl;
         std::cout << std::endl;
         
         /*
