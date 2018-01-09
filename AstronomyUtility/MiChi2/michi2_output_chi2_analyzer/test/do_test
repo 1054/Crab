@@ -1,0 +1,8 @@
+#!/bin/bash
+# 
+
+cd "../"
+clang++ -std=c++11 main.cpp -o "test/michi2_output_chi2_analyzer_test"
+cd "test/"
+./michi2_output_chi2_analyzer_test fit_5.out
+

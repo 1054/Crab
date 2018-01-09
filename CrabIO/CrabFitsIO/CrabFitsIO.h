@@ -7,6 +7,12 @@
 #ifndef MYFITSIO_H
 #define MYFITSIO_H
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+//#include <malloc.h>
+//#include <wchar.h>
+
 /*readFitsHeader.cpp*/
 char *readFitsHeader(const char *FilePath);
 char *readFitsHeader(const char *FilePath, int xtension);

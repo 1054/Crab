@@ -43,7 +43,7 @@ public:
     // FVAR[0] = X,    FVAR[1] = Y
     // FPAR[0] = PAR1, FPAR[1] = PAR2, ...
     std::vector<string> FilterCurveFilePath; // <added><20171001>
-    michi2DataClass(const char * InputFile);
+    michi2DataClass(const char * InputFile, int verbose = 1);
     ~michi2DataClass();
     const char *michi2sprint(const char* wsPrefix, long wi, const char* wsSuffix);
     int michi2stoi(string str);
@@ -63,7 +63,7 @@ public:
 
 
 
-michi2DataClass::michi2DataClass(const char *InputFile)
+michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
 {
     //
     if(1==1) { // <TODO> Check File Exists!
@@ -99,7 +99,9 @@ michi2DataClass::michi2DataClass(const char *InputFile)
     // exam data info
     if(InNVAR.empty()) { // if no header info, then directly read this data file! (obs.dat) <TODO>
         InNVAR.push_back(CrabTableGetLineCount(InputFile));  InCVAR.push_back(1);  InNVAR.push_back(1);  InCVAR.push_back(2);
-        std::cout << "michi2DataClass: We will take column " << InCVAR[0] << " as X, column " << InCVAR[1] << " as Y, and column " << InCVAR[1]+1 << " as YErr if possible, from the file " << InputFile << std::endl;
+        if(verbose>=1) {
+            std::cout << "michi2DataClass: We will take column " << InCVAR[0] << " as X, column " << InCVAR[1] << " as Y, and column " << InCVAR[1]+1 << " as YErr if possible, from the file " << InputFile << std::endl;
+        }
         this->XStr = CrabTableReadColumn(InputFile,InCVAR[0]);
         this->YStr = CrabTableReadColumn(InputFile,InCVAR[1]);
         this->YErrStr = CrabTableReadColumn(InputFile,InCVAR[1]+1);
@@ -112,7 +114,9 @@ michi2DataClass::michi2DataClass(const char *InputFile)
     } else {
         if(InNVAR.size()!=2) { std::cout << "michi2DataClass: Error! Could not determine NVAR1 and NVAR2 from " << InputFile << "!" << std::endl; return; }
         // std::cout << "michi2DataClass: We will take column " << InCVAR[0] << " as X, column " << InCVAR[1] << " as Y, and column " << InCVAR[1]+1 << " as YErr if possible, from the file " << InputFile << std::endl;
-        std::cout << "michi2DataClass: We will take column " << InCVAR[0] << " as X, column " << InCVAR[1] << " as Y, according to the header in the file " << InputFile << std::endl;
+        if(verbose>=1) {
+            std::cout << "michi2DataClass: We will take column " << InCVAR[0] << " as X, column " << InCVAR[1] << " as Y, according to the header in the file " << InputFile << std::endl;
+        }
     }
     // save
     this->CVAR = InCVAR;

@@ -9,11 +9,6 @@
 //    image  = readFitsImageF("c:\\liudz\\1.fits", 998, 1006, strlen(header));
 //    flag   = writeFitsFS(image,998,1006,"随便的名字.fits");
 //
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-//#include <malloc.h>
-//#include <wchar.h>
 #include "CrabFitsIO.h"
 
 

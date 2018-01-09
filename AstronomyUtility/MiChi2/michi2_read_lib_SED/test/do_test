@@ -1,0 +1,9 @@
+#!/bin/bash
+# 
+
+cd "../"
+clang++ -std=c++11 main.cpp -o "test/michi2_read_lib_SED_test"
+cd "test/"
+echo "./michi2_read_lib_SED_test DL07.HiExCom.lib.SED 1001 290.208 fit_SED"
+./michi2_read_lib_SED_test DL07.HiExCom.lib.SED 1001 290.208 fit_SED
+
