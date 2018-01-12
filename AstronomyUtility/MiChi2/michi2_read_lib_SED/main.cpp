@@ -115,6 +115,7 @@ int main(int argc, char **argv)
         std::cout << std::endl;
         std::cout << "Usage: \n";
         std::cout << "       michi2_read_lib_SED lib.SED 1001 123.456 output_SED.txt\n";
+        std::cout << "                           [file] [index] [norm_factor] [out_file]\n";
         std::cout << "       \n";
         std::cout << std::endl;
         
