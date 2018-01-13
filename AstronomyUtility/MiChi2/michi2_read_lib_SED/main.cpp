@@ -83,7 +83,7 @@ int main(int argc, char **argv)
         michi2DataClass *SDLIB = new michi2DataClass(michi2_lib_file.c_str(), verbose);
         
         if(SDLIB) {
-            SDLIB->getDataBlock(michi2_lib_index + 1, SDLIB->NVAR[0]); // michi2_lib_index is index starting from 0, while getDataBlock() function needs input line number starting from 1.
+            SDLIB->getDataBlock(michi2_lib_index + 1, SDLIB->NVAR[0], verbose); // michi2_lib_index is index starting from 0, while getDataBlock() function needs input line number starting from 1.
             
             std::vector<double> wIR; wIR.push_back(8.0); wIR.push_back(1000.0);
             double LIR = integrate_LIR(SDLIB->X, SDLIB->Y, wIR);
@@ -106,7 +106,7 @@ int main(int argc, char **argv)
             }
             michi2_out_SED_fstream.close();
             
-            std::cout << "Output to \"" << michi2_out_SED_file << "\"" << " and  \"" << michi2_out_LIR_file << "\"!" << std::endl;
+            std::cout << "Output to \"" << michi2_out_SED_file << "\"" << " and \"" << michi2_out_LIR_file << "\"!" << std::endl;
         }
         
     } else
