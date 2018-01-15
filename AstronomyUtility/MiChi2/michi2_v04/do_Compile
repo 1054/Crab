@@ -19,7 +19,7 @@ if [[ $(uname) == "Darwin" ]]; then
     echo "cp ${name_out}_${output_date}_mac ${name_out}_mac"
     cp ${name_out}_${output_date}_mac ${name_out}_mac
 else
-    if [[ $(hostname) == *isaac* ]]; then module load gcc/5.4; fi
+    if [[ $(hostname) == *isaac* ]]; then module load gcc/7.2; fi
     g++ -std=c++11 ${main_cpp[@]} -o ${name_out}_${output_date}_linux_$(arch)
     if [[ -f ${name_out}_${output_date}_linux_$(arch) ]]; then
         echo "Successfully compiled \"${name_out}_${output_date}_linux_$(arch)\"!"
