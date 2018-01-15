@@ -806,6 +806,7 @@ void *mnchi2parallel(void *params)
                                         //
                                         // else if the variable is LIB*_PAR*
                                         else if(sVar.find("LIB")==0 && sVar.find("PAR")>0) {
+                                            if(debug>=3) {std::cout << "mnchi2parallel: debugging: setting constraint variable " << sVar << std::endl;}
                                             std::regex t_regex_1("LIB([0-9]+)_PAR([0-9]+).*");
                                             std::smatch t_match_1;
                                             if(std::regex_search(sVar,t_match_1,t_regex_1) && t_match_1.size()>2) {
