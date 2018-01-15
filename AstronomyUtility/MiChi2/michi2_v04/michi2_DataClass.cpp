@@ -24,34 +24,41 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
     // read data info
     for(int i=1; i<=2; i++) { // <TODO><LIMIT> Support only =< 2 Variables (Limit <= 2 Dimensions)
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# CVAR",i,""));
-        if(!StTEMP.empty()) { StCVAR.push_back(StTEMP); InCVAR.push_back(michi2stoi(StTEMP)); } else {break;}
+        if(!StTEMP.empty()) { StCVAR.push_back(StTEMP); InCVAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# NVAR",i,""));
-        if(!StTEMP.empty()) { StNVAR.push_back(StTEMP); InNVAR.push_back(michi2stoi(StTEMP)); } else {break;}
+        if(!StTEMP.empty()) { StNVAR.push_back(StTEMP); InNVAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         // std::cout << "michi2DataClass: Good! Let's Go!" << " " << michi2sprint("# CVAR",i,"") << "=" << InCVAR[InCVAR.size()-1] << std::endl;
     }
     for(int i=1; i<=6; i++) { // <TODO><LIMIT> Support only <= 6 Parameters
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# CPAR",i,""));
-        if(!StTEMP.empty()) { StCPAR.push_back(StTEMP); InCPAR.push_back(michi2stoi(StTEMP)); } else {break;}
+        if(!StTEMP.empty()) { StCPAR.push_back(StTEMP); InCPAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# NPAR",i,""));
-        if(!StTEMP.empty()) { StNPAR.push_back(StTEMP); InNPAR.push_back(michi2stoi(StTEMP)); } else {break;}
+        if(!StTEMP.empty()) { StNPAR.push_back(StTEMP); InNPAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# TPAR",i,""));
         if(!StTEMP.empty()) { StTPAR.push_back(StTEMP); } else {break;}
         // std::cout << "michi2DataClass: Good! Let's Go!" << " " << michi2sprint("# CPAR",i,"") << std::endl;
+    }
+    // print error info
+    if(InNPAR.empty()) {
+        std::cout << "michi2DataClass: Error! \"NPAR\" was not found in the header of LIB file \"" << InputFile << "\"" << std::endl;
+        exit (EXIT_FAILURE);
+    }
+    if(StTPAR.empty()) {
+        std::cout << "michi2DataClass: Error! \"TPAR\" was not found in the header of LIB file \"" << InputFile << "\"" << std::endl;
+        exit (EXIT_FAILURE);
+    }
+    // print debug info
+    if(verbose>=2) {
+        std::cout << "michi2DataClass: Read " << InNPAR << " parameters: " << std::flush;
+        for(int iPar_1=0; iPar_1<StTPAR.size(); iPar_1++) {
+            std::cout << StTPAR[iPar_1] << ", " << std::flush;
+        }
+        std::cout << "from the file " << InputFile << std::endl;
     }
     // std::cout << "michi2DataClass: Good! Let's Go!" << std::endl;
     // exam data info
     if(InNVAR.empty()) { // if no header info, then directly read this data file! (obs.dat) <TODO>
         InNVAR.push_back(CrabTableGetLineCount(InputFile));  InCVAR.push_back(1);  InNVAR.push_back(1);  InCVAR.push_back(2);
-        if(verbose>=2) {
-            std::cout << "michi2DataClass: Read " << InNPAR[0] << " parameters: " << std::flush;
-            for(int iPar_1=0; iPar_1<StTPAR.size(); iPar_1++) {
-                std::cout << StTPAR[iPar_1] << std::flush;
-                if(iPar_1<StTPAR.size()-1) {
-                    std::cout << ", " << std::flush;
-                }
-            }
-            std::cout << " from the file " << InputFile << std::endl;
-        }
         if(verbose>=1) {
             std::cout << "michi2DataClass: We will take column " << InCVAR[0] << " as X, column " << InCVAR[1] << " as Y, and column " << InCVAR[1]+1 << " as YErr if possible, from the file " << InputFile << std::endl;
         }
