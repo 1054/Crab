@@ -42,6 +42,16 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
     // exam data info
     if(InNVAR.empty()) { // if no header info, then directly read this data file! (obs.dat) <TODO>
         InNVAR.push_back(CrabTableGetLineCount(InputFile));  InCVAR.push_back(1);  InNVAR.push_back(1);  InCVAR.push_back(2);
+        if(verbose>=2) {
+            std::cout << "michi2DataClass: Read " << InNPAR[0] << " parameters: " << std::flush;
+            for(int iPar_1=0; iPar_1<StTPAR.size(); iPar_1++) {
+                std::cout << StTPAR[iPar_1] << std::flush;
+                if(iPar_1<StTPAR.size()-1) {
+                    std::cout << ", " << std::flush;
+                }
+            }
+            std::cout << " from the file " << InputFile << std::endl;
+        }
         if(verbose>=1) {
             std::cout << "michi2DataClass: We will take column " << InCVAR[0] << " as X, column " << InCVAR[1] << " as Y, and column " << InCVAR[1]+1 << " as YErr if possible, from the file " << InputFile << std::endl;
         }

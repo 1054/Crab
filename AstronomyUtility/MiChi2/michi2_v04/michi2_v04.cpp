@@ -820,7 +820,8 @@ void *mnchi2parallel(void *params)
                                                 if(t_par_number <= SDLIBS[t_lib_number-1]->FPAR.size()) {
                                                     dVar = SDLIBS[t_lib_number-1]->FPAR[t_par_number-1][0];
                                                 } else {
-                                                    std::cout << "mnchi2parallel: Error! The parameter number " << t_par_number << " exceeds the max number " << SDLIBS[t_lib_number-1]->FPAR.size() << " in LIB" << t_lib_number << "!" << std::endl;
+                                                    std::cout << "mnchi2parallel: Error! The parameter number " << t_par_number << " exceeds the max parameter number " << SDLIBS[t_lib_number-1]->FPAR.size() << " in LIB" << t_lib_number << "!" << std::endl;
+                                                    exit (EXIT_FAILURE);
                                                 }
                                                 // print debug info
                                                 if(debug>=3) {std::cout << "mnchi2parallel: debugging: setting constraint variable " << sVar << " = " << dVar << std::endl;}
