@@ -817,7 +817,11 @@ void *mnchi2parallel(void *params)
                                                 int t_lib_number = std::atoi(t_match_1.str(1).c_str());
                                                 int t_par_number = std::atoi(t_match_1.str(2).c_str());
                                                 // now we got the LIB*_PAR* as the variable value
-                                                dVar = SDLIBS[t_lib_number-1]->FPAR[t_par_number-1][0];
+                                                if(t_par_number <= SDLIBS[t_lib_number-1]->FPAR.size()) {
+                                                    dVar = SDLIBS[t_lib_number-1]->FPAR[t_par_number-1][0];
+                                                } else {
+                                                    std::cout << "mnchi2parallel: Error! The parameter number " << t_par_number << " exceeds the max number " << SDLIBS[t_lib_number-1]->FPAR.size() << " in LIB" << t_lib_number << "!" << std::endl;
+                                                }
                                                 // print debug info
                                                 if(debug>=3) {std::cout << "mnchi2parallel: debugging: setting constraint variable " << sVar << " = " << dVar << std::endl;}
                                             }
