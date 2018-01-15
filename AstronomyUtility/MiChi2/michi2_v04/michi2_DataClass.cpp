@@ -132,7 +132,7 @@ const char *michi2DataClass::michi2sprint(const char* wsPrefix, long wi, const c
     return wssm.str().c_str();
      */
     std::string input_str_1 = wsPrefix;
-    std::string input_str_2 = std::stoi(wi);
+    std::string input_str_2 = std::to_string(wi); // C++11
     std::string input_str_3 = wsSuffix;
     std::string output_str = input_str_1 + input_str_2 + input_str_3;
     return output_str.c_str();
