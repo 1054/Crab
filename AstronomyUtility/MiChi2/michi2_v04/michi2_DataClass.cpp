@@ -128,7 +128,10 @@ const char *michi2DataClass::michi2sprint(const char* wsPrefix, long wi, const c
     wssm << wsPrefix;
     wssm << wi;
     wssm << wsSuffix;
+    wssm << std::ends; // FIX 20180114
     return wssm.str().c_str();
+    // BUG 20180114: found on linux gcc > 5 only:
+    // stringstream.str() will return a temporary string object, which will be destroyed after the function call. When we want to manipulate on this string object (for example, to create corresponding C string), we must be very careful about this trap that might cause unexpected results. -- https://www.ibm.com/developerworks/community/blogs/5894415f-be62-4bc0-81c5-3956e82276f3/entry/discover_the_traps_when_using_stringstream_str?lang=en
 }
 
 
