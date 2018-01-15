@@ -44,7 +44,7 @@ public:
     // FVAR[0] = X,    FVAR[1] = Y
     // FPAR[0] = PAR1, FPAR[1] = PAR2, ...
     std::vector<string> FilterCurveFilePath; // <added><20171001>
-    michi2DataClass(const char * InputFile, int verbose = 1);
+    michi2DataClass(const char * InputFile, int verbose = 0);
     ~michi2DataClass();
     const char *michi2sprint(const char* wsPrefix, long wi, const char* wsSuffix);
     int michi2stoi(string str);
