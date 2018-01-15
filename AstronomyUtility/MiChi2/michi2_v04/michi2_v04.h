@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <algorithm>    // std::transform
+#include <algorithm>    // std::transform, std::find
 //#include <math.h>
 #include <cmath>        // std::nan, std::isnan
 #include <pthread.h>
@@ -14,6 +14,7 @@
 #include <iomanip>      // std::setw, std::setprecision
 #include <sstream>      //std::istringstream
 #include <fstream>      // std::ifstream, std::ofstream
+#include <regex>        // std::regex
 #include "michi2_DataClass.h"
 #include "michi2_MinPack.h"
 #include "michi2_Constraint.h"
@@ -59,7 +60,7 @@ double michi2GetReducedChiSquare(std::vector<double> f1, std::vector<double> f0,
 
 double michi2VecMean(std::vector<double> vec);
 
-void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> InputLibList, std::vector<std::string> OutputTableList, std::vector<std::string> InputFilterCurveList);
+void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> InputLibList, std::vector<std::string> OutputTableList, std::vector<std::string> InputFilterCurveList, int DebugLevel = 0);
 
 void *mnchi2parallel(void *params);
 

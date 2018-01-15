@@ -50,6 +50,7 @@ int main(int argc, char **argv)
         std::vector<std::string> FileLibList; // Lib
         std::vector<std::string> FileOutList; // Out
         std::vector<std::string> InputFilterCurveList; // Obs Filter Curve List
+        int DebugLevel = 0; // DebugLevel
         Constraints.clear();
         std::cout << "Welcome!" << std::endl << std::endl;
         int i=0;
@@ -146,6 +147,11 @@ int main(int argc, char **argv)
                 }
                 i++;
             }
+            else if(0==strcmp(argv[i],"-debug"))
+            {
+                i++;
+                DebugLevel++;
+            }
             else
             {
                 i++;
@@ -185,7 +191,7 @@ int main(int argc, char **argv)
         // }
 
         //<TODO><UNCOMMNET>//
-        mnchi2(FileObsList,FileLibList,FileOutList,InputFilterCurveList);
+        mnchi2(FileObsList,FileLibList,FileOutList,InputFilterCurveList,DebugLevel);
         //<TODO><UNCOMMNET>//
         
 //        if(argc>=2) {

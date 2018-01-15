@@ -74,6 +74,7 @@ struct mnchi2parallelParams {
     std::vector<bool> irLIBList; // rounding index of LIB list 就是计算是否进位
     long iBegin; long iEnd; long i;
     long nObs; long nLib; long nRow;
+    int DebugLevel=0;
 };
 
 

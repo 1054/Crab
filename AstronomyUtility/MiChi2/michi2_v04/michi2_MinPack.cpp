@@ -13,17 +13,19 @@
 
 /* global variables */
 
-std::vector<double> michi2MinPack_fOBS;
+thread_local std::vector<double> michi2MinPack_fOBS;
 
-std::vector<double> michi2MinPack_eOBS;
+thread_local std::vector<double> michi2MinPack_eOBS;
 
-std::vector<double> michi2MinPack_aCOE;
+thread_local std::vector<double> michi2MinPack_aCOE;
 
-std::vector<std::vector<double> > michi2MinPack_fLIB;
+thread_local std::vector<std::vector<double> > michi2MinPack_fLIB;
 
-long michi2MinPack_ncount = 0;
+thread_local long michi2MinPack_ncount = 0;
 
-std::vector<michi2MinPack_constraint *> michi2MinPack_constraints; //<Added><20171001>
+thread_local std::vector<michi2MinPack_constraint *> michi2MinPack_constraints; //<Added><20171001>
+
+thread_local std::vector<michi2MinPack_constraint_expression *> michi2MinPack_constraint_expressions; //<Added><20180114>
 
 
 
@@ -35,28 +37,138 @@ void michi2MinPack_func(const int *m, const int *n, const double *x, double *fve
     // m is NVAR[0], in LVG, it's the mol line count, in SED, it's the band count.
     // n is the LIB number
     int debug = 0;
+    if(debug>=1) {printf("michi2MinPack_func() debugging: debug = %d\n", debug);}
     double chi2sum = 0.0;
-    for (int iim=0; iim<(*m); iim++) {
+    for (int iim=0; iim<(*m); iim++) { // m is the observed data point grid
         double fsum = 0.0; // sum of multiple libs at one band
         double *acoe = (double *)x; // x is the coefficiency a
-        for (int iin=0; iin<(*n); iin++) { if(x[iin]<0.0) acoe[iin]=0.0; else acoe[iin]=x[iin]; } // <TODO> how to prevent coeff a to be negative?
+        for (int iin=0; iin<(*n); iin++) {
+            if(x[iin]<0.0) acoe[iin]=0.0; else acoe[iin]=x[iin];
+            if(x[iin]!=x[iin]) acoe[iin]=0.0; // deal with nan
+            if(debug>=3) {printf("michi2MinPack_func() debugging: fitted LIB normalization a%d = %f\n", iin+1, acoe[iin]);}
+        } // n is library number <TODO> how to prevent coeff a to be negative?
         //
         // <added><20171001>
         // we now allow to fix the normalization of one LIB to the normalization of other LIBs.
         // i.e., apply constraints directly on LIB normalization factors (i.e. aCOE)
         // to do so, we can input the argument like "-constraint LIB5 NORM EQ SED vLv(8,1000)*1.061619121e-06"
-        if(michi2MinPack_constraints.size()>0) {
-            for(int iicon=0; iicon<michi2MinPack_constraints.size(); iicon++) {
-                michi2MinPack_constraint *temp_constraint = michi2MinPack_constraints[iicon];
+        //
+        //if(michi2MinPack_constraints.size()>0) {
+        //    for(int iicon=0; iicon<michi2MinPack_constraints.size(); iicon++) {
+        //        michi2MinPack_constraint *temp_constraint = michi2MinPack_constraints[iicon];
+        //        if(temp_constraint->to>=1 && temp_constraint->to<=(*n)) {
+        //            acoe[temp_constraint->to-1] = 0.0;
+        //            for(int ijcon=0; ijcon<temp_constraint->from.size(); ijcon++) {
+        //                if(temp_constraint->from[ijcon]>=1 && temp_constraint->from[ijcon]<=(*n)) {
+        //                    acoe[temp_constraint->to-1] += acoe[temp_constraint->from[ijcon]-1] * temp_constraint->multiplication[ijcon];
+        //                }
+        //            }
+        //            acoe[temp_constraint->to-1] = acoe[temp_constraint->to-1] + temp_constraint->addition;
+        //            //<DEBUG><20171001> acoe[temp_constraint->to-1] = 1.0;
+        //        }
+        //    }
+        //}
+        //
+        // <added><20180114>
+        // we now use another better/flexible way to set the michi2MinPack_constraints, using the exprtk expression.
+        //
+        printf("michi2MinPack_func() debugging: michi2MinPack_constraint_expressions size is %d\n", (int)michi2MinPack_constraint_expressions.size());
+        if(michi2MinPack_constraint_expressions.size()>0) {
+            for(int iicon=0; iicon<michi2MinPack_constraint_expressions.size(); iicon++) {
+                michi2MinPack_constraint_expression *temp_constraint = michi2MinPack_constraint_expressions[iicon];
                 if(temp_constraint->to>=1 && temp_constraint->to<=(*n)) {
+                    //
+                    // now current LIB is dependent on other LIBs
                     acoe[temp_constraint->to-1] = 0.0;
-                    for(int ijcon=0; ijcon<temp_constraint->from.size(); ijcon++) {
-                        if(temp_constraint->from[ijcon]>=1 && temp_constraint->from[ijcon]<=(*n)) {
-                            acoe[temp_constraint->to-1] += acoe[temp_constraint->from[ijcon]-1] * temp_constraint->multiplication[ijcon];
+                    //
+                    // setup exprtk
+                    typedef exprtk::symbol_table<double> symbol_table_t;
+                    typedef exprtk::expression<double>     expression_t;
+                    typedef exprtk::parser<double>             parser_t;
+                    symbol_table_t symbol_table;
+                    //std::vector<double> value_table;
+                    //
+                    std::string expression_string = temp_constraint->Equation;
+                    if(debug>=2) {printf("michi2MinPack_func() debugging: setting constraint equation: %s to LIB %d\n", expression_string.c_str(), temp_constraint->to);}
+                    //
+                    // determine the value of each variable in the equation must have a value
+                    // each variable in the equation must have a value
+                    for(int iVar=0; iVar<temp_constraint->Variable.size(); iVar++) {
+                        std::string sVar = temp_constraint->Variable[iVar];
+                        if(debug>=3) {printf("michi2MinPack_func() debugging: strncmp(sVar.c_str(),\"LIB\",3): %d\n", strncmp(sVar.c_str(),"LIB",3));}
+                        if(debug>=3) {printf("michi2MinPack_func() debugging: sVar.c_str() = %s\n", sVar.c_str());}
+                        double dVar = std::nan("");
+                        //
+                        // if the value is given
+                        if(iVar < temp_constraint->Value.size()) {
+                            if(!std::isnan(temp_constraint->Value[iVar])) {
+                                dVar = temp_constraint->Value[iVar];
+                                if(debug>=3) {printf("michi2MinPack_func() debugging: applied value from constraint: %s = %f\n", sVar.c_str(), dVar);}
+                            }
                         }
+                        //
+                        // else if the variable is LIB*
+                        if(0==strncmp(sVar.c_str(),"LIB",3)) {
+                            std::regex t_regex_1("^LIB([0-9]+)(_NORM|_NORMALIZATION)?$");
+                            std::smatch t_match_1;
+                            if(std::regex_search(sVar,t_match_1,t_regex_1) && t_match_1.size()>1) {
+                                int t_lib_number = std::atoi(t_match_1.str(1).c_str());
+                                // now we got the LIB* as the variable value
+                                dVar = acoe[t_lib_number-1];
+                                if(debug>=3) {printf("michi2MinPack_func() debugging: read value from fitted LIB normalization %s = %f\n", sVar.c_str(), dVar);}
+                            } else {
+                                if(debug>=3) {printf("michi2MinPack_func() debugging: Error occured: failed to recognize LIB id from %s\n", sVar.c_str());}
+                            }
+                            //
+                            //printf("michi2MinPack_func() debugging: sVar: %s\n", sVar.c_str());
+                            //size_t t_1 = sVar.find_first_of("0123456789");
+                            //size_t t_2 = sVar.find_first_not_of("0123456789", t_1);
+                            //std::string sVar_1;
+                            //if(std::string::npos!=t_1) {
+                            //    if(std::string::npos!=t_2) {
+                            //        sVar_1 = sVar.substr(t_1, t_2-t_1);
+                            //    } else {
+                            //        sVar_1 = sVar.substr(t_1);
+                            //    }
+                            //    //printf("michi2MinPack_func() debugging: sVar_1: %s\n", sVar_1.c_str());
+                            //    int t_lib_number = std::atoi(sVar_1.c_str());
+                            //    // now we got the LIB* as the variable value
+                            //    dVar = acoe[t_lib_number-1];
+                            //}
+                        }
+                        //
+                        // check if we parsed the variable correctly or not
+                        if(std::isnan(dVar)) {
+                            printf("michi2MinPack_func() Error! Failed to parse \"%s\" in the input constraint equation \"%s\"\n!", sVar.c_str(), expression_string.c_str());
+                            exit (EXIT_FAILURE);
+                        }
+                        //
+                        //
+                        //value_table.push_back(dVar);
+                        //
+                        // add variable to the exprtk symbol_table
+                        //symbol_table.add_variable(sVar, value_table[iVar]); //BUGGY!
+                        symbol_table.add_constant(sVar, dVar);
+                        //
+                        // print debug info
+                        if(debug>=2) {printf("michi2MinPack_func() debugging: setting constraint variable: %s = %f\n", sVar.c_str(), dVar);}
                     }
-                    acoe[temp_constraint->to-1] = acoe[temp_constraint->to-1] + temp_constraint->addition;
-                    //<DEBUG><20171001> acoe[temp_constraint->to-1] = 1.0;
+                    //
+                    // evaluate the constraint expression
+                    //symbol_table.add_constants();
+                    expression_t expression;
+                    expression.register_symbol_table(symbol_table);
+                    parser_t parser;
+                    if (!parser.compile(expression_string, expression)){
+                        printf("michi2MinPack_func() Error! Failed to parse the input constraint equation \"%s\"\n!", expression_string.c_str());
+                        exit (EXIT_FAILURE);
+                    }
+                    //
+                    // set acoe (normalization factor)
+                    acoe[temp_constraint->to-1] = double(expression.value());
+                    //
+                    // print debug info
+                    if(debug>=2) {printf("michi2MinPack_func() debugging: setting the normalization of LIB%d to %f\n", temp_constraint->to, acoe[temp_constraint->to-1]);}
                 }
             }
         }
@@ -66,6 +178,7 @@ void michi2MinPack_func(const int *m, const int *n, const double *x, double *fve
         for (int iin=0; iin<(*n); iin++) {
             if(!std::isnan(michi2MinPack_fLIB[iin][iim])) {
                 fsum += acoe[iin] * michi2MinPack_fLIB[iin][iim];
+                if(debug>=2) {printf("michi2MinPack_func() debugging: fitted LIB%d normalization is %f\n", iin+1, acoe[iin]);}
                 //<DEBUG><20171001> std::cout << "acoe[" << iin << "] " << acoe[iin] << " * " << michi2MinPack_fLIB[iin][iim] << std::endl; //<DEBUG><20171001>
             }
         }
@@ -78,12 +191,19 @@ void michi2MinPack_func(const int *m, const int *n, const double *x, double *fve
         //} // <Corrected><20140922><DzLIU> fLib smaller than fObs!
         //
         fvec[iim] = abs(fsum - michi2MinPack_fOBS[iim]); // chi
+        if(debug>=2) {printf("michi2MinPack_func() debugging: fitted SED Y at the %d-th observed data point (%f) is %f\n", iim+1, michi2MinPack_fOBS[iim], fsum);}
+        if(debug>=2) {printf("michi2MinPack_func() debugging: difference from the %d-th observed data point (%f) is %f\n", iim+1, michi2MinPack_fOBS[iim], fvec[iim]);}
         if(!michi2MinPack_eOBS.empty()) { fvec[iim] = fvec[iim]/michi2MinPack_eOBS[iim]; } // chi weighted by obs err
         // fvec[iim] = fvec[iim] * fvec[iim]; // chi-square DO NOT SQUARE THE fvec BY OURSELVES! <Corrected><20140822><DzLIU>
         chi2sum += fvec[iim]*fvec[iim]; // fvec is not chi-square! fvec is the list of m non-linear functions in v variables. lmdif_ will calculate the sum of the square of items in fvec, thus we will not square the fvec by ourselves!
     }
-    if(debug) {
-        std::cout << "michi2MinPack::michi2MinPack_func() ncount=" << michi2MinPack_ncount << " bands=" << michi2MinPack_fLIB[0].size() << "," << michi2MinPack_fLIB[1].size() << "," << michi2MinPack_fLIB[2].size() <<  " a1=" << x[0] << " a2=" << x[1] << " a3=" << x[2] << " chi2=" << chi2sum << std::endl;
+    if(debug>=1) {
+        if((*n)>=5) {
+            std::cout << "michi2MinPack::michi2MinPack_func() ncount=" << michi2MinPack_ncount << " bands=" << michi2MinPack_fLIB[0].size() << "," << michi2MinPack_fLIB[1].size() << "," << michi2MinPack_fLIB[2].size() <<  " a1=" << x[0] << " a2=" << x[1] << " a3=" << x[2] << " a4=" << x[3] << " a5=" << x[4] << " chi2=" << chi2sum << std::endl;
+        }
+        else if((*n)>=3) {
+            std::cout << "michi2MinPack::michi2MinPack_func() ncount=" << michi2MinPack_ncount << " bands=" << michi2MinPack_fLIB[0].size() << "," << michi2MinPack_fLIB[1].size() << "," << michi2MinPack_fLIB[2].size() <<  " a1=" << x[0] << " a2=" << x[1] << " a3=" << x[2] << " chi2=" << chi2sum << std::endl;
+        }
     }
     michi2MinPack_ncount++;
 }
@@ -159,6 +279,8 @@ void michi2MinPack::init(std::vector<std::vector<double> > Input_fLIB, std::vect
     this->chi2.resize(this->fOBS.size());
     //
     michi2MinPack_ncount = 0;
+    //
+    michi2MinPack_constraint_expressions.clear();
 }
 
 
@@ -184,6 +306,19 @@ void michi2MinPack::constrain(int toLib, int fromLib, double multiplication_fact
     michi2MinPack_constraints.push_back(temp_constraint);
 }
 
+void michi2MinPack::constrain(int toLib, std::string Equation, std::vector<std::string> Variable, std::vector<double> Value)
+{
+    // <20180114>
+    michi2MinPack_constraint_expression *temp_constraint = new michi2MinPack_constraint_expression();
+    temp_constraint->to = toLib;
+    temp_constraint->from.resize(1);
+    temp_constraint->Equation = Equation;
+    temp_constraint->Variable = Variable;
+    temp_constraint->Value = Value;
+    michi2MinPack_constraint_expressions.push_back(temp_constraint);
+}
+
+
 
 
 void michi2MinPack::fit(int Input_debug)
@@ -201,6 +336,9 @@ void michi2MinPack::fit(int Input_debug)
     double *wa = new double[lwa];  // for internal use
     int *iwa = new int[n];         // for internal use
     //
+    //typedef void (michi2MinPack::*funcPtr)(const int *m, const int *n, const double *x, double *fvec, int *iflag);
+    //funcPtr func_ = &michi2MinPack::func;
+    //lmdif1_( func_, &m, &n, x, fvec, &ftol, &info, iwa, wa, &lwa );
     lmdif1_( michi2MinPack_func, &m, &n, x, fvec, &ftol, &info, iwa, wa, &lwa );
     //
     // get result

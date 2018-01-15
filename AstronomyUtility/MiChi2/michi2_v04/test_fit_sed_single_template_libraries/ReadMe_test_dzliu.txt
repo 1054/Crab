@@ -1,6 +1,9 @@
 source ~/Cloud/Github/Crab.Toolkit.michi2/bin/bin_setup.bash
 
-module load anconda
+module avail
+module load anaconda
+
+srun -N1 -n20 --pty bash
 
 michi2-run-fitting-5-components 1.6481
 

@@ -66,9 +66,15 @@ std::vector<double> michi2Constraint::extractStringDouble(std::string InputStr) 
         } else {
             ExctStr = TempStr;
         }
-        if(ExctStr!="") {
+        if(ExctStr!="" && ExctStr!="+" && ExctStr!="-" && ExctStr!=".") {
+            //<DEBUG>//
+            //std::cout << "michi2Constraint::extractStringDouble() DEBUG: ExctStr = " << ExctStr << std::endl;
             if(0 == ExctStr.find_first_of(".+-0123456789")) {
                 //std::cout << "DEBUG: ExctStr = " << ExctStr << std::endl;
+                size_t TempPos2 = ExctStr.find_first_not_of(".+-0123456789");
+                if(TempPos2 > 0) {
+                    ExctStr = ExctStr.substr(0,TempPos2);
+                }
                 TempDbl = std::stod(ExctStr.c_str());
                 OutputDbl.push_back(TempDbl);
             }
@@ -106,6 +112,39 @@ int michi2Constraint::parse(std::vector<std::string> input_args, int verbose) {
         // if input "integration" then set constraint on integration.
         // if input "par3" LIB PAR id, then set constraint on LIB PAR.
         //
+        //
+        // Store Equation and Variable into our michi2Constraint class (added since 20180114: new method of evaluating the input equation with variable)
+        if(j==5 || j==2) {
+            // store the equation, note that we replace some "," "(" ")" characters by underscore "_"
+            //std::regex t_regex_non_underscore("[,()[]]");
+            //std::string t_str_non_underscore = std::regex_replace(TempConstraintStr, t_regex_non_underscore, "_"); // http://www.cplusplus.com/reference/regex/regex_replace/
+            if(j==5) {this->fromEquation = TempConstraintStr;}
+            else if(j==2) {this->toEquation = TempConstraintStr;}
+            // identify and store the variables in the equation
+            std::regex t_regex("([a-zA-Z_]+[a-zA-Z_0-9]*)");
+            auto t_els_begin = std::sregex_iterator(TempConstraintStr.begin(), TempConstraintStr.end(), t_regex); // find the pattern repeatedly, see https://stackoverflow.com/questions/25330564/repeating-subpatterns-regex-in-c
+            auto t_els_end = std::sregex_iterator();
+            for (std::sregex_iterator t_els_iter = t_els_begin; t_els_iter != t_els_end; ++t_els_iter) {
+                std::smatch t_match = *t_els_iter;
+                if(t_match.size()>1) {
+                    if(j==5) {
+                        if(std::find(this->fromVariable.begin(),this->fromVariable.end(),t_match.str(1)) == this->fromVariable.end()) {
+                            this->fromVariable.push_back(t_match.str(1)); // store the variable, but note to store only unique variables
+                        }
+                    }
+                    else if(j==2) {
+                        if(std::find(this->toVariable.begin(),this->toVariable.end(),t_match.str(1)) == this->toVariable.end()) {
+                            this->toVariable.push_back(t_match.str(1)); // store the variable, but note to store only unique variables
+                        }
+                    }
+                }
+            }
+        }
+        //
+        // Parse the user input constraint
+        // Each constraint should have 5 elements, and the 3rd element should be an Operator
+        // The 1st and 4th elements should be LIB or NORM or SED or INT or vLv or LIR or VALUE
+        // The 2nd and 5th elements should be INDEX or an arithmetic expression
         if(j==3) {
             //
             // j==3 is the operator
@@ -257,6 +296,8 @@ int michi2Constraint::parse(std::vector<std::string> input_args, int verbose) {
             //
             size_t TempPosNumber = TempConstraintStr.find_first_of("0123456789");
             std::string TempConstraintStr2 = TempConstraintStr.substr(TempPosNumber);
+            size_t TempPosNumber2 = TempConstraintStr2.find_first_not_of("0123456789", TempPosNumber);
+            if(TempPosNumber2>0) {TempConstraintStr2 = TempConstraintStr2.substr(0,TempPosNumber2);}
             if(j==1){this->toLIB = std::stoi(TempConstraintStr2);}
             else if(j==2){this->toPAR = std::stoi(TempConstraintStr2);}
             else if(j==4){this->fromLIB = std::stoi(TempConstraintStr2);}
@@ -266,16 +307,16 @@ int michi2Constraint::parse(std::vector<std::string> input_args, int verbose) {
             // e.g. LIB2 PAR2 GE LIB3 PAR2^-0.25*2.0-50
             // -- NOTE that we must put "PAR2" at the beginning (TODO).
             //
-            size_t TempPosMathPower, TempPosMathPowerEnd;
-            TempPosMathPower = TempConstraintStr.find_first_of("^",TempPosNumber+1); // try to find MathPower sign
-            if(std::string::npos!=TempPosMathPower) {
-                TempPosMathPowerEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosMathPower+1);
-                if(std::string::npos!=TempPosMathPowerEnd) {
-                    std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosMathPower+1,TempPosMathPowerEnd-TempPosMathPower-1+1);
-                    if(j==5) {this->fromMathPower = std::stod(TempConstraintStr3); }
-                    else if(j==2) {this->toMathPower = std::stod(TempConstraintStr3); }
-                }
-            }
+            //size_t TempPosMathPower, TempPosMathPowerEnd;
+            //TempPosMathPower = TempConstraintStr.find_first_of("^",TempPosNumber+1); // try to find MathPower sign
+            //if(std::string::npos!=TempPosMathPower) {
+            //    TempPosMathPowerEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosMathPower+1);
+            //    if(std::string::npos!=TempPosMathPowerEnd) {
+            //        std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosMathPower+1,TempPosMathPowerEnd-TempPosMathPower-1+1);
+            //        if(j==5) {this->fromMathPower = std::stod(TempConstraintStr3); }
+            //        else if(j==2) {this->toMathPower = std::stod(TempConstraintStr3); }
+            //    }
+            //}
             //
             // in addition, if multiplication is given
             // e.g. LIB2 PAR2 GE LIB3 PAR2*2.0-50
@@ -285,20 +326,28 @@ int michi2Constraint::parse(std::vector<std::string> input_args, int verbose) {
             size_t TempPosMultiplication, TempPosMultiplicationEnd;
             TempPosMultiplication = TempConstraintStr.find_first_of("*",TempPosNumber+1); // try to find multiplication sign
             if(std::string::npos!=TempPosMultiplication) {
-                TempPosMultiplicationEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosMultiplication+1);
-                if(std::string::npos!=TempPosMultiplicationEnd) {
-                    std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosMultiplication+1,TempPosMultiplicationEnd-TempPosMultiplication-1+1);
-                    if(j==5) {this->fromMultiplication = std::stod(TempConstraintStr3); }
-                    else if(j==2) {this->toMultiplication = std::stod(TempConstraintStr3); }
+                TempPosMultiplication = TempConstraintStr.find_first_of("0123456789Ee.+-",TempPosMultiplication+1); // try to find number after multiplication sign
+                if(std::string::npos!=TempPosMultiplication) {
+                    TempPosMultiplicationEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosMultiplication+1);
+                    if(std::string::npos!=TempPosMultiplicationEnd) {
+                        std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosMultiplication,TempPosMultiplicationEnd-TempPosMultiplication);
+                        std::cout << TempConstraintStr3 << std::endl;
+                        if(j==5) {this->fromMultiplication = std::stod(TempConstraintStr3); }
+                        else if(j==2) {this->toMultiplication = std::stod(TempConstraintStr3); }
+                    }
                 }
             } else {
                 TempPosMultiplication = TempConstraintStr.find_first_of("/",TempPosNumber+1); // otherwise, try to find division sign
                 if(std::string::npos!=TempPosMultiplication) {
-                    TempPosMultiplicationEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosMultiplication+1);
-                    if(std::string::npos!=TempPosMultiplicationEnd) {
-                        std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosMultiplication+1,TempPosMultiplicationEnd-TempPosMultiplication-1+1);
-                        if(j==5) {this->fromMultiplication = 1.0/std::stod(TempConstraintStr3); }
-                        else if(j==2) {this->toMultiplication = 1.0/std::stod(TempConstraintStr3); }
+                    TempPosMultiplication = TempConstraintStr.find_first_of("0123456789Ee.+-",TempPosMultiplication+1); // try to find number after multiplication sign
+                    if(std::string::npos!=TempPosMultiplication) {
+                        TempPosMultiplicationEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosMultiplication+1);
+                        if(std::string::npos!=TempPosMultiplicationEnd) {
+                            std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosMultiplication,TempPosMultiplicationEnd-TempPosMultiplication);
+                            std::cout << TempConstraintStr3 << std::endl;
+                            if(j==5) {this->fromMultiplication = 1.0/std::stod(TempConstraintStr3); }
+                            else if(j==2) {this->toMultiplication = 1.0/std::stod(TempConstraintStr3); }
+                        }
                     }
                 }
             }
@@ -311,20 +360,26 @@ int michi2Constraint::parse(std::vector<std::string> input_args, int verbose) {
             size_t TempPosAddition, TempPosAdditionEnd;
             TempPosAddition = TempConstraintStr.find_first_of("+",TempPosNumber+1); // try to find plus sign
             if(std::string::npos!=TempPosAddition) {
-                TempPosAdditionEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosAddition+1);
-                if(std::string::npos!=TempPosAdditionEnd) {
-                    std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosAddition+1,TempPosAdditionEnd-TempPosAddition-1+1);
-                    if(j==5) {this->fromAddition = std::stod(TempConstraintStr3); }
-                    else if(j==2) {this->toAddition = std::stod(TempConstraintStr3); }
+                TempPosAddition = TempConstraintStr.find_first_of("0123456789Ee.+-",TempPosAddition+1); // try to find number after plus sign
+                if(std::string::npos!=TempPosAddition) {
+                    TempPosAdditionEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosAddition+1);
+                    if(std::string::npos!=TempPosAdditionEnd) {
+                        std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosAddition,TempPosAdditionEnd-TempPosAddition);
+                        if(j==5) {this->fromAddition = std::stod(TempConstraintStr3); }
+                        else if(j==2) {this->toAddition = std::stod(TempConstraintStr3); }
+                    }
                 }
             } else {
                 TempPosAddition = TempConstraintStr.find_first_of("-",TempPosNumber+1); // otherwise, try to find minus sign
                 if(std::string::npos!=TempPosAddition) {
-                    TempPosAdditionEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosAddition+1);
-                    if(std::string::npos!=TempPosAdditionEnd) {
-                        std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosAddition+1,TempPosAdditionEnd-TempPosAddition-1+1);
-                        if(j==5) {this->fromAddition = -std::stod(TempConstraintStr3); }
-                        else if(j==2) {this->toAddition = -std::stod(TempConstraintStr3); }
+                    TempPosAddition = TempConstraintStr.find_first_of("0123456789Ee.+-",TempPosAddition+1); // try to find number after plus sign
+                    if(std::string::npos!=TempPosAddition) {
+                        TempPosAdditionEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosAddition+1);
+                        if(std::string::npos!=TempPosAdditionEnd) {
+                            std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosAddition,TempPosAdditionEnd-TempPosAddition);
+                            if(j==5) {this->fromAddition = -std::stod(TempConstraintStr3); }
+                            else if(j==2) {this->toAddition = -std::stod(TempConstraintStr3); }
+                        }
                     }
                 }
             }
@@ -336,10 +391,14 @@ int michi2Constraint::parse(std::vector<std::string> input_args, int verbose) {
         }
         PrevConstraintStr = TempConstraintStr;
     }
-    if(verbose>=1) {
+    //
+    // print constraints
+    // (before 20180114: verbose>=1)
+    if(verbose>=0) {
         std::cout << std::endl;
         std::cout << "\t";
         //
+        // print ->toLIB
         if(this->toLIB==-2) {
             std::cout << "VALUE"; // 2018-01-10 allow to set constant value
         } else if(this->toLIB==-1) {
@@ -348,34 +407,49 @@ int michi2Constraint::parse(std::vector<std::string> input_args, int verbose) {
             std::cout << "LIB" << this->toLIB;
         }
         std::cout << " ";
-        if(this->toPAR==-99) {
-            std::cout << ""; // 2018-01-10 allow to set constant value
-        } else if(this->toPAR==-3) {
-            std::cout << "vLv(" << this->toLowerX << "," << this->fromUpperX << ")";
-        } else if(this->toPAR==-2) {
-            std::cout << "INT(" << this->toLowerX << "," << this->toUpperX << ")";
-        } else if(this->toPAR==-1) {
-            //std::cout << "NORM(" << this->toLowerX << ")"; // TODO currently we can only set constraint to the normalization of the templates, i.e., aCOE in michi2_MinPack.cpp, but could not set to the normalization at a specific X position. For example, if we have a SED template normalized to total integrated flux density of 1.0 and it is LIB5, and we set a constraint of "-constraint LIB5 NORM EQ SED(8,1000)", then it means the total integrated flux density of LIB5 will be always fixed to the integration of the full SED from LowerX=8 to UpperX=1000. We can not yet set something like "-constraint LIB5 NORM(21500) EQ SED(8,1000)" to make the LIB5 Y value at X=21500 fixed to SED(8,1000).
-            std::cout << "NORM";
-        } else if(this->toPAR==0) {
-            std::cout << "INDEX";
+        //
+        // print ->toPAR
+        if(!this->toEquation.empty() && !this->toVariable.empty()) {
+            // 20180114: new method of evaluating the input equation with variable
+            std::cout << this->toEquation << " (";
+            for(int iVar=0; iVar<this->toVariable.size(); iVar++) {
+                if(iVar>0) { std::cout << ","; }
+                std::cout << this->toVariable[iVar];
+            }
+            std::cout << ")";
         } else {
-            std::cout << "PAR" << this->toPAR;
-        }
-        if(!std::isnan(this->toMathPower)) {
-            std::cout << "^" << this->toMathPower;
-        }
-        if(!std::isnan(this->toMultiplication)) {
-            std::cout << "*" << this->toMultiplication;
-        }
-        if(!std::isnan(this->toAddition)) {
-            std::cout << std::showpos << this->toAddition << std::noshowpos;
+            if(this->toPAR==-99) {
+                std::cout << ""; // 2018-01-10 allow to set constant value
+            } else if(this->toPAR==-3) {
+                //std::cout << "vLv(" << this->toLowerX << "," << this->fromUpperX << ")";
+                std::cout << "LIR(" << this->toLowerX << "," << this->fromUpperX << ")";
+            } else if(this->toPAR==-2) {
+                std::cout << "INT(" << this->toLowerX << "," << this->toUpperX << ")";
+            } else if(this->toPAR==-1) {
+                //std::cout << "NORM(" << this->toLowerX << ")"; // TODO currently we can only set constraint to the normalization of the templates, i.e., aCOE in michi2_MinPack.cpp, but could not set to the normalization at a specific X position. For example, if we have a SED template normalized to total integrated flux density of 1.0 and it is LIB5, and we set a constraint of "-constraint LIB5 NORM EQ SED(8,1000)", then it means the total integrated flux density of LIB5 will be always fixed to the integration of the full SED from LowerX=8 to UpperX=1000. We can not yet set something like "-constraint LIB5 NORM(21500) EQ SED(8,1000)" to make the LIB5 Y value at X=21500 fixed to SED(8,1000).
+                std::cout << "NORM";
+            } else if(this->toPAR==0) {
+                std::cout << "INDEX";
+            } else {
+                std::cout << "PAR" << this->toPAR;
+            }
+            if(!std::isnan(this->toMathPower)) {
+                std::cout << "^" << this->toMathPower;
+            }
+            if(!std::isnan(this->toMultiplication)) {
+                std::cout << "*" << this->toMultiplication;
+            }
+            if(!std::isnan(this->toAddition)) {
+                std::cout << std::showpos << this->toAddition << std::noshowpos;
+            }
         }
         //
         //std::cout << " ";
         std::cout << " " << this->OperatorTypeStr << " ";
         //std::cout << " ";
         //
+        //
+        // print ->fromLIB
         if(this->fromLIB==-2) {
             std::cout << "VALUE"; // 2018-01-10 allow to set constant value
         } else if(this->fromLIB==-1) {
@@ -384,28 +458,41 @@ int michi2Constraint::parse(std::vector<std::string> input_args, int verbose) {
             std::cout << "LIB" << this->fromLIB;
         }
         std::cout << " ";
-        if(this->fromPAR==-99) {
-            std::cout << ""; // 2018-01-10 allow to set constant value
-        } else if(this->fromPAR==-3) {
-            std::cout << "vLv(" << this->fromLowerX << "," << this->fromUpperX << ")";
-        } else if(this->fromPAR==-2) {
-            std::cout << "INT(" << this->fromLowerX << "," << this->fromUpperX << ")";
-        } else if(this->fromPAR==-1) {
-            //std::cout << "NORM(" << this->fromLowerX << ")"; // see the note above at "else if(this->toPAR==-1)"
-            std::cout << "NORM";
-        } else if(this->fromPAR==0) {
-            std::cout << "INDEX";
+        //
+        // print ->fromPAR
+        if(!this->fromEquation.empty() && !this->fromVariable.empty()) {
+            // 20180114: new method of evaluating the input equation with variable
+            std::cout << this->fromEquation << " (";
+            for(int iVar=0; iVar<this->fromVariable.size(); iVar++) {
+                if(iVar>0) { std::cout << ","; }
+                std::cout << this->fromVariable[iVar];
+            }
+            std::cout << ")";
         } else {
-            std::cout << "PAR" << this->fromPAR;
-        }
-        if(!std::isnan(this->fromMathPower)) {
-            std::cout << "^" << this->fromMathPower;
-        }
-        if(!std::isnan(this->fromMultiplication)) {
-            std::cout << "*" << this->fromMultiplication;
-        }
-        if(!std::isnan(this->fromAddition)) {
-            std::cout << std::showpos << this->fromAddition << std::noshowpos;
+            if(this->fromPAR==-99) {
+                std::cout << ""; // 2018-01-10 allow to set constant value
+            } else if(this->fromPAR==-3) {
+                //std::cout << "vLv(" << this->fromLowerX << "," << this->fromUpperX << ")";
+                std::cout << "LIR(" << this->fromLowerX << "," << this->fromUpperX << ")";
+            } else if(this->fromPAR==-2) {
+                std::cout << "INT(" << this->fromLowerX << "," << this->fromUpperX << ")";
+            } else if(this->fromPAR==-1) {
+                //std::cout << "NORM(" << this->fromLowerX << ")"; // see the note above at "else if(this->toPAR==-1)"
+                std::cout << "NORM";
+            } else if(this->fromPAR==0) {
+                std::cout << "INDEX";
+            } else {
+                std::cout << "PAR" << this->fromPAR;
+            }
+            if(!std::isnan(this->fromMathPower)) {
+                std::cout << "^" << this->fromMathPower;
+            }
+            if(!std::isnan(this->fromMultiplication)) {
+                std::cout << "*" << this->fromMultiplication;
+            }
+            if(!std::isnan(this->fromAddition)) {
+                std::cout << std::showpos << this->fromAddition << std::noshowpos;
+            }
         }
         //
         std::cout << std::endl;

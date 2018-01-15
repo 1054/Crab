@@ -9,3 +9,58 @@ calc 40.31970e9/3.75e12/1e3
 calc 40.31970e9/3.75e12/1e3/4/pi
 calc 40.31970e9/3.75e12/10**2.4
 quit
+calc *1.061619121e-061;5D
+calc 251*1.061619121e-06
+calc 3750*1.061619121e-06
+calc 1/(3750*1.061619121e-06)
+quit
+calc calc 1/3750/10**2.4
+calc 1/3750/10**2.4
+calc 1/3750/10**2.
+quit
+data RadioPowerlaw.Single.lib.SED
+read {x 1 y 2}
+set lgx = lg(x)
+set lgy = lg(y)
+device x11
+limits lgx lgy
+ box
+ticksize -1 10 -1 10
+erase
+box
+connect lgx lgy
+quit
+set LIB3 = 0.000000
+set LIB3_PAR3 = 3.116412
+set LIB4 = 8.916278
+set LIB4_PAR3 = 2.076332
+calc ((LIB3*10**LIB3_PAR3)+(LIB4*10**LIB4_PAR3))/3750/10**2.4
+quit
+set LIB3 = 0.000000
+set LIB3_PAR3 = 3.110672
+set LIB4 = 8.916278
+set LIB4_PAR3 = 2.071430
+calc ((LIB3*10**LIB3_PAR3)+(LIB4*10**LIB4_PAR3))/3750/10**2.4
+quit
+set LIB3 = 0.000000
+set LIB3_PAR3 = 3.110672
+set LIB4 = 8.916278
+set LIB4_PAR3 = 2.071430
+calc (((LIB3*10)**LIB3_PAR3)+((LIB4*10)**LIB4_PAR3))/3750/10**2.4
+quit
+set LIB3 = 0.000000
+set LIB3_PAR3 = 3.110672
+set LIB4 = 8.916278
+set LIB4_PAR3 = 2.071430
+calc (((LIB3*10)**LIB3_PAR3)+((LIB4*10)**LIB4_PAR3))/3750/10**2.4
+quit
+calc (((LIB4*10)**LIB4_PAR3))/3750/10**2.4
+set LIB3 = 0.000000
+set LIB3_PAR3 = 3.110672
+set LIB4 = 8.916278
+set LIB4_PAR3 = 2.071430
+calc (((LIB3*10)**LIB3_PAR3)+((LIB4*10)**LIB4_PAR3))/3750/10**2.4
+# 0.01163154884
+calc (((LIB4*10)**LIB4_PAR3))/3750/10**2.4
+calc ((LIB3*10**LIB3_PAR3)+(LIB4*10**LIB4_PAR3))/3750/10**2.4
+quit
