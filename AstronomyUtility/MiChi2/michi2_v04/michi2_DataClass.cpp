@@ -9,6 +9,8 @@
 michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
 {
     //
+    // This Class is used for not only LIB file but also OBS file.
+    //
     if(1==1) { // <TODO> Check File Exists!
         this->FilePath = std::string(InputFile,InputFile+strlen(InputFile));
         this->FileStream.open(InputFile);
@@ -44,21 +46,23 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
         // std::cout << "michi2DataClass: Good! Let's Go!" << " " << michi2sprint("# CPAR",i,"") << std::endl;
     }
     // print error info
-    if(InNPAR.empty()) {
+    if(this->FilePath.find("Lib")==0 && InNPAR.empty()) {
         std::cout << "michi2DataClass: Error! \"NPAR\" was not found in the header of LIB file \"" << InputFile << "\"" << std::endl;
         exit (EXIT_FAILURE);
     }
-    if(StTPAR.empty()) {
+    if(this->FilePath.find("Lib")==0 && StTPAR.empty()) {
         std::cout << "michi2DataClass: Error! \"TPAR\" was not found in the header of LIB file \"" << InputFile << "\"" << std::endl;
         exit (EXIT_FAILURE);
     }
     // print debug info
-    if(verbose>=2) {
-        std::cout << "michi2DataClass: Read " << InNPAR.size() << " parameters: " << std::flush;
-        for(int iPar_1=0; iPar_1<StTPAR.size(); iPar_1++) {
-            std::cout << StTPAR[iPar_1] << ", " << std::flush;
+    if(!InNPAR.empty()) {
+        if(verbose>=2) {
+            std::cout << "michi2DataClass: Read " << InNPAR.size() << " parameters: " << std::flush;
+            for(int iPar_1=0; iPar_1<StTPAR.size(); iPar_1++) {
+                std::cout << StTPAR[iPar_1] << ", " << std::flush;
+            }
+            std::cout << "from the file " << InputFile << std::endl;
         }
-        std::cout << "from the file " << InputFile << std::endl;
     }
     // std::cout << "michi2DataClass: Good! Let's Go!" << std::endl;
     // exam data info

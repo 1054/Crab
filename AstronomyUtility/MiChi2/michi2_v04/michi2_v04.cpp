@@ -848,7 +848,7 @@ void *mnchi2parallel(void *params)
                                    TempConstraint->toPAR==-1 )
                                 {//
                                     // print debug info
-                                    if(debug>=3) {std::cout << "mnchi2parallel: Setting constraint on LIB" << TempConstraint->toLIB << " normalization!" << std::endl;}
+                                    if(debug>=3) {std::cout << "mnchi2parallel: Setting constraint on LIB" << TempConstraint->toLIB << " normalization ... (old method)" << std::endl;}
                                     //
                                     // set constraint: LIB5 NORM EQ SED LIR(8,1000), i.e., fixing the normalization of LIB5 to the vLv(8,1000), i.e., qIR=250
                                     // -- NOTE vLv is not INT! vLv is the integration of \int x*SED dx, but INT is just the integration of \int SED dx.
