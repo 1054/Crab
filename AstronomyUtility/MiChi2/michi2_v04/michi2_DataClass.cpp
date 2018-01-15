@@ -25,12 +25,12 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
     std::vector<std::string> StTPAR;                           // Col  Title of Each Parameter
     // read data info
     for(int i=1; i<=2; i++) { // <TODO><LIMIT> Support only =< 2 Variables (Limit <= 2 Dimensions)
-        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# CVAR" << i << std::flush;}
+        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << michi2sprint("# CVAR",i,"") << std::flush;}
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# CVAR",i,""));
         if(verbose>=3) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StCVAR.push_back(StTEMP); InCVAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         //
-        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# NVAR" << i << std::flush;}
+        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << michi2sprint("# NVAR",i,"") << std::flush;}
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# NVAR",i,""));
         if(verbose>=3) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StNVAR.push_back(StTEMP); InNVAR.push_back(michi2stoi(StTEMP)); } // else {break;}

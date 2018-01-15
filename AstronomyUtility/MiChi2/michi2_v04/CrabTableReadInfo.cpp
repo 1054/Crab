@@ -61,7 +61,7 @@ std::string CrabTableReadInfo(const char *InputFile, const char *InputKeyName, c
 {
     // http://www.cplusplus.com/forum/beginner/70805/
     std::string OutputText;
-    int debug = 0;
+    int debug = 1;
     if(strlen(InputKeyName)>0 && strlen(InputFile)>0) {
         std::wstring line;
         std::wstring keyname = CrabStringWideString(InputKeyName); // From utf8 char * to utf16 wstring
