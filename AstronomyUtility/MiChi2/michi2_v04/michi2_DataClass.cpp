@@ -25,25 +25,33 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
     std::vector<std::string> StTPAR;                           // Col  Title of Each Parameter
     // read data info
     for(int i=1; i<=2; i++) { // <TODO><LIMIT> Support only =< 2 Variables (Limit <= 2 Dimensions)
-        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# CVAR" << i << std::endl;}
+        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# CVAR" << i << std::flush;}
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# CVAR",i,""));
+        if(verbose>=3) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StCVAR.push_back(StTEMP); InCVAR.push_back(michi2stoi(StTEMP)); } // else {break;}
-        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# NVAR" << i << std::endl;}
+        //
+        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# NVAR" << i << std::flush;}
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# NVAR",i,""));
+        if(verbose>=3) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StNVAR.push_back(StTEMP); InNVAR.push_back(michi2stoi(StTEMP)); } // else {break;}
-        // std::cout << "michi2DataClass: Good! Let's Go!" << " " << michi2sprint("# CVAR",i,"") << "=" << InCVAR[InCVAR.size()-1] << std::endl;
+        //
     }
     for(int i=1; i<=6; i++) { // <TODO><LIMIT> Support only <= 6 Parameters
-        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# CPAR" << i << std::endl;}
+        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# CPAR" << i << std::flush;}
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# CPAR",i,""));
+        if(verbose>=3) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StCPAR.push_back(StTEMP); InCPAR.push_back(michi2stoi(StTEMP)); } // else {break;}
-        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# NPAR" << i << std::endl;}
+        //
+        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# NPAR" << i << std::flush;}
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# NPAR",i,""));
+        if(verbose>=3) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StNPAR.push_back(StTEMP); InNPAR.push_back(michi2stoi(StTEMP)); } // else {break;}
-        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# TPAR" << i << std::endl;}
+        //
+        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# TPAR" << i << std::flush;}
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# TPAR",i,""));
+        if(verbose>=3) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StTPAR.push_back(StTEMP); } // else {break;}
-        // std::cout << "michi2DataClass: Good! Let's Go!" << " " << michi2sprint("# CPAR",i,"") << std::endl;
+        //
     }
     // print error info
     if(this->FilePath.find("Lib")==0 && InNPAR.empty()) {
