@@ -323,66 +323,66 @@ int michi2Constraint::parse(std::vector<std::string> input_args, int verbose) {
             // -- NOTE that we can not give something like "2.0*PAR2-50", we must put "PAR2" at the beginning (TODO).
             // -- NOTE that we can not give something like "2.0/PAR2-50", we must put "PAR2" at the beginning (TODO).
             //
-            size_t TempPosMultiplication, TempPosMultiplicationEnd;
-            TempPosMultiplication = TempConstraintStr.find_first_of("*",TempPosNumber+1); // try to find multiplication sign
-            if(std::string::npos!=TempPosMultiplication) {
-                TempPosMultiplication = TempConstraintStr.find_first_of("0123456789Ee.+-",TempPosMultiplication+1); // try to find number after multiplication sign
-                if(std::string::npos!=TempPosMultiplication) {
-                    TempPosMultiplicationEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosMultiplication+1);
-                    if(std::string::npos!=TempPosMultiplicationEnd) {
-                        std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosMultiplication,TempPosMultiplicationEnd-TempPosMultiplication);
-                        std::cout << TempConstraintStr3 << std::endl;
-                        if(j==5) {this->fromMultiplication = std::stod(TempConstraintStr3); }
-                        else if(j==2) {this->toMultiplication = std::stod(TempConstraintStr3); }
-                    }
-                }
-            } else {
-                TempPosMultiplication = TempConstraintStr.find_first_of("/",TempPosNumber+1); // otherwise, try to find division sign
-                if(std::string::npos!=TempPosMultiplication) {
-                    TempPosMultiplication = TempConstraintStr.find_first_of("0123456789Ee.+-",TempPosMultiplication+1); // try to find number after multiplication sign
-                    if(std::string::npos!=TempPosMultiplication) {
-                        TempPosMultiplicationEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosMultiplication+1);
-                        if(std::string::npos!=TempPosMultiplicationEnd) {
-                            std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosMultiplication,TempPosMultiplicationEnd-TempPosMultiplication);
-                            std::cout << TempConstraintStr3 << std::endl;
-                            if(j==5) {this->fromMultiplication = 1.0/std::stod(TempConstraintStr3); }
-                            else if(j==2) {this->toMultiplication = 1.0/std::stod(TempConstraintStr3); }
-                        }
-                    }
-                }
-            }
+            //size_t TempPosMultiplication, TempPosMultiplicationEnd;
+            //TempPosMultiplication = TempConstraintStr.find_first_of("*",TempPosNumber+1); // try to find multiplication sign
+            //if(std::string::npos!=TempPosMultiplication) {
+            //    TempPosMultiplication = TempConstraintStr.find_first_of("0123456789Ee.+-",TempPosMultiplication+1); // try to find number after multiplication sign
+            //    if(std::string::npos!=TempPosMultiplication) {
+            //        TempPosMultiplicationEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosMultiplication+1);
+            //        if(std::string::npos!=TempPosMultiplicationEnd) {
+            //            std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosMultiplication,TempPosMultiplicationEnd-TempPosMultiplication);
+            //            std::cout << TempConstraintStr3 << std::endl;
+            //            if(j==5) {this->fromMultiplication = std::stod(TempConstraintStr3); }
+            //            else if(j==2) {this->toMultiplication = std::stod(TempConstraintStr3); }
+            //        }
+            //    }
+            //} else {
+            //    TempPosMultiplication = TempConstraintStr.find_first_of("/",TempPosNumber+1); // otherwise, try to find division sign
+            //    if(std::string::npos!=TempPosMultiplication) {
+            //        TempPosMultiplication = TempConstraintStr.find_first_of("0123456789Ee.+-",TempPosMultiplication+1); // try to find number after multiplication sign
+            //        if(std::string::npos!=TempPosMultiplication) {
+            //            TempPosMultiplicationEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosMultiplication+1);
+            //            if(std::string::npos!=TempPosMultiplicationEnd) {
+            //                std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosMultiplication,TempPosMultiplicationEnd-TempPosMultiplication);
+            //                std::cout << TempConstraintStr3 << std::endl;
+            //                if(j==5) {this->fromMultiplication = 1.0/std::stod(TempConstraintStr3); }
+            //                else if(j==2) {this->toMultiplication = 1.0/std::stod(TempConstraintStr3); }
+            //            }
+            //        }
+            //    }
+            //}
             //
             // in addition, if addition is given
             // e.g. LIB2 PAR2 GE LIB3 PAR2/2.0-50
             // -- NOTE that we can not give something like "-50+PAR2/2.0", we must put "PAR2" at the beginning.
             // -- NOTE that we can not give something like "PAR2/2.0-100+50", we can only set one value "-50".
             //
-            size_t TempPosAddition, TempPosAdditionEnd;
-            TempPosAddition = TempConstraintStr.find_first_of("+",TempPosNumber+1); // try to find plus sign
-            if(std::string::npos!=TempPosAddition) {
-                TempPosAddition = TempConstraintStr.find_first_of("0123456789Ee.+-",TempPosAddition+1); // try to find number after plus sign
-                if(std::string::npos!=TempPosAddition) {
-                    TempPosAdditionEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosAddition+1);
-                    if(std::string::npos!=TempPosAdditionEnd) {
-                        std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosAddition,TempPosAdditionEnd-TempPosAddition);
-                        if(j==5) {this->fromAddition = std::stod(TempConstraintStr3); }
-                        else if(j==2) {this->toAddition = std::stod(TempConstraintStr3); }
-                    }
-                }
-            } else {
-                TempPosAddition = TempConstraintStr.find_first_of("-",TempPosNumber+1); // otherwise, try to find minus sign
-                if(std::string::npos!=TempPosAddition) {
-                    TempPosAddition = TempConstraintStr.find_first_of("0123456789Ee.+-",TempPosAddition+1); // try to find number after plus sign
-                    if(std::string::npos!=TempPosAddition) {
-                        TempPosAdditionEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosAddition+1);
-                        if(std::string::npos!=TempPosAdditionEnd) {
-                            std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosAddition,TempPosAdditionEnd-TempPosAddition);
-                            if(j==5) {this->fromAddition = -std::stod(TempConstraintStr3); }
-                            else if(j==2) {this->toAddition = -std::stod(TempConstraintStr3); }
-                        }
-                    }
-                }
-            }
+            //size_t TempPosAddition, TempPosAdditionEnd;
+            //TempPosAddition = TempConstraintStr.find_first_of("+",TempPosNumber+1); // try to find plus sign
+            //if(std::string::npos!=TempPosAddition) {
+            //    TempPosAddition = TempConstraintStr.find_first_of("0123456789Ee.+-",TempPosAddition+1); // try to find number after plus sign
+            //    if(std::string::npos!=TempPosAddition) {
+            //        TempPosAdditionEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosAddition+1);
+            //        if(std::string::npos!=TempPosAdditionEnd) {
+            //            std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosAddition,TempPosAdditionEnd-TempPosAddition);
+            //            if(j==5) {this->fromAddition = std::stod(TempConstraintStr3); }
+            //            else if(j==2) {this->toAddition = std::stod(TempConstraintStr3); }
+            //        }
+            //    }
+            //} else {
+            //    TempPosAddition = TempConstraintStr.find_first_of("-",TempPosNumber+1); // otherwise, try to find minus sign
+            //    if(std::string::npos!=TempPosAddition) {
+            //        TempPosAddition = TempConstraintStr.find_first_of("0123456789Ee.+-",TempPosAddition+1); // try to find number after plus sign
+            //        if(std::string::npos!=TempPosAddition) {
+            //            TempPosAdditionEnd = TempConstraintStr.find_first_not_of("0123456789Ee.+-",TempPosAddition+1);
+            //            if(std::string::npos!=TempPosAdditionEnd) {
+            //                std::string TempConstraintStr3 = TempConstraintStr.substr(TempPosAddition,TempPosAdditionEnd-TempPosAddition);
+            //                if(j==5) {this->fromAddition = -std::stod(TempConstraintStr3); }
+            //                else if(j==2) {this->toAddition = -std::stod(TempConstraintStr3); }
+            //            }
+            //        }
+            //    }
+            //}
         } else {
             std::cout << std::endl;
             std::cout << "Error! The input constraint argument " << input_args[i+j] << " could not be understood!" << std::endl;
