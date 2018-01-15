@@ -42,7 +42,7 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
         if(!StTEMP.empty()) { StNPAR.push_back(StTEMP); InNPAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# TPAR" << i << std::endl;}
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# TPAR",i,""));
-        if(!StTEMP.empty()) { StTPAR.push_back(StTEMP); } else {break;}
+        if(!StTEMP.empty()) { StTPAR.push_back(StTEMP); } // else {break;}
         // std::cout << "michi2DataClass: Good! Let's Go!" << " " << michi2sprint("# CPAR",i,"") << std::endl;
     }
     // print error info
