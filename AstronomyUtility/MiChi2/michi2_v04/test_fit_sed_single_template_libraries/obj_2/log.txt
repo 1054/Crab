@@ -1,0 +1,21 @@
+i1 16184
+a1 4584.49
+numpy.genfromtxt(Lib_file, skip_header=16208, max_rows=2023)
+Output to "obj_2/SED_LIB1"
+i2 0
+a2 0.0443615
+numpy.genfromtxt(Lib_file, skip_header=18, max_rows=504)
+Output to "obj_2/SED_LIB2"
+i3 1001
+a3 0.13636
+numpy.genfromtxt(Lib_file, skip_header=1022, max_rows=1001)
+Output to "obj_2/SED_LIB3"
+i4 1001
+a4 0.0
+numpy.genfromtxt(Lib_file, skip_header=1022, max_rows=1001)
+Output to "obj_2/SED_LIB4"
+i5 0
+a5 0.00753085
+numpy.genfromtxt(Lib_file, skip_header=15, max_rows=101)
+Output to "obj_2/SED_LIB5"
+Output to "obj_2/SED_SUM"

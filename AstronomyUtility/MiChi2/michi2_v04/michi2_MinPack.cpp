@@ -72,7 +72,7 @@ void michi2MinPack_func(const int *m, const int *n, const double *x, double *fve
         // <added><20180114>
         // we now use another better/flexible way to set the michi2MinPack_constraints, using the exprtk expression.
         //
-        printf("michi2MinPack_func() debugging: michi2MinPack_constraint_expressions size is %d\n", (int)michi2MinPack_constraint_expressions.size());
+        if(debug>=2) {printf("michi2MinPack_func() debugging: michi2MinPack_constraint_expressions size is %d\n", (int)michi2MinPack_constraint_expressions.size());}
         if(michi2MinPack_constraint_expressions.size()>0) {
             for(int iicon=0; iicon<michi2MinPack_constraint_expressions.size(); iicon++) {
                 michi2MinPack_constraint_expression *temp_constraint = michi2MinPack_constraint_expressions[iicon];
