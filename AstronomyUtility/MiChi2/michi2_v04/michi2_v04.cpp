@@ -781,6 +781,10 @@ void *mnchi2parallel(void *params)
                                     // evaluate some variables, e.g., LIB*_PAR*,
                                     for(int iVar=0; iVar<TempConstraint->fromVariable.size(); iVar++) {
                                         //
+                                        // print debug info
+                                        if(debug>=3) {std::cout << "mnchi2parallel: Parsing variable " << std::flush;
+                                            std::cout << TempConstraint->fromVariable[iVar] << std::endl;}
+                                        //
                                         // determine the value of each variable in the equation must have a value
                                         // each variable in the equation must have a value
                                         std::string sVar = TempConstraint->fromVariable[iVar];
