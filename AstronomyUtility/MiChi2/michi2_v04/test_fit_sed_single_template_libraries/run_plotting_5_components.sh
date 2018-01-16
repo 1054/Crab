@@ -5,9 +5,9 @@ source ~/Cloud/Github/Crab.Toolkit.michi2/bin/bin_setup.bash
 
 rm -rf obj_*
 
-michi2-plot-results-of-fitting-5-components fit_5.out
-
 cp flux_obsframe_with_radio.dat flux_obsframe.dat
+
+michi2-plot-results-of-fitting-5-components fit_5.out
 
 michi2_read_lib_SEDs.py fit_5.out 1 obj_x1
 michi2_read_lib_SEDs.py fit_5.out 2 obj_x2

@@ -477,7 +477,8 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
     long iLoop = 0;
     long iStep = long((float(NumbObs*NumbLibMulti)+float(iPara)-1)/float(iPara)); // iPara is the paralle process number, allowed to be input with arg '-parallel'. //<NOTE> +float(iPara)-1 to make sure we cover all the ranges.
     while(iLoop >= 0 && iLoop < NumbObs*NumbLibMulti) {
-        // determine current loop step, in case of overflow
+        // determine the loop range of each process,
+        // and if current process is the last process, set the step to be exactly the number of loops left.
         if((iLoop+iStep)>NumbObs*NumbLibMulti) {iStep=NumbObs*NumbLibMulti-iLoop;}
         //std::cout << "looping " << iLoop+1 << "-" << iLoop+iStep-1+1 << " / " << NumbLibMulti << "   ";
         struct mnchi2parallelParams *pParams = new struct mnchi2parallelParams;
@@ -594,33 +595,44 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
         sleep(3);
     }
     // show initial info for all threads
+    // and print progress
+    int ndigits = 0;
     //std::cout << std::setw(8) << std::right << mnchi2parallelProgress << "||";
     for(long ip=0; ip<mnchi2parallelParams.size(); ip++) {
-        std::cout << std::setw(15) << std::right << mnchi2parallelParams[ip]->iBegin << "|" << mnchi2parallelParams[ip]->nObs*mnchi2parallelParams[ip]->nRow << "|";
+        // print progress first line
+        ndigits = (int)log10((double)(mnchi2parallelParams[ip]->iEnd+1)) + 1;
+        //std::cout << std::setw(15) << std::right << mnchi2parallelParams[ip]->iBegin << "|" << mnchi2parallelParams[ip]->nObs*mnchi2parallelParams[ip]->nRow << "|"; //<20180116>
+        std::cout << std::setw(4+ndigits) << std::right << mnchi2parallelParams[ip]->iBegin << "|" << std::setw(ndigits) << std::left << mnchi2parallelParams[ip]->iEnd+1 << "|"; //<20180116>
         for(long iLib = 0; iLib < mnchi2parallelParams[ip]->nLib; iLib++) {
-            std::cout << std::setw(8) << std::right << 0 << "|" << mnchi2parallelParams[ip]->SDLIBList[iLib]->YNum << "|";
+            ndigits = (int)log10((double)(mnchi2parallelParams[ip]->SDLIBList[iLib]->YNum)) + 1;
+            std::cout << std::setw(ndigits) << std::right << 0 << "|" << std::setw(ndigits) << std::left << mnchi2parallelParams[ip]->SDLIBList[iLib]->YNum << "|";
         }
     }
     std::cout << std::endl;
     // wait for all threads
+    // and print progress
     while(mnchi2parallelProgress<NumbObs*NumbLibMulti) {
         //std::cout << std::setw(8) << std::right << mnchi2parallelProgress << "||";
+        // print progress
         for(long ip=0; ip<mnchi2parallelParams.size(); ip++) {
-            //std::cout << std::setw(15) << std::right << mnchi2parallelParams[ip]->i << "|" << mnchi2parallelParams[ip]->nObs*mnchi2parallelParams[ip]->nRow << "|";
-            std::cout << std::setw(15) << std::right << mnchi2parallelParams[ip]->i << "|" << mnchi2parallelParams[ip]->iEnd << "|";
+            ndigits = (int)log10((double)(mnchi2parallelParams[ip]->iEnd+1)) + 1;
+            //std::cout << std::setw(15) << std::right << mnchi2parallelParams[ip]->i << "|" << mnchi2parallelParams[ip]->nObs*mnchi2parallelParams[ip]->nRow << "|"; //<20180116>
+            std::cout << std::setw(4+ndigits) << std::right << mnchi2parallelParams[ip]->i << "|" << std::setw(ndigits) << std::left << mnchi2parallelParams[ip]->iEnd+1 << "|"; //<20180116>
             for(long iLib = 0; iLib < mnchi2parallelParams[ip]->nLib; iLib++) {
-                std::cout << std::setw(8) << std::right << mnchi2parallelParams[ip]->idLIBList[iLib] << "|" << mnchi2parallelParams[ip]->SDLIBList[iLib]->YNum << "|";
+                ndigits = (int)log10((double)(mnchi2parallelParams[ip]->SDLIBList[iLib]->YNum)) + 1;
+                std::cout << std::setw(ndigits) << std::right << mnchi2parallelParams[ip]->idLIBList[iLib] << "|" << std::setw(ndigits) << std::left << mnchi2parallelParams[ip]->SDLIBList[iLib]->YNum << "|";
             }
         }
         std::cout<< std::endl;
-        sleep(3);
+        sleep(4);
     }
     // clean
     for(long ip=0; ip<mnchi2parallelParams.size(); ip++) {
         delete mnchi2parallelParams[ip]; mnchi2parallelParams[ip]=NULL;
     }
     //
-    std::cout << std::setw(15) << std::right << "100%" << "||" << std::endl;
+    ndigits = (int)log10((double)(mnchi2parallelParams[0]->iEnd+1)) + 1;
+    std::cout << std::setw(4+ndigits) << std::right << "100%" << "||" << std::endl; //<20180116>
 }
 
 void *mnchi2parallel(void *params)
@@ -967,12 +979,12 @@ void *mnchi2parallel(void *params)
     }
     // lock mutex
     pthread_mutex_lock(&mnchi2parallelMutex);
-    std::cout << "mnchi2parallel: iBegin=" << pParams->iBegin << " ? mnchi2parallelProgress=" << mnchi2parallelProgress << " now locked!" << std::endl;
+    std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now locked!" << std::endl;
     for(;;) {
         // test if now we are ok to write result file
         if(pParams->iBegin==mnchi2parallelProgress) {
             // thread ok to write!
-            std::cout << "mnchi2parallel: iBegin=" << pParams->iBegin << " ? mnchi2parallelProgress=" << mnchi2parallelProgress << " got ya!";
+            std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": got ya! subprocess now finished!" << std::endl;
             for(long iObs = 0; iObs < pParams->nObs; iObs++) {
                 if(!pStrings[iObs].empty()) {
                     std::ofstream SDOUT(pParams->OutputTableList.at(iObs).c_str(), std::ofstream::out | std::ofstream::app);
@@ -991,14 +1003,15 @@ void *mnchi2parallel(void *params)
         } else {
             // wait while other earlier threads to write result file
             pthread_cond_wait(&mnchi2parallelCondition, &mnchi2parallelMutex);
-            std::cout << "mnchi2parallel: iBegin=" << pParams->iBegin << " ? mnchi2parallelProgress=" << mnchi2parallelProgress << " now waiting" << std::endl;
+            std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now still waiting for subprocess " << mnchi2parallelProgress << std::endl;
         }
     }
     // unlock mutex
     pthread_mutex_unlock(&mnchi2parallelMutex);
-    std::cout << "mnchi2parallel: iBegin=" << pParams->iBegin << " ? mnchi2parallelProgress=" << mnchi2parallelProgress << " now unlocked!" << std::endl;
+    std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now unlocked!" << std::endl;
     // update mnchi2parallelProgress
-    mnchi2parallelProgress = pParams->i;
+    //mnchi2parallelProgress = pParams->i; // <BUG><20180116><DZLIU>
+    mnchi2parallelProgress = pParams->iEnd+1; // <FIX><20180116><DZLIU>
     // return
     return(NULL);
 }

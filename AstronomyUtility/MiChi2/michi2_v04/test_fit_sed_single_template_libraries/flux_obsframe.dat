@@ -14,3 +14,5 @@
      24.0     0.1238501    0.02069155      mJy                Spitzer_MIPS_Jin
     100.0        8.1032       3.13762      mJy               Herschel_PACS_Jin
     160.0       16.8373     6.7392502      mJy               Herschel_PACS_Jin
+99930.819     0.0438321    0.00460383      mJy   VLA_3_GHz_1p5_arcsec_beam_Jin
+ 200000.0      0.114021     0.0188768      mJy                 VLA_1.4_GHz_Jin
