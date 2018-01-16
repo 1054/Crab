@@ -988,7 +988,7 @@ void *mnchi2parallel(void *params)
         // test if now we are ok to write result file
         if(pParams->iBegin==mnchi2parallelProgress) {
             // thread ok to write!
-            std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": got ya! subprocess now finished!" << std::endl;
+            std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": got ya! subprocess now being processed for output!" << std::endl;
             for(long iObs = 0; iObs < pParams->nObs; iObs++) {
                 if(!pStrings[iObs].empty()) {
                     std::ofstream SDOUT(pParams->OutputTableList.at(iObs).c_str(), std::ofstream::out | std::ofstream::app);
@@ -1011,13 +1011,14 @@ void *mnchi2parallel(void *params)
         }
         // unlock mutex
         pthread_mutex_unlock(&mnchi2parallelMutex);
+        std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now unlocked!" << std::endl;
         // sleep
         sleep(4 + rand() % 10);
     }
-    std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now unlocked!" << std::endl;
     // update mnchi2parallelProgress
     //mnchi2parallelProgress = pParams->i; // <BUG><20180116><DZLIU>
     mnchi2parallelProgress = pParams->iEnd+1; // <FIX><20180116><DZLIU>
+    std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now finished! ready to check next subprocess " << mnchi2parallelProgress << std::endl;
     // return
     return(NULL);
 }
