@@ -673,7 +673,8 @@ void *mnchi2parallel(void *params)
     // loop
     while (pParams->i <= pParams->iEnd) {
         if(debug>=1) {
-            std::cout << "mnchi2parallel: Looping " << pParams->i << "/" << pParams->iEnd << " OBS" << pParams->idOBS+1;
+            //std::cout << "mnchi2parallel: Looping " << pParams->i << "/" << pParams->iEnd << " OBS" << pParams->idOBS+1; //<20180116>
+            std::cout << "mnchi2parallel: Looping " << pParams->i << "/" << pParams->iEnd+1 << " OBS" << pParams->idOBS+1; //<20180116>
             for(long iLib = 0; iLib < pParams->nLib; iLib++) {
                 std::cout << " LIB" << iLib+1 << " data block " << pParams->idLIBList[iLib]+1 << "/" << pParams->SDLIBList[iLib]->YNum;
             } std::cout << std::endl;
@@ -977,10 +978,13 @@ void *mnchi2parallel(void *params)
         // goto next loop
         pParams->i++;
     }
-    // lock mutex
-    pthread_mutex_lock(&mnchi2parallelMutex);
-    std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now locked!" << std::endl;
+    //
+    // check other processes, wait in order
+    // <20180116> moved pthread_mutex_lock inside the loop, and added sleep time.
     for(;;) {
+        // lock mutex
+        pthread_mutex_lock(&mnchi2parallelMutex);
+        std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now locked!" << std::endl;
         // test if now we are ok to write result file
         if(pParams->iBegin==mnchi2parallelProgress) {
             // thread ok to write!
@@ -1005,9 +1009,11 @@ void *mnchi2parallel(void *params)
             pthread_cond_wait(&mnchi2parallelCondition, &mnchi2parallelMutex);
             std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now still waiting for subprocess " << mnchi2parallelProgress << std::endl;
         }
+        // unlock mutex
+        pthread_mutex_unlock(&mnchi2parallelMutex);
+        // sleep
+        sleep(4 + rand() % 10);
     }
-    // unlock mutex
-    pthread_mutex_unlock(&mnchi2parallelMutex);
     std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now unlocked!" << std::endl;
     // update mnchi2parallelProgress
     //mnchi2parallelProgress = pParams->i; // <BUG><20180116><DZLIU>

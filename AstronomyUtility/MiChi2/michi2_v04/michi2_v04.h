@@ -60,6 +60,10 @@ double michi2GetReducedChiSquare(std::vector<double> f1, std::vector<double> f0,
 
 double michi2VecMean(std::vector<double> vec);
 
+
+
+extern long mnchi2parallelProgress;
+
 void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> InputLibList, std::vector<std::string> OutputTableList, std::vector<std::string> InputFilterCurveList, int DebugLevel = 0);
 
 void *mnchi2parallel(void *params);
