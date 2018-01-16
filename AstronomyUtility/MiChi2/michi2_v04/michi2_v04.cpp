@@ -984,7 +984,7 @@ void *mnchi2parallel(void *params)
     for(;;) {
         // lock mutex
         pthread_mutex_lock(&mnchi2parallelMutex);
-        std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now locked!" << std::endl;
+        std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now locked! checking current waiting subprocess " << mnchi2parallelProgress << std::endl;
         // test if now we are ok to write result file
         if(pParams->iBegin==mnchi2parallelProgress) {
             // thread ok to write!
@@ -1006,7 +1006,7 @@ void *mnchi2parallel(void *params)
             // delete SDLIB1; delete SDLIB2; delete SDLIB3; delete SDLIB4; return(NULL);
         } else {
             // wait while other earlier threads to write result file
-            pthread_cond_wait(&mnchi2parallelCondition, &mnchi2parallelMutex);
+            //pthread_cond_wait(&mnchi2parallelCondition, &mnchi2parallelMutex); //<20180116><DZLIU> I do the subprocess waiting by my self, using the number 'mnchi2parallelProgress', so I do not need this cond_wait().
             std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now still waiting for subprocess " << mnchi2parallelProgress << std::endl;
         }
         // unlock mutex
