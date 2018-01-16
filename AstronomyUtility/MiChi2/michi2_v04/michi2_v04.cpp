@@ -612,7 +612,7 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
     // wait for all threads
     // and print progress
     while(mnchi2parallelProgress<NumbObs*NumbLibMulti) {
-        //std::cout << std::setw(8) << std::right << mnchi2parallelProgress << "||";
+        std::cout << "[" << mnchi2parallelProgress << "/" << NumbObs*NumbLibMulti << "]"; //<20180116>
         // print progress
         for(long ip=0; ip<mnchi2parallelParams.size(); ip++) {
             ndigits = (int)log10((double)(mnchi2parallelParams[ip]->iEnd+1)) + 1;
@@ -624,7 +624,7 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
             }
         }
         std::cout<< std::endl;
-        sleep(4);
+        sleep(3);
     }
     // clean
     for(long ip=0; ip<mnchi2parallelParams.size(); ip++) {
@@ -674,7 +674,7 @@ void *mnchi2parallel(void *params)
     while (pParams->i <= pParams->iEnd) {
         if(debug>=1) {
             //std::cout << "mnchi2parallel: Looping " << pParams->i << "/" << pParams->iEnd << " OBS" << pParams->idOBS+1; //<20180116>
-            std::cout << "mnchi2parallel: Looping " << pParams->i << "/" << pParams->iEnd+1 << " OBS" << pParams->idOBS+1; //<20180116>
+            std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Looping " << pParams->i << "/" << pParams->iEnd+1 << " OBS" << pParams->idOBS+1; //<20180116>
             for(long iLib = 0; iLib < pParams->nLib; iLib++) {
                 std::cout << " LIB" << iLib+1 << " data block " << pParams->idLIBList[iLib]+1 << "/" << pParams->SDLIBList[iLib]->YNum;
             } std::cout << std::endl;
@@ -693,11 +693,11 @@ void *mnchi2parallel(void *params)
         // if passed the constraint check
         // <20180110> moved the reading of OBS data block and LIB data block after the constraint, which can speed up a lot!
         if(ConstraintOK) {
-            if(debug>=2) {std::cout << "mnchi2parallel: Passed the INDEX constraint check!" << std::endl;}
+            if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Passed the INDEX constraint check!" << std::endl;}
             //
             // get OBS data block
             if(pParams->irOBS) {
-                if(debug>=3) {std::cout << "mnchi2parallel: Reading OBS " << pParams->idOBS+1 << " data" << std::endl;}
+                if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Reading OBS " << pParams->idOBS+1 << " data" << std::endl;}
                 SDOBS = pParams->SDOBSList.at(pParams->idOBS);
                 pParams->irOBS = false;
             }
@@ -709,7 +709,7 @@ void *mnchi2parallel(void *params)
                     SDLIBS[iLib] = pParams->SDLIBList[iLib];
                     //std::cout << "DEBUG: SDLIBS[" << iLib << "]=0x" << std::hex << (size_t)SDLIBS[iLib] << std::endl;
                     SDLIBS[iLib]->getDataBlock(pParams->idLIBList[iLib] * SDLIBS[iLib]->XNum + 1, SDLIBS[iLib]->XNum);
-                    if(debug>=3) {std::cout << "mnchi2parallel: Reading LIB" << iLib+1 << " data block " << pParams->idLIBList[iLib]+1 << "/" << pParams->SDLIBList[iLib]->YNum << std::endl;}
+                    if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Reading LIB" << iLib+1 << " data block " << pParams->idLIBList[iLib]+1 << "/" << pParams->SDLIBList[iLib]->YNum << std::endl;}
                     pParams->irLIBList[iLib] = false;
                 }
             }
@@ -725,7 +725,7 @@ void *mnchi2parallel(void *params)
             //
             // if passed the second constraint check
             if(ConstraintOK) {
-                if(debug>=2) {std::cout << "mnchi2parallel: Passed the LIB PAR constraint check!" << std::endl;}
+                if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Passed the LIB PAR constraint check!" << std::endl;}
                 //
                 // prepare MinPack input data structure
                 std::vector<std::vector<double> > fLIB; fLIB.clear();
@@ -735,10 +735,11 @@ void *mnchi2parallel(void *params)
                 //
                 // match LIB to OBS data block
                 // match LIB to OBS data block <updated><20170930> apply filter curves to fLIB at each wOBS, if the running mode is SED.
+                if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Matching LIBs to OBS." << std::endl;}
                 for(long iLib = 0; iLib < pParams->nLib; iLib++) {
-                    if(debug>=3) {std::cout << "mnchi2parallel: Matching LIB" << iLib+1 << " to OBS" << pParams->idOBS+1 << std::endl;}
+                    if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Matching LIB" << iLib+1 << " to OBS" << pParams->idOBS+1 << std::endl;}
                     MatchedObsLibStruct SDDAT = michi2MatchObs(SDOBS, SDLIBS[iLib], debug-2); // set debug>=3 to debug this.
-                    if(debug>=3) {std::cout << "mnchi2parallel: Matched LIB" << iLib+1 << " to OBS" << pParams->idOBS+1 << std::endl;}
+                    if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Matched LIB" << iLib+1 << " to OBS" << pParams->idOBS+1 << std::endl;}
                     // check data block
                     if(SDDAT.f0.size()>0) {
                         // min chi2 by n components
@@ -747,7 +748,7 @@ void *mnchi2parallel(void *params)
                             fOBS = SDDAT.f0; eOBS = SDDAT.df;
                         }
                     } else {
-                        std::cout << "mnchi2parallel: Error! Failed to read data block from LIB" << iLib+1 << " " << pParams->InputLibList.at(iLib) << std::endl;
+                        std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Error! Failed to read data block from LIB" << iLib+1 << " " << pParams->InputLibList.at(iLib) << std::endl;
                         return(NULL);
                     }
                 }
@@ -756,6 +757,7 @@ void *mnchi2parallel(void *params)
                 if(fLIB.size()>0) {
                     //
                     michi2MinPack *MPACK = new michi2MinPack(fLIB,fOBS,eOBS);
+                    if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Initializing MPACK." << std::endl;}
                     //
                     //
                     // check constraints on LIB coefficients <Added><20160719><dzliu>
@@ -789,13 +791,13 @@ void *mnchi2parallel(void *params)
                                 if(TempConstraint->toVariable[0] == "NORM" || TempConstraint->toVariable[0] == "NORMALIZATION") {
                                     //
                                     // print debug info
-                                    if(debug>=3) {std::cout << "mnchi2parallel: Setting constraint on LIB" << TempConstraint->toLIB << " normalization!" << std::endl;}
+                                    if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Setting constraint on LIB" << TempConstraint->toLIB << " normalization!" << std::endl;}
                                     //
                                     // evaluate some variables, e.g., LIB*_PAR*,
                                     for(int iVar=0; iVar<TempConstraint->fromVariable.size(); iVar++) {
                                         //
                                         // print debug info
-                                        if(debug>=3) {std::cout << "mnchi2parallel: Parsing variable " << std::flush;
+                                        if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Parsing variable " << std::flush;
                                             std::cout << TempConstraint->fromVariable[iVar] << std::endl;}
                                         //
                                         // determine the value of each variable in the equation must have a value
@@ -813,17 +815,17 @@ void *mnchi2parallel(void *params)
                                                 LibIntegrated[iLib] = integrate_LIR(SDLIBS[iLib]->X, SDLIBS[iLib]->Y, LibIntegrateRange);
                                                 LibIntegratedTotal += LibIntegrated[iLib];
                                                 // print debug info
-                                                if(debug>=3) {std::cout << "mnchi2parallel: debugging: calculating integral: LIB" << iLib+1 << " LIR(" <<LibIntegrateRange[0] << "," << LibIntegrateRange[1] << ") = " << LibIntegrated[iLib] << std::endl;}
+                                                if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": debugging: calculating integral: LIB" << iLib+1 << " LIR(" <<LibIntegrateRange[0] << "," << LibIntegrateRange[1] << ") = " << LibIntegrated[iLib] << std::endl;}
                                             }
                                             // now we got the LIR as the variable value
                                             dVar = LibIntegratedTotal;
                                             // print debug info
-                                            if(debug>=3) {std::cout << "mnchi2parallel: debugging: setting constraint variable " << sVar << " = " << dVar << std::endl;}
+                                            if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": debugging: setting constraint variable " << sVar << " = " << dVar << std::endl;}
                                         }
                                         //
                                         // else if the variable is LIB*_PAR*
                                         else if(sVar.find("LIB")==0 && sVar.find("PAR")>0) {
-                                            if(debug>=3) {std::cout << "mnchi2parallel: debugging: setting constraint variable " << sVar << std::endl;}
+                                            if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": debugging: setting constraint variable " << sVar << std::endl;}
                                             std::regex t_regex_1("LIB([0-9]+)_PAR([0-9]+).*");
                                             std::smatch t_match_1;
                                             if(std::regex_search(sVar,t_match_1,t_regex_1) && t_match_1.size()>2) {
@@ -833,11 +835,11 @@ void *mnchi2parallel(void *params)
                                                 if(t_par_number <= SDLIBS[t_lib_number-1]->FPAR.size()) {
                                                     dVar = SDLIBS[t_lib_number-1]->FPAR[t_par_number-1][0];
                                                 } else {
-                                                    std::cout << "mnchi2parallel: Error! The parameter number " << t_par_number << " exceeds the max parameter number " << SDLIBS[t_lib_number-1]->FPAR.size() << " in LIB" << t_lib_number << "!" << std::endl;
+                                                    std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Error! The parameter number " << t_par_number << " exceeds the max parameter number " << SDLIBS[t_lib_number-1]->FPAR.size() << " in LIB" << t_lib_number << "!" << std::endl;
                                                     exit (EXIT_FAILURE);
                                                 }
                                                 // print debug info
-                                                if(debug>=3) {std::cout << "mnchi2parallel: debugging: setting constraint variable " << sVar << " = " << dVar << std::endl;}
+                                                if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": debugging: setting constraint variable " << sVar << " = " << dVar << std::endl;}
                                             }
                                         }
                                         TempVariableValues.push_back(dVar);
@@ -846,7 +848,7 @@ void *mnchi2parallel(void *params)
                                     //
                                     // Now we set MPACK->constrain().
                                     //
-                                    if(debug>=3) {std::cout << "mnchi2parallel: Setting MPACK->constrain()" << std::endl;}
+                                    if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Setting MPACK->constrain()" << std::endl;}
                                     MPACK->constrain(TempConstraint->toLIB, TempConstraint->fromEquation, TempConstraint->fromVariable, TempVariableValues);
                                 }
                             }
@@ -861,7 +863,7 @@ void *mnchi2parallel(void *params)
                                    TempConstraint->toPAR==-1 )
                                 {//
                                     // print debug info
-                                    if(debug>=3) {std::cout << "mnchi2parallel: Setting constraint on LIB" << TempConstraint->toLIB << " normalization ... (old method)" << std::endl;}
+                                    if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Setting constraint on LIB" << TempConstraint->toLIB << " normalization ... (old method)" << std::endl;}
                                     //
                                     // set constraint: LIB5 NORM EQ SED LIR(8,1000), i.e., fixing the normalization of LIB5 to the vLv(8,1000), i.e., qIR=250
                                     // -- NOTE vLv is not INT! vLv is the integration of \int x*SED dx, but INT is just the integration of \int SED dx.
@@ -878,7 +880,7 @@ void *mnchi2parallel(void *params)
                                         LibIntegratedTotal += LibIntegrated[iLib];
                                         //<DEBUG><20171001>
                                         if(debug>=4) {
-                                            std::cout << "mnchi2parallel: debugging: calculating integral: LIB" << iLib+1 << " INT(" <<TempConstraint->fromLowerX << "," << TempConstraint->fromUpperX << ") = " << LibIntegrated[iLib] << std::endl;
+                                            std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": debugging: calculating integral: LIB" << iLib+1 << " INT(" <<TempConstraint->fromLowerX << "," << TempConstraint->fromUpperX << ") = " << LibIntegrated[iLib] << std::endl;
                                         }
                                     }
                                     //
@@ -915,7 +917,7 @@ void *mnchi2parallel(void *params)
                                         }
                                     }
                                     //
-                                    if(debug>=3) {std::cout << "mnchi2parallel: Setting MPACK->constrain()" << std::endl;}
+                                    if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Setting MPACK->constrain()" << std::endl;}
                                     MPACK->constrain(TempConstraint->toLIB, LibConstrainNumbers, LibConstrainFactors);
                                     //
                                     break;
@@ -924,7 +926,7 @@ void *mnchi2parallel(void *params)
                         }
                     }
                     //
-                    if(debug>=3) {std::cout << "mnchi2parallel: Calling MPACK->fit()" << std::endl;}
+                    if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Calling MPACK->fit()" << std::endl;}
                     //
                     MPACK->fit();
                     //
@@ -946,16 +948,16 @@ void *mnchi2parallel(void *params)
                     delete MPACK; MPACK = NULL;
                     pStream << std::endl;
                     pStrings[pParams->idOBS] += pStream.str();
-                    if(debug>=3) {std::cout << "mnchi2parallel: Done MPACK" << pStream.str();
+                    if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Done MPACK" << pStream.str();
                         std::cout << std::endl;}
                 }
             } else {
                 // failed to pass the constraint check
-                if(debug>=3) {std::cout << "mnchi2parallel: Did not pass the second constraint check!" << std::endl;}
+                if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Did not pass the second constraint check!" << std::endl;}
             }
         } else {
             // failed to pass the constraint check
-            if(debug>=3) {std::cout << "mnchi2parallel: Did not pass the constraint check!" << std::endl;}
+            if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Did not pass the constraint check!" << std::endl;}
         }
         //
         // compute the rounding of each LIB index idLIBList[iLib] and goto next loop
@@ -1000,7 +1002,7 @@ void *mnchi2parallel(void *params)
                 //pParams->SDOUTList.at(iObs)->close();
             }
             std::cout << std::endl;
-            pthread_cond_signal(&mnchi2parallelCondition); // send finish signal
+            //pthread_cond_signal(&mnchi2parallelCondition); // send finish signal //<20180116><DZLIU> I do the subprocess waiting by my self, using the number 'mnchi2parallelProgress', so I do not need this cond_wait().
             break;
             // pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex
             // delete SDLIB1; delete SDLIB2; delete SDLIB3; delete SDLIB4; return(NULL);
@@ -1013,12 +1015,23 @@ void *mnchi2parallel(void *params)
         pthread_mutex_unlock(&mnchi2parallelMutex);
         std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now unlocked!" << std::endl;
         // sleep
-        sleep(4 + rand() % 10);
+        int random_sleep_seconds = rand() % 10;
+        std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": sleeping for " << 5 + random_sleep_seconds << " seconds ..." << std::endl;
+        sleep(5 + random_sleep_seconds);
     }
+    //
+    // lock mutex
+    pthread_mutex_lock(&mnchi2parallelMutex);
+    //
     // update mnchi2parallelProgress
+    //<20180116> now lock mutex when modify it!
     //mnchi2parallelProgress = pParams->i; // <BUG><20180116><DZLIU>
     mnchi2parallelProgress = pParams->iEnd+1; // <FIX><20180116><DZLIU>
     std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now finished! ready to check next subprocess " << mnchi2parallelProgress << std::endl;
+    //
+    // unlock mutex
+    pthread_mutex_unlock(&mnchi2parallelMutex);
+    //
     // return
     return(NULL);
 }
