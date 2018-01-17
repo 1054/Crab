@@ -1003,21 +1003,22 @@ void *mnchi2parallel(void *params)
             }
             std::cout << std::endl;
             //pthread_cond_signal(&mnchi2parallelCondition); // send finish signal //<20180116><DZLIU> I do the subprocess waiting by my self, using the number 'mnchi2parallelProgress', so I do not need this cond_wait().
+            // unlock mutex
+            pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex // <BUG><20180116><DZLIU>: must unlock before break!!
             break;
-            // pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex
-            // delete SDLIB1; delete SDLIB2; delete SDLIB3; delete SDLIB4; return(NULL);
         } else {
             // wait while other earlier threads to write result file
             //pthread_cond_wait(&mnchi2parallelCondition, &mnchi2parallelMutex); //<20180116><DZLIU> I do the subprocess waiting by my self, using the number 'mnchi2parallelProgress', so I do not need this cond_wait().
             std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now still waiting for subprocess " << mnchi2parallelProgress << std::endl;
+            // unlock mutex
+            pthread_mutex_unlock(&mnchi2parallelMutex);
+            std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now unlocked!" << std::endl;
+            // sleep
+            int random_sleep_seconds = rand() % 10;
+            std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": sleeping for " << 5 + random_sleep_seconds << " seconds ..." << std::endl;
+            sleep(5 + random_sleep_seconds);
+            continue;
         }
-        // unlock mutex
-        pthread_mutex_unlock(&mnchi2parallelMutex);
-        std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now unlocked!" << std::endl;
-        // sleep
-        int random_sleep_seconds = rand() % 10;
-        std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": sleeping for " << 5 + random_sleep_seconds << " seconds ..." << std::endl;
-        sleep(5 + random_sleep_seconds);
     }
     //
     // lock mutex
