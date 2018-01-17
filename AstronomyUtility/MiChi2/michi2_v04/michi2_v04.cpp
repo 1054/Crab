@@ -611,7 +611,7 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
     std::cout << std::endl;
     // wait for all threads
     // and print progress
-    while(mnchi2parallelProgress<NumbObs*NumbLibMulti) {
+    while(mnchi2parallelProgress <= NumbObs*NumbLibMulti) {
         std::cout << "[" << mnchi2parallelProgress << "/" << NumbObs*NumbLibMulti << "]"; //<20180116>
         // print progress
         for(long ip=0; ip<mnchi2parallelParams.size(); ip++) {
@@ -624,15 +624,21 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
             }
         }
         std::cout<< std::endl;
-        sleep(3);
+        if(mnchi2parallelProgress >= NumbObs*NumbLibMulti) {
+            break;
+        } else {
+            sleep(4 + rand() % 4); // sleep for 4 to 8 seconds
+            continue;
+        }
     }
+    // all threads finished
+    // print progress of 100%
+    ndigits = (int)log10((double)(mnchi2parallelParams[0]->iEnd+1)) + 1;
+    std::cout << std::setw(4+ndigits) << std::right << "100%" << "||" << std::endl; //<20180116>
     // clean
     for(long ip=0; ip<mnchi2parallelParams.size(); ip++) {
         delete mnchi2parallelParams[ip]; mnchi2parallelParams[ip]=NULL;
     }
-    //
-    ndigits = (int)log10((double)(mnchi2parallelParams[0]->iEnd+1)) + 1;
-    std::cout << std::setw(4+ndigits) << std::right << "100%" << "||" << std::endl; //<20180116>
 }
 
 void *mnchi2parallel(void *params)
@@ -1001,7 +1007,7 @@ void *mnchi2parallel(void *params)
                 //<TODO><DELETE>// if(1) {std::cout << "DEBUG: pStrings[iObs]" << pStrings[iObs] << std::endl;}
                 //pParams->SDOUTList.at(iObs)->close();
             }
-            std::cout << std::endl;
+            //std::cout << std::endl;
             //pthread_cond_signal(&mnchi2parallelCondition); // send finish signal //<20180116><DZLIU> I do the subprocess waiting by my self, using the number 'mnchi2parallelProgress', so I do not need this cond_wait().
             // unlock mutex
             pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex // <BUG><20180116><DZLIU>: must unlock before break!!
