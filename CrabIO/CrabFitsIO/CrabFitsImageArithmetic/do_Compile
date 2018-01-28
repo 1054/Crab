@@ -5,6 +5,7 @@
 if [[ $(uname) == "Darwin" ]]; then
     clang++ -I/usr/include/malloc/ ../CrabFitsIO.cpp main.cpp -o CrabFitsImageArithmetic_mac
     #cp -i CrabFitsImageArithmetic_mac ~/Cloud/Github/DeepFields.SuperDeblending/Softwares/ds9_mac/
+    #cp -i CrabFitsImageArithmetic_mac ~/Cloud/Github/AlmaCosmos/Softwares/ds9_mac/
 fi
 
 if [[ $(uname) == "Linux" ]]; then

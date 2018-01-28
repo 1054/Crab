@@ -372,10 +372,52 @@ int main(int argc, char **argv)
                         } /* 20170720 also remove NAXIS1 and NAXIS2 in the mainHeader */
                         if(0==strncmp(tempHeader,"BITPIX  =",9)){
                             for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
-                        }
+                        } /* 20170720 also remove BITPIX in the mainHeader */
                         if(0==strncmp(tempHeader,"END      ",9)){
                             for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
-                        }
+                        } /* 20170720 also remove END mark in the mainHeader */
+                        if(0==strncmp(tempHeader,"CTYPE1  =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CTYPE1 in the mainHeader */
+                        if(0==strncmp(tempHeader,"CTYPE2  =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CTYPE2 in the mainHeader */
+                        if(0==strncmp(tempHeader,"CRVAL1  =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CRVAL1 in the mainHeader */
+                        if(0==strncmp(tempHeader,"CRVAL2  =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CRVAL2 in the mainHeader */
+                        if(0==strncmp(tempHeader,"CRPIX1  =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CRPIX1 in the mainHeader */
+                        if(0==strncmp(tempHeader,"CRPIX2  =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CRPIX2 in the mainHeader */
+                        if(0==strncmp(tempHeader,"CDELT1  =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CDELT1 in the mainHeader */
+                        if(0==strncmp(tempHeader,"CDELT2  =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CDELT2 in the mainHeader */
+                        if(0==strncmp(tempHeader,"CROTA1  =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CROTA1 in the mainHeader */
+                        if(0==strncmp(tempHeader,"CROTA2  =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CROTA2 in the mainHeader */
+                        if(0==strncmp(tempHeader,"CD1_1   =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CD1_1 in the mainHeader */
+                        if(0==strncmp(tempHeader,"CD2_2   =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CD2_2 in the mainHeader */
+                        if(0==strncmp(tempHeader,"CD1_2   =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CD1_2 in the mainHeader */
+                        if(0==strncmp(tempHeader,"CD2_1   =",9)){
+                            for(int tempCounter=0; tempCounter<80; tempCounter++){strncpy(tempHeader+tempCounter," ",1);} continue;
+                        } /* 20180128 also remove CD2_1 in the mainHeader */
                         tempHeader++;
                     }
                     tempHeader = cstrHeader; // pointer to the cstrHeader
