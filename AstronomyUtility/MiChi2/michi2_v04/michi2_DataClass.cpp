@@ -36,7 +36,7 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
         if(!StTEMP.empty()) { StNVAR.push_back(StTEMP); InNVAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         //
     }
-    for(int i=1; i<=6; i++) { // <TODO><LIMIT> Support only <= 6 Parameters
+    for(int i=1; i<=16; i++) { // <TODO><LIMIT> Support only <= 16 Parameters <20180131> 6 --> 16
         if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# CPAR" << i << std::flush;}
         StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# CPAR",i,""));
         if(verbose>=3) {std::cout << ": " << StTEMP << std::endl;}
