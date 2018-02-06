@@ -598,8 +598,8 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
     // and print progress
     int ndigits = 0;
     //std::cout << std::setw(8) << std::right << mnchi2parallelProgress << "||";
+    std::cout << "[" << mnchi2parallelProgress << "/" << NumbObs*NumbLibMulti << "]"; //<20180130> //<20180206>
     for(long ip=0; ip<mnchi2parallelParams.size(); ip++) {
-        std::cout << "[" << mnchi2parallelProgress << "/" << NumbObs*NumbLibMulti << "]"; //<20180130>
         // print progress first line
         ndigits = (int)log10((double)(mnchi2parallelParams[ip]->iEnd+1)) + 1;
         //std::cout << std::setw(15) << std::right << mnchi2parallelParams[ip]->iBegin << "|" << mnchi2parallelParams[ip]->nObs*mnchi2parallelParams[ip]->nRow << "|"; //<20180116>
