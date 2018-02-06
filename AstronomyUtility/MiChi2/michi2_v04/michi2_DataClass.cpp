@@ -79,8 +79,11 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
         if(verbose>=1) {
             std::cout << "michi2DataClass: We will take column " << InCVAR[0] << " as X, column " << InCVAR[1] << " as Y, and column " << InCVAR[1]+1 << " as YErr if possible, from the file " << InputFile << std::endl;
         }
+        if(verbose>=2) { std::cout << "michi2DataClass: Reading column " << InCVAR[0] << std::endl; }
         this->XStr = CrabTableReadColumn(InputFile,InCVAR[0]);
+        if(verbose>=2) { std::cout << "michi2DataClass: Reading column " << InCVAR[1] << std::endl; }
         this->YStr = CrabTableReadColumn(InputFile,InCVAR[1]);
+        if(verbose>=2) { std::cout << "michi2DataClass: Reading column " << InCVAR[1]+1 << std::endl; }
         this->YErrStr = CrabTableReadColumn(InputFile,InCVAR[1]+1);
         if(this->XStr.empty()||this->YStr.empty()) { std::cout << "michi2DataClass: Error! Could not determine NVAR1 and NVAR2 from " << InputFile << "!" << std::endl; return; }
         this->X = michi2stod(this->XStr);

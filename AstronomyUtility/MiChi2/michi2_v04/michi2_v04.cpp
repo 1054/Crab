@@ -407,7 +407,7 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
     for(int i=0; i<InputObsList.size(); i++) {
         michi2DataClass *SDOBS = new michi2DataClass(InputObsList.at(i).c_str(), DebugLevel);
         if(InputFilterCurveList.size()>i) {
-            //std::cout << "Debug: InputFilterCurveList.at(" << i << ") = " << InputFilterCurveList.at(i) << std::endl;
+            if(DebugLevel>=2) { std::cout << "mnchi2: Reading InputFilterCurveList.at(" << i << ") = " << InputFilterCurveList.at(i) << " (TODO: time consuming...)" << std::endl; } // <TODO> 2018-02-06
             SDOBS->readFilterCurveListFile(InputFilterCurveList.at(i).c_str());
         }
         SDOBSList.push_back(SDOBS);
@@ -481,6 +481,7 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
         // and if current process is the last process, set the step to be exactly the number of loops left.
         if((iLoop+iStep)>NumbObs*NumbLibMulti) {iStep=NumbObs*NumbLibMulti-iLoop;}
         //std::cout << "looping " << iLoop+1 << "-" << iLoop+iStep-1+1 << " / " << NumbLibMulti << "   ";
+        if(DebugLevel>=2) { std::cout << "mnchi2: Creating new struct mnchi2parallelParams" << std::endl; }
         struct mnchi2parallelParams *pParams = new struct mnchi2parallelParams;
         //<TODO><DELETE>// pParams->i0=0;
         //<TODO><DELETE>// for(long iLib=0; iLib<NumbLib; iLib++) {pParams->iList[iLib]=0;}
@@ -494,6 +495,7 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
         //pParams->SDLIBList = SDLIBList;
         pParams->SDLIBList.clear();
         for(int i=0; i<InputLibList.size(); i++) {
+            if(DebugLevel>=2) { std::cout << "mnchi2: Reading SDLIB " << i+1 << " into mnchi2parallelParams->SDLIBList" << std::endl; }
             michi2DataClass *SDLIB = new michi2DataClass(InputLibList.at(i).c_str(), DebugLevel);
             pParams->SDLIBList.push_back(SDLIB);
         }
@@ -592,7 +594,9 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
         // sleep for a few seconds to allow the subprocess to be created.
         //if(i1>=500) {sleep(60);} else {sleep(2);}
         //sleep(5);// before 20180114
-        sleep(3);
+        //sleep(3);// before 20180206
+        if(DebugLevel>=2) { std::cout << "mnchi2: Sleeping for 200ms" << std::endl; }
+        usleep(200);
     }
     // show initial info for all threads
     // and print progress
@@ -628,7 +632,9 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
         if(mnchi2parallelProgress >= NumbObs*NumbLibMulti) {
             break;
         } else {
-            sleep(4 + rand() % 4); // sleep for 4 to 8 seconds
+            int random_sleep_seconds = log10(NumbObs*NumbLibMulti) + rand() % (int)(log10(NumbObs*NumbLibMulti)+1);
+            if(DebugLevel>=2) { std::cout << "mnchi2: Sleeping for " << random_sleep_seconds << " seconds" << std::endl; }
+            sleep(random_sleep_seconds); // sleep for 4 to 8 seconds
             continue;
         }
     }
@@ -1021,9 +1027,9 @@ void *mnchi2parallel(void *params)
             pthread_mutex_unlock(&mnchi2parallelMutex);
             std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now unlocked!" << std::endl;
             // sleep
-            int random_sleep_seconds = rand() % 10;
-            std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": sleeping for " << 5 + random_sleep_seconds << " seconds ..." << std::endl;
-            sleep(5 + random_sleep_seconds);
+            int random_sleep_seconds = (int)(sqrt(NumbParallel)) + rand() % (int)(NumbParallel/2+1);
+            std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": sleeping for " << random_sleep_seconds << " seconds ..." << std::endl;
+            sleep(random_sleep_seconds); // sleep for a few seconds (depending on NumbParallel) while waiting for other unfinished processes.
             continue;
         }
     }

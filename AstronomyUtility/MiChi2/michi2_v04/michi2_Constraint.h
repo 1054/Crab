@@ -41,8 +41,9 @@ public:
     double fromAddition; double toAddition; // the value to add to from/to data (after multiplication).
     double fromLowerX; double toLowerX; // the affected X range of from/to data.
     double fromUpperX; double toUpperX; // the affected X range of from/to data.
-    std::string fromEquation, toEquation;
-    std::vector<std::string> fromVariable, toVariable;
+    std::string fromEquation, toEquation; // we can input equation as the contraint
+    std::vector<std::string> fromVariable, toVariable; // when inputting equation as the constraint, we need to extract the variables
+    std::vector<double> fromListOfValues, toListOfValues; // we can also use a list of values as the constraint
     int OperatorType; std::string OperatorTypeStr; // OperatorType: 0 "="; 1 ">="; -1 "<="; 2 ">"; -2 "<";
     // for example
     // 1 1 -1 2 1 means lib1 par1 <= lib2 par1, which is the case for LVG two component fitting, first component should have colder temperature.

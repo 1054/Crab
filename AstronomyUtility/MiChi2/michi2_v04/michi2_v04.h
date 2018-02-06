@@ -7,7 +7,7 @@
 //#include <math.h>
 #include <cmath>        // std::nan, std::isnan
 #include <pthread.h>
-#include <unistd.h>
+#include <unistd.h>     // usleep
 #include <vector>
 #include <string>
 #include <iostream>     // std::cout, std::endl

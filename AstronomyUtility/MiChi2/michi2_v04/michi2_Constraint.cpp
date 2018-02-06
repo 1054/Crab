@@ -41,6 +41,7 @@ void michi2Constraint::clear() {
     fromAddition=std::nan(""); toAddition=std::nan(""); // the value to add to from/to data (after multiplication).
     fromLowerX=0; toLowerX=0; // the affected X range of from/to data.
     fromUpperX=0; toUpperX=0; // the affected X range of from/to data.
+    fromListOfValues.clear(); toListOfValues.clear();
     OperatorType=0; OperatorTypeStr=""; // OperatorType: 0 "="; 1 ">="; -1 "<="; 2 ">"; -2 "<";
     // for example
     // 1 1 -1 2 1 means lib1 par1 <= lib2 par1, which is the case for LVG two component fitting, first component should have colder temperature.
@@ -286,8 +287,13 @@ int michi2Constraint::parse(std::vector<std::string> input_args, int verbose) {
             // This means the constraint uses VALUE instead of PARAMETER of the target LIB
             // e.g. LIB2 PAR2 EQ VALUE 3.0
             //
-            if(j==5) {this->fromAddition = std::stod(TempConstraintStr); this->fromPAR = -99; }
-            else if(j==2) {this->toAddition = std::stod(TempConstraintStr); this->toPAR = -99; }
+            //if(j==5) {this->fromAddition = std::stod(TempConstraintStr); this->fromPAR = -99; this->fromListOfValues = extractStringDouble(TempConstraintStr); }
+            //else if(j==2) {this->toAddition = std::stod(TempConstraintStr); this->toPAR = -99; this->toListOfValues = extractStringDouble(TempConstraintStr); }
+            //
+            // 2018-02-06
+            // Allow to set a list of constant values, separated by comma
+            if(j==5) {this->fromAddition = std::stod(TempConstraintStr); this->fromPAR = -99; this->fromListOfValues = extractStringDouble(TempConstraintStr); }
+            else if(j==2) {this->toAddition = std::stod(TempConstraintStr); this->toPAR = -99; this->toListOfValues = extractStringDouble(TempConstraintStr); }
             
         } else if( (std::string::npos!=TempConstraintStr.find_first_of("0123456789")) ) {
             //
@@ -484,14 +490,22 @@ int michi2Constraint::parse(std::vector<std::string> input_args, int verbose) {
             } else {
                 std::cout << "PAR" << this->fromPAR;
             }
-            if(!std::isnan(this->fromMathPower)) {
-                std::cout << "^" << this->fromMathPower;
-            }
-            if(!std::isnan(this->fromMultiplication)) {
-                std::cout << "*" << this->fromMultiplication;
-            }
-            if(!std::isnan(this->fromAddition)) {
-                std::cout << std::showpos << this->fromAddition << std::noshowpos;
+            if(this->fromListOfValues.size()>0) {
+                // 2018-02-06 allow to set a list of constant values which will be applied as the constraints in OR operation.
+                for (int ick = 0; ick < this->fromListOfValues.size(); ick++) {
+                    if(ick > 0) {std::cout << ",";}
+                    std::cout << this->fromListOfValues[ick];
+                }
+            } else {
+                if(!std::isnan(this->fromMathPower)) {
+                    std::cout << "^" << this->fromMathPower;
+                }
+                if(!std::isnan(this->fromMultiplication)) {
+                    std::cout << "*" << this->fromMultiplication;
+                }
+                if(!std::isnan(this->fromAddition)) {
+                    std::cout << std::showpos << this->fromAddition << std::noshowpos;
+                }
             }
         }
         //
@@ -554,8 +568,8 @@ bool michi2Constraint::check(struct mnchi2parallelParams * pParams, std::vector<
         //
         // 2018-01-10: do not allow any ^ */ +- operation on INDEX
         //
-        double TempINDEX1 = pParams->idLIBList.at(TempConstraint->toLIB-1);
-        double TempINDEX2 = pParams->idLIBList.at(TempConstraint->fromLIB-1);
+        long TempINDEX1 = pParams->idLIBList.at(TempConstraint->toLIB-1); // the INDEX being constrained
+        long TempINDEX2 = pParams->idLIBList.at(TempConstraint->fromLIB-1); // the INDEX to apply the constraint with
         if(debug>=1) {
             std::cout << "michi2Constraint::check: Setting constraint: LIB" << TempConstraint->toLIB << " INDEX (" << TempINDEX1 << ") EQ LIB" << TempConstraint->fromLIB << " INDEX (" << TempINDEX2 <<  ")";
         }
@@ -573,6 +587,39 @@ bool michi2Constraint::check(struct mnchi2parallelParams * pParams, std::vector<
         if(debug>=1) {
             std::cout << " OK? " << ConstraintOK << std::endl;
         }
+    } else if( pParams && TempConstraint->fromLIB==-2 && TempConstraint->toLIB>0 && TempConstraint->fromPAR==-99 && TempConstraint->toPAR==0 ) {
+        // 2018-01-10
+        // set constraint: toLIB.INDEX \Operator\ VALUE.fromAdd
+        //           e.g., LIB4  INDEX  LT        VALUE 1
+        //
+        // 2018-02-06: if the fromLIB==-2 and fromPAR==-99, then constrain toLIB.INDEX by the input constant values TempConstraint->fromListOfValues.
+        // 2018-02-06: we now allow to set a list of values as the constraints with the OR operation
+        //             as long as the PAR being constrained equals one of the value in the list, the constraint is passed.
+        //
+        long TempINDEX1 = pParams->idLIBList.at(TempConstraint->toLIB-1); // the INDEX being constrained
+        for (int ick = 0; ick < TempConstraint->fromListOfValues.size(); ick++) {
+            long TempINDEX2 = (long)(TempConstraint->fromListOfValues[ick]); // the value to apply the constraint with, note that the LIB INDEX starts from 0 and increases by 1
+            if(debug>=1) {
+                std::cout << "michi2Constraint::check: Setting constraint: LIB" << TempConstraint->toLIB << " INDEX" << " (" << TempINDEX1 << ") " << TempConstraint->OperatorTypeStr << " VALUE (" << TempINDEX2 <<  ")";
+            }
+            if(TempConstraint->OperatorType == 0) {
+                ConstraintOK = (TempINDEX1 == TempINDEX2); // set constraint: toLIB.INDEX EQ VALUE.fromListOfValues[ick]
+            } else if(TempConstraint->OperatorType == 1) {
+                ConstraintOK = (TempINDEX1 >= TempINDEX2); // set constraint: toLIB.INDEX GE VALUE.fromListOfValues[ick]
+            } else if(TempConstraint->OperatorType == -1) {
+                ConstraintOK = (TempINDEX1 <= TempINDEX2); // set constraint: toLIB.INDEX LE VALUE.fromListOfValues[ick]
+            } else if(TempConstraint->OperatorType == 2) {
+                ConstraintOK = (TempINDEX1 > TempINDEX2); // set constraint: toLIB.INDEX GT VALUE.fromListOfValues[ick]
+            } else if(TempConstraint->OperatorType == -2) {
+                ConstraintOK = (TempINDEX1 < TempINDEX2); // set constraint: toLIB.INDEX LT VALUE.fromListOfValues[ick]
+            }
+            if(debug>=1) {
+                std::cout << " OK? " << ConstraintOK << std::endl;
+            }
+            if(ConstraintOK) {
+                break;
+            }
+        }
     } else if( SDLIBS.size()>0 && TempConstraint->fromLIB==-2 && TempConstraint->toLIB>0 && TempConstraint->fromPAR==-99 && TempConstraint->toPAR>0 ) {
         // 2018-01-10
         // set constraint: toLIB.toPAR \Operator\ VALUE.fromAdd
@@ -581,7 +628,7 @@ bool michi2Constraint::check(struct mnchi2parallelParams * pParams, std::vector<
         //
         // 2018-01-10: if the fromLIB==-2 and fromPAR==-99, then constrain toLIB.toPAR by the input constant value TempConstraint->fromAddition.
         //
-        double TempPAR1 = SDLIBS[TempConstraint->toLIB-1]->FPAR[TempConstraint->toPAR-1][0];
+        double TempPAR1 = SDLIBS[TempConstraint->toLIB-1]->FPAR[TempConstraint->toPAR-1][0]; // the PAR being constrained
         double TempVALUE2 = TempConstraint->fromAddition;
         if(debug>=1) {
             std::cout << "michi2Constraint::check: Setting constraint: LIB" << TempConstraint->toLIB << " PAR" << TempConstraint->toPAR << " (" << TempPAR1 << ") " << TempConstraint->OperatorTypeStr << " VALUE (" << TempVALUE2 <<  ")";
