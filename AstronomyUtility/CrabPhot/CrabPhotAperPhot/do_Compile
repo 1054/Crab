@@ -7,3 +7,10 @@ else
     g++ CrabFitsIO.cpp CrabImage.cpp main.cpp -o CrabPhotAperPhot_linux_x86_64
 fi
 
+
+
+#cp CrabPhotAperPhot_mac ~/Cloud/Github/DeepFields.SuperDeblending/Softwares/ds9_mac/CrabPhotAperPhot_mac
+#cp CrabPhotAperPhot_mac ~/Cloud/Github/AlmaCosmos/Softwares/ds9_mac/CrabPhotAperPhot_mac
+#cp CrabPhotAperPhot_mac ~/Cloud/Github/SpireLines/Softwares/ds9_mac/CrabPhotAperPhot_mac
+#cp CrabPhotAperPhot_mac ~/Cloud/Github/Crab.Toolkit.PdBI/bin/bin_mac/CrabPhotAperPhot_mac
+

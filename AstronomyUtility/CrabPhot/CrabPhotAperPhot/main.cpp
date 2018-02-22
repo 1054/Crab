@@ -33,6 +33,7 @@
      2017-02-28 set arg -header-no-comment as the default choice. Use strncasecmp instead of strncmp. Added #include <clocale>.
      2017-03-04 set arg -header-in-comment as the default choice.
      2017-05-08 allow fits name containing fits image extension number, e.g. aaa.fits[2]
+     2018-02-22 report the number of NaN pixels within the aperture
  
  
  
@@ -58,7 +59,8 @@
 //#define DEF_Version "2017-02-28"
 //#define DEF_Version "2017-03-04"
 //#define DEF_Version "2017-05-08"
-#define DEF_Version "2017-09-23"
+//#define DEF_Version "2017-09-23"
+#define DEF_Version "2018-02-22"
 
 using namespace std;
 
@@ -186,7 +188,7 @@ int main(int argc, char **argv)
             // before loop print the column header
             if(intHeaderComment>0) {
                 // if intHeaderComment==1 we use commented two line header, if 0 we use uncommented single line header
-                std::cout << "# " << std::endl;
+                std::cout << "# " << std::endl; // always print a separate line
                 std::cout << "#"
                           << setw(11) << "x"
                           << setw(12) << "y"
@@ -210,12 +212,13 @@ int main(int argc, char **argv)
                           << setw(13) << "stddev_int"
                           << setw(13) << "rms_int"
                           << setw(13) << "sumabs_int"
+                          << setw(13) << "npix_nan"
                           << std::flush;
                 std::cout << std::endl;
                 std::cout << "# " << std::endl;
             } else {
                 // if intHeaderComment==1 we use commented two line header, if 0 we use uncommented single line header
-                std::cout << "# " << std::endl;
+                std::cout << "# " << std::endl; // always print a separate line
                 std::cout << setw(12) << "x"
                           << setw(12) << "y"
                           << setw(12) << "radius"
@@ -238,6 +241,7 @@ int main(int argc, char **argv)
                           << setw(13) << "stddev_int"
                           << setw(13) << "rms_int"
                           << setw(13) << "sumabs_int"
+                          << setw(13) << "npix_nan"
                           << std::flush;
                 std::cout << std::endl;
             }
@@ -283,6 +287,7 @@ int main(int argc, char **argv)
                 double *aperMask1 = (double *)malloc(aperLength*aperLength*sizeof(double)); // mask of pix in aperture circle 1 (0 means out, 1 means in, fractional means at the edge)
                 double  aperSumM1 = 0.0; // sum pix numb in aperture circle 1 (no fractional part)
                 double  aperSumN1 = 0.0; // sum pix numb in aperture circle 1
+                long    aperSumNaN = 0; // sum NaN pix numb in aperture circle 1, added since 2018-02-22
                 double  aperSumS1 = 0.0; // sum pix flux in aperture circle 1 (no fractional part)
                 double  aperSumF1 = 0.0; // sum pix flux in aperture circle 1
                 double  aperRmsS1 = 0.0; // root-mean-square (abbreviated "RMS" and sometimes called the quadratic mean (no fractional part)
@@ -302,47 +307,55 @@ int main(int argc, char **argv)
                 double  aperMinS1 = NAN; // min pix flux in aperture circle 1 (no fractional part)
                 double  aperMinF1 = NAN; // min pix flux in aperture circle 1
                 for(long tempK=0; tempK<aperLength*aperLength; tempK++) {
-                    aperImaRU[tempK] = NAN;
+                    //
+                    // prepare to store aperture pixel values
+                    aperImaRU[tempK] = NAN; // no fractional pixels
                     aperImaRV[tempK] = NAN;
-                    if(aperImage[tempK]==aperImage[tempK]) { // <TODO> check non NAN
-                        aperImaRX[tempK] = (double(tempK % aperLength)) - (double(aperRadius)) - (double(aperX[aperK])-long(aperX[aperK])); // convert global coordinate to small image cut coordinate, center is aperX,aperY. <corrected><20150220><dzliu> fractional difference
-                        aperImaRY[tempK] = (double(tempK / aperLength)) - (double(aperRadius)) - (double(aperY[aperK])-long(aperY[aperK])); // convert global coordinate to small image cut coordinate, center is aperX,aperY. <corrected><20150220><dzliu> fractional difference
-                        aperImaRD[tempK] = sqrt(aperImaRX[tempK]*aperImaRX[tempK] + aperImaRY[tempK]*aperImaRY[tempK]);
-                        // <modified><20160430><dzliu> elliptic
-                        // double tempDIST = aperImaRD[tempK]-aperR[aperK]; // circular radius
-                        double tempDIST = 0.0; // the distance difference between aperture and current pixel along a same line of sight from center 0,0
-                        double tempTANG = 0.0; // the angle of current pixel line of sight from center 0,0 in degree, against +X axis, compared to the ds9 rotate angle aperT[aperK] (against +X axis as well <TODO>).
-                        if(aperImaRX[tempK]!=0.0) {
-                            if(aperImaRY[tempK]>=0.0) {
-                                tempTANG = atan(aperImaRY[tempK]/aperImaRX[tempK])*180.0/3.14159265;
-                            } else {
-                                tempTANG = atan(aperImaRY[tempK]/aperImaRX[tempK])*180.0/3.14159265+180.0;
-                            }
+                    //
+                    // compute the distance of each pixel to the aperture center position with the aperture radius
+                    aperImaRX[tempK] = (double(tempK % aperLength)) - (double(aperRadius)) - (double(aperX[aperK])-long(aperX[aperK])); // convert global coordinate to small image cut coordinate, center is aperX,aperY. <corrected><20150220><dzliu> fractional difference
+                    aperImaRY[tempK] = (double(tempK / aperLength)) - (double(aperRadius)) - (double(aperY[aperK])-long(aperY[aperK])); // convert global coordinate to small image cut coordinate, center is aperX,aperY. <corrected><20150220><dzliu> fractional difference
+                    aperImaRD[tempK] = sqrt(aperImaRX[tempK]*aperImaRX[tempK] + aperImaRY[tempK]*aperImaRY[tempK]);
+                    // <modified><20160430><dzliu> elliptic
+                    // double tempDIST = aperImaRD[tempK]-aperR[aperK]; // circular radius
+                    double tempDIST = 0.0; // the distance difference between aperture and current pixel along a same line of sight from center 0,0
+                    double tempTANG = 0.0; // the angle of current pixel line of sight from center 0,0 in degree, against +X axis, compared to the ds9 rotate angle aperT[aperK] (against +X axis as well <TODO>).
+                    if(aperImaRX[tempK]!=0.0) {
+                        if(aperImaRY[tempK]>=0.0) {
+                            tempTANG = atan(aperImaRY[tempK]/aperImaRX[tempK])*180.0/3.14159265;
                         } else {
-                            if(aperImaRY[tempK]==0.0) {
-                                tempTANG = 1999;
+                            tempTANG = atan(aperImaRY[tempK]/aperImaRX[tempK])*180.0/3.14159265+180.0;
+                        }
+                    } else {
+                        if(aperImaRY[tempK]==0.0) {
+                            tempTANG = 1999;
+                        } else {
+                            if(aperImaRY[tempK]>0.0) {
+                                tempTANG = 90.0;
                             } else {
-                                if(aperImaRY[tempK]>0.0) {
-                                    tempTANG = 90.0;
-                                } else {
-                                    tempTANG = 90.0+180.0;
-                                }
+                                tempTANG = 90.0+180.0;
                             }
                         }
-                        if(tempTANG>1000) { // this is exactly the center pixel
-                            tempDIST = 999;
-                        } else {
-                            tempTANG = tempTANG - aperT[aperK]; // <TODO> what if one use Position Angle PA that againsts +Y axis?
-                            tempDIST = sqrt(pow(aperR[aperK]*cos(tempTANG/180.0*3.14159265),2)+pow(aperR[aperK]*aperE[aperK]*sin(tempTANG/180.0*3.14159265),2));
-                        }
-                        //<DEBUG> std::cout << "# DEBUG" << std::endl;
-                        //<DEBUG> std::cout << setw(12) << tempTANG << setw(12) << tempDIST << std::endl;
-                        //<DEBUG> std::cout << "# DEBUG" << std::endl;
-                        //<DEBUG> 20160430 elliptic shape has no problem.
-
-                        tempDIST = aperImaRD[tempK] - tempDIST; // then compute the distance difference between current pixel and aperture border pixel, if positive then means current pixel is out of the aperture
-
-                        if(tempDIST<=0.0) { // (sum ignoring fractional part)
+                    }
+                    if(tempTANG>1000) { // this is exactly the center pixel
+                        tempDIST = 999;
+                    } else {
+                        tempTANG = tempTANG - aperT[aperK]; // <TODO> what if one use Position Angle PA that againsts +Y axis?
+                        tempDIST = sqrt(pow(aperR[aperK]*cos(tempTANG/180.0*3.14159265),2)+pow(aperR[aperK]*aperE[aperK]*sin(tempTANG/180.0*3.14159265),2));
+                    }
+                    //<DEBUG> std::cout << "# DEBUG" << std::endl;
+                    //<DEBUG> std::cout << setw(12) << tempTANG << setw(12) << tempDIST << std::endl;
+                    //<DEBUG> std::cout << "# DEBUG" << std::endl;
+                    //<DEBUG> 20160430 elliptic shape has no problem.
+                    
+                    tempDIST = aperImaRD[tempK] - tempDIST; // then compute the distance difference between current pixel and aperture border pixel, if positive then means current pixel is out of the aperture
+                    
+                    
+                    
+                    // sum pixels ignoring fractional part
+                    if(tempDIST<=0.0) {
+                        // <TODO> sum only non NAN pixels
+                        if(aperImage[tempK]==aperImage[tempK]) {
                             aperImaRU[tempK] = aperImage[tempK];
                             aperSumS1 += aperImage[tempK];
                             aperSabS1 += std::abs(aperImage[tempK]);
@@ -352,9 +365,18 @@ int main(int argc, char **argv)
                             // <debug><20150220><dzliu> std::cout << setw(10) << aperImage[tempK] << setw(10) << aperImaRD[tempK] << setw(10) << aperImaRX[tempK] << setw(10) << aperImaRY[tempK] << std::endl;
                             if(aperMinS1!=aperMinS1) {aperMinS1 = aperImage[tempK];} else if(aperImage[tempK]<aperMinS1) {aperMinS1 = aperImage[tempK];}
                             if(aperMaxS1!=aperMaxS1) {aperMaxS1 = aperImage[tempK];} else if(aperImage[tempK]>aperMaxS1) {aperMaxS1 = aperImage[tempK];}
+                        } else {
+                            // 2018-02-22 if we hit NaN pixel, then we need to report this! As the number of valid pixels will be different than simple counting!
+                            aperSumNaN += 1;
                         }
-                        if(tempDIST<=-0.5) { // (sum considering fractional part)
-                            // these pixels are fully within the aperture
+                    }
+                    
+                    // sum pixels considering fractional part, this is a little bit more complicated than the above method
+                    if(tempDIST<=-0.5) {
+                        // these pixels are fully within the aperture
+                        //
+                        // <TODO> sum only non NAN pixels
+                        if(aperImage[tempK]==aperImage[tempK]) {
                             aperMask1[tempK] = 1.0;
                             aperImaRV[tempK] = aperImage[tempK];
                             aperSumF1 += aperImage[tempK];
@@ -366,25 +388,33 @@ int main(int argc, char **argv)
                             if(aperMinF1!=aperMinF1) {aperMinF1 = aperImage[tempK];} else if(aperImage[tempK]<aperMinF1) {aperMinF1 = aperImage[tempK];}
                             if(aperMaxF1!=aperMaxF1) {aperMaxF1 = aperImage[tempK];} else if(aperImage[tempK]>aperMaxF1) {aperMaxF1 = aperImage[tempK];}
                         } else {
-                            // these pixels are at the border of current aperture
-                            // how to consider those pixels near within 0.5 pixel of the aperture circle?
-                            // we sum their weighted pixel values
-                            if(tempDIST>-0.5 && tempDIST<=+0.5) {
-                                // <modified><20160430><dzliu> elliptic
-                                // aperMask1[tempK] = (1.0-aperImaRD[tempK]+aperR[aperK]-0.5);
-                                aperMask1[tempK] = (1.0-(tempDIST)-0.5);
-                                aperSumF1 += aperImage[tempK] * aperMask1[tempK];
-                                // <modified><20151218><dzliu> if(aperImage[tempK]>0.0) {aperRmsF1 += aperImage[tempK] * aperImage[tempK] * aperMask1[tempK];}
-                                aperRmsF1 += aperImage[tempK]*aperImage[tempK]*aperMask1[tempK]*aperMask1[tempK];
-                                aperSumN1 += aperMask1[tempK];
-                                // <20170923><dzliu> added this so that we account for pixels which are only fractionally covered by the aperture circle
-                                //                   this is important for radius <~ 1 pixel.
-                                if(aperMinF1!=aperMinF1) {aperMinF1 = aperImage[tempK];} else if(aperImage[tempK]<aperMinF1) {aperMinF1 = aperImage[tempK];}
-                                if(aperMaxF1!=aperMaxF1) {aperMaxF1 = aperImage[tempK];} else if(aperImage[tempK]>aperMaxF1) {aperMaxF1 = aperImage[tempK];}
-                            } else {
-                                aperMask1[tempK] = 0.0;
-                            }
+                            // 2018-02-22 if we hit NaN pixel, then we need to report this! As the number of valid pixels will be different than simple counting!
+                            aperSumNaN += 1;
                         }
+                    } else if (tempDIST>-0.5 && tempDIST<=+0.5){
+                        // these pixels are at the border of current aperture
+                        // how to consider those pixels near within 0.5 pixel of the aperture circle?
+                        // we sum their weighted pixel values
+                        //
+                        // <TODO> sum only non NAN pixels
+                        if(aperImage[tempK]==aperImage[tempK]) {
+                            // <modified><20160430><dzliu> elliptic
+                            // aperMask1[tempK] = (1.0-aperImaRD[tempK]+aperR[aperK]-0.5);
+                            aperMask1[tempK] = (1.0-(tempDIST)-0.5);
+                            aperSumF1 += aperImage[tempK] * aperMask1[tempK];
+                            // <modified><20151218><dzliu> if(aperImage[tempK]>0.0) {aperRmsF1 += aperImage[tempK] * aperImage[tempK] * aperMask1[tempK];}
+                            aperRmsF1 += aperImage[tempK]*aperImage[tempK]*aperMask1[tempK]*aperMask1[tempK];
+                            aperSumN1 += aperMask1[tempK];
+                            // <20170923><dzliu> added this so that we account for pixels which are only fractionally covered by the aperture circle
+                            //                   this is important for radius <~ 1 pixel.
+                            if(aperMinF1!=aperMinF1) {aperMinF1 = aperImage[tempK];} else if(aperImage[tempK]<aperMinF1) {aperMinF1 = aperImage[tempK];}
+                            if(aperMaxF1!=aperMaxF1) {aperMaxF1 = aperImage[tempK];} else if(aperImage[tempK]>aperMaxF1) {aperMaxF1 = aperImage[tempK];}
+                        } else {
+                            // 2018-02-22 if we hit NaN pixel, then we need to report this! As the number of valid pixels will be different than simple counting!
+                            aperSumNaN += 1;
+                        }
+                    } else {
+                        aperMask1[tempK] = 0.0; // these pixels are not within the aperture nor on the aperture border
                     }
                 }
                 if(debug) {
@@ -439,6 +469,7 @@ int main(int argc, char **argv)
                           << setw(13) << aperSaiS1
                           << setw(13) << aperRmsS1
                           << setw(13) << aperSabS1
+                          << setw(13) << aperSumNaN
                           << std::flush; // show the integer values
                 std::cout << std::endl;
                 //
