@@ -1,49 +1,8 @@
 /* 
  
- TODO: 20140801:
-       now the basic function works, which is computing the chi2 between obs dataset and lib dataset, and there can be two cross-matching lib datasets.
-       what we need to do then is to achieve the shell argument i/o. e.g. michi2 -obs "flux.dat" -lib "lvg.lib" -out "dl.out", or when just type the
-       michi2 in shell without arguments, it will as "Please input obs dataset: " << ....
- 
- TODO: 20140801:
-       a problem should be noticed: sometimes LMA (michi2MinPack for m2chi2) gives one negative a1 and one positive a2. How to solve this???
- 
- DONE: 20141112:
-       fixed a stdout typo in michi2DataClass::michi2DataClass(const char *InputFile) // exam data info //
- 
- DONE: 20141113:
-       fixed the intial value of aCOE in void michi2MinPack::init() // iniCOE //
- 
- DONE: 20150309
-       make pthread 2 instead of 4 in case not burning the computer
- 
- TODO: 20150409
-       bug: when like f0=0, df=99, a1 will always be 0. how to correct this?
- 
- DONE: 20150721
-       m3chi2parallel done
- 
- DONE: 20150911
-       m4chi2parallel done
- 
- DONE: 20150912
-       lock i2=i1 in m2chi2, and
-       lock i3=i2 in m3chi2, and
-       lock i4=i3 in m4chi2, suitable for DL07 cold+warm dust lib
- 
- DONE: 20160714-20160718
-       arbitrary LIB components
- 
- HIST: 20170930-20171001
-       add filter curve
-       add -constraint LIB2 NORM EQ SED vLv(8,1000)*1.01e-6 # i.e. IR-radio correlation
-
- HIST: 20180110
-       constraint VALUE
-       constraint MathPower, Multiplication, Addition
- 
- HIST: 20180131
-       GlobalMinimumChisq
+ HIST: 20180224
+       Metropolis Hasting Algorithm
+       https://ysquared2.wordpress.com/2014/03/27/metropolis-hasting-algorithm-an-example-with-cc-and-r/
  
  */
 
@@ -402,8 +361,10 @@ long mnchi2parallelProgress = 0;
 
 void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> InputLibList, std::vector<std::string> OutputTableList, std::vector<std::string> InputFilterCurveList, int DebugLevel)
 {
+    //
     // check input obs data file list
-    // and prepare obs data number
+    // and store basic information into 'SDOBSList',
+    // also check 'InputFilterCurveList' for each obs data file.
     if(0==InputObsList.size()) {
         std::cout << "Error! mnchi2 InputObsList is empty!" << std::endl; return;
     }
@@ -412,13 +373,13 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
     for(int i=0; i<InputObsList.size(); i++) {
         michi2DataClass *SDOBS = new michi2DataClass(InputObsList.at(i).c_str(), DebugLevel);
         if(InputFilterCurveList.size()>i) {
-            //std::cout << "Debug: InputFilterCurveList.at(" << i << ") = " << InputFilterCurveList.at(i) << std::endl;
             SDOBS->readFilterCurveListFile(InputFilterCurveList.at(i).c_str());
         }
         SDOBSList.push_back(SDOBS);
     }
+    //
     // check input lib data file list
-    // and prepare lib data structure
+    // and store basic information into 'SDLIBList'.
     if(0==InputLibList.size()) {
         std::cout << "Error! mnchi2 InputLibList is empty!" << std::endl; return;
     }
@@ -428,8 +389,8 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
         michi2DataClass *SDLIB = new michi2DataClass(InputLibList.at(i).c_str(), DebugLevel);
         SDLIBList.push_back(SDLIB);
         NumbLibPar += SDLIB->TPAR.size(); // SDLIB->TPAR is the list of parameter title in a LIB file, so its size() is the number of parameters to be fit in a LIB file.
-        NumbLibVar += SDLIB->YNum;
-        NumbLibMulti = NumbLibMulti * SDLIB->YNum;
+        NumbLibVar += SDLIB->YNum; // SDLIB->YNum is the number of all independent models in one LIB file, while SDLIB->XNum is the number of wavelength or any X axis in one model.
+        NumbLibMulti = NumbLibMulti * SDLIB->YNum; // This gives the number of all model combinations among all LIB files.
     }
     // check output table data file list
     // set default output table data file name for each input obs data file
@@ -438,12 +399,49 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
         std::cout << "Error! mnchi2 OutputTableList is empty!" << std::endl; return;
     }
     //std::vector<std::ofstream*> SDOUTList; SDOUTList.clear();
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    // 20180224
+    // Now we have read the input data file and all lib files.
+    // We have a 'NumbLibPar'-dimension parameter space,
+    // and we will follow Metropolis Hasting Algorithm to find the best-fits.
+    // We will:
+    //   1. Choose a starting point in the 'NumbLibPar'-dimension parameter space.
+    //   2. Assume a posterior PDF, which is 'exp(-chisq)' here.
+    //   3. Build a Markov chain Transition Matrix Trans_matrix, which has a dimension of 'NumbLibPar'x'NumbLibPar', and is all 0.5 here, which means jumping from one state to another has an equal chance.
+    //   4. Build sampling functions for 'NumbLibPar' parameters, here we choose uniform sampling.
+    //   5. Sample one set of 'NumbLibPar' parameters, denoted as param(t). 
+    //   6. Check if the Markov chain converges:
+    //        In default, the converging needs: param(t+1) * Trans_matrix(t=>t+1) = param(t) * Trans_matrix(t+1=>t), but this does not work high dimension. Metropolis algorithm is an improvement. It needs: chisq(t+1) * param(t+1) * Trans_matrix(t=>t+1) * acceptance(t+1) = param(t) * Trans_matrix(t+1=>t) * acceptance(t), where acceptance(t+1) = param(t) * Trans_matrix(t+1=>t) and acceptance(t) = param(t+1) * Trans_matrix(t=>t+1). However, it converges too slowly. Metropolis-Hasting algorithm improved the acceptance rate: acceptance(t+1) = param(t) * Trans_matrix(t+1=>t) / min([param(t+1) * Trans_matrix(t=>t+1), param(t) * Trans_matrix(t+1=>t)]), and acceptance(t) = param(t+1) * Trans_matrix(t=>t+1) / min([param(t+1) * Trans_matrix(t=>t+1), param(t) * Trans_matrix(t+1=>t)]). If acceptance(t+1) > random([0,1]), then go to state param(t+1), otherwise keep state param(t). Repeat 5 and 6.
+    //    7. Gibbs Sampling algorithm: m 维的一个样本跳转到另一个样本的过程，可以拆解为 m 个子过程，每一个子过程对应一个维度。这时概率转移矩阵是 m 个子概率转移矩阵之积，即 (p = \prod_{i=k}^{m} p_k )
+    //
+    // (forget about the above steps)
+    // (I do not think a Markov chain with a uniform sampling for all parameters will save time)
+    // (I should just try my own half-interval search)
+    // We will:
+    //    1. For each param, select first, last and middle values, make '3*NumLib' combinations.
+    //
+    //
+    //
+    //
+    // loop SDOBS
     for(int i=0; i<InputObsList.size(); i++) {
+        //
+        // prepare output file names
         if(OutputTableList.size()<i) {
             OutputTableList.push_back(InputObsList.at(i).insert(0,"mnchi2-").append(".out"));
         }
-        // <20171001> output the input files and libs to an info file
-        std::string OutputInfoFile = OutputTableList.at(i); OutputInfoFile.append(".info"); // "info.info"; OutputTableList.at(i).append(".info");
+        //
+        // write info file
+        // output the input obs and lib files
+        std::string OutputInfoFile = OutputTableList.at(i); OutputInfoFile.append(".info");
         std::ofstream OutputInfoFileStream(OutputInfoFile.c_str());
         OutputInfoFileStream << "OBS = " << InputObsList.at(i) << std::endl;
         OutputInfoFileStream << "NLIB = " << InputLibList.size() << std::endl;
@@ -451,29 +449,178 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
             OutputInfoFileStream << "LIB" << iLib+1 << " = " << InputLibList.at(iLib) << std::endl;
         }
         OutputInfoFileStream << "OUT = " << OutputTableList.at(i) << std::endl;
-        //if(strlen(InfoRedshift)>0) {
+        if(strlen(InfoRedshift)>0) {
             OutputInfoFileStream << "REDSHIFT = " << InfoRedshift << std::endl;
-        //}
+        }
         OutputInfoFileStream.close();
-        // output fitted coefficients, chisq etc. to an output file
+        //
+        // write chisq table file
+        // output i0, chi2, iN, aN column headers
         std::ofstream SDOUT(OutputTableList.at(i).c_str());
-        //SDOUTList.push_back(&SDOUT);
         SDOUT << "#" << std::setw(7) << "i0" << std::setw(15) << "chi2"; // write the output file header line
         std::ostringstream tmpstr;
         for(long iLib=0; iLib<InputLibList.size(); iLib++) {
             tmpstr.str(""); tmpstr << "i" << iLib+1; SDOUT << std::setw(10) << tmpstr.str();
             tmpstr.str(""); tmpstr << "a" << iLib+1; SDOUT << std::setw(15) << tmpstr.str();
         }
+        //
+        // loop SDLIB, output paramN column headers
         for(long iLib=0; iLib<SDLIBList.size(); iLib++) {
-            //michi2DataClass *SDLIB = SDLIBList.at(i); //<BUG><fixed><20160727><dzliu>
-            michi2DataClass *SDLIB = SDLIBList[iLib];
+            michi2DataClass *SDLIB = SDLIBList[iLib]; // can not use 'SDLIBList.at(i)' <BUG><fixed><20160727><dzliu>
             for(long iLibPar=0; iLibPar<SDLIB->TPAR.size(); iLibPar++) {
                 SDOUT << std::setw(15) << SDLIB->TPAR[iLibPar]; // write each title of parameter to be fit in each LIB file
             }
         }
         SDOUT << std::endl << "#" << std::endl;
         SDOUT.close();
+        //
+        //
+        //
+        //
+        //
+        //
+        // prepare looping
+        struct mnchi2parallelParams *ppParams = NULL; // this pointer points to a previously fitted 'pParams' struct.
+        //
+        // start looping
+        while (true) {
+            //
+            // create subprocess structure
+            struct mnchi2parallelParams *pParams = new struct mnchi2parallelParams;
+            //
+            // all subprocesses share the same OBS data structure
+            pParams->SDOBSList = SDOBSList;
+            //
+            // all subprocesses share the same LIB data structure
+            pParams->SDLIBList = SDLIBList;
+            //
+            // prepare model combinations and fit to the data
+            // we first prepare 3 lists of lists,
+            // we use an example to explain this
+            // if we have 3 LIB files,
+            // in the 1st LIB file, we have 2 parameters, 1st par has 10 values and 2nd par has 3 values, and we want to loop the [first,middle,last] values of both 1st and 2nd parameters.
+            // in the 2nd LIB file, we have 4 parameters, which have 10,2,2,3 values respectively, and we want to loop the [first(,middle),last] values of each parameter.
+            // in the 3rd LIB file, we have 6 parameters, which have 10,2,2,3,1,1 values respectively, and we want to loop the [first(,middle)(,last)] values of each parameter.
+            // then, iLibParListListList is a list with NLIB dimension
+            //       iLibParListListList = [ iLibParListList1, iLibParListList2, iLibParListList3 ]
+            //       iLibParListList1 = [ iLibParList1, iLibParList2 ] // Lib1
+            //                            iLibParList1 = [ i1_par1, i2_par1, i3_par1 ]
+            //                            iLibParList2 = [ i1_par2, i2_par2, i3_par2 ]
+            //       iLibParListList2 = [ iLibParList1, iLibParList2, iLibParList3, iLibParList4 ] // Lib2
+            //                            iLibParList1 = [ i1_par1, i2_par1, i3_par1 ]
+            //                            iLibParList2 = [ i1_par2, i2_par2 ]
+            //                            iLibParList3 = [ i1_par3, i2_par3 ]
+            //                            iLibParList4 = [ i1_par4, i2_par4, i3_par4 ]
+            //       iLibParListList3 = [ iLibParList1, iLibParList2, iLibParList3, iLibParList4, iLibParList5, iLibParList6 ] // Lib3
+            //                            iLibParList1 = [ i1_par1, i2_par1, i3_par1 ]
+            //                            iLibParList2 = [ i1_par2, i2_par2 ]
+            //                            iLibParList3 = [ i1_par3, i2_par3 ]
+            //                            iLibParList4 = [ i1_par4, i2_par4, i3_par4 ]
+            //                            iLibParList5 = [ i1_par5 ]
+            //                            iLibParList6 = [ i1_par6 ]
+            //
+            pParams->iLibParListListList.clear();
+            pParams->chisqListListList.clear();
+            for(long iLib=0; iLib<SDLIBList.size(); iLib++) {
+                // loop each lib, determine the range of each parameter to fit
+                std::vector<std::vector<long> > iLibParListList1;
+                std::vector<std::vector<double> > chisqListList1;
+                //
+                michi2DataClass *SDLIB = SDLIBList[iLib]; // can not use 'SDLIBList.at(i)' <BUG><fixed><20160727><dzliu>
+                //
+                for(long iLibPar=0; iLibPar<SDLIB->TPAR.size(); iLibPar++) {
+                    // loop each parameter in a lib, determine the range of this parameter to fit the data
+                    std::vector<long> iLibParList1;
+                    std::vector<double> chisqList1;
+                    //
+                    if(ppParams) {
+                        // if previously fitted, then we first find the least-chisq parameter range, then select first, middle and last values in that range for the next fitting
+                        // we allow multiple local minima
+                        for (long iLocalMinima=0; iLocalMinima<chisqListListList[iLib][iLibPar].size(); iLocalMinima+=3) {
+                            if((ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+0] > ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]) &&
+                               (ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2] > ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1])) {
+                                // valley, adjust the middle point randomly to +1/4 or -1/4
+                                long iLocalLeft = ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1];
+                                long iLocalRight = ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2];
+                                if((iLocalRight-iLocalLeft)/4>0) {
+                                    long iLocalMiddle = iLocalLeft + ((rand()%2+1)*2-3)*(iLocalRight-iLocalLeft)/4; // (rand()%2+1) => 1 to 2
+                                }
+                            } else if((ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+0] <= ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]) &&
+                                      (ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2] <= ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1])) {
+                                // hill, split into two local minima
+                                //
+                            } else if((ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+0] > ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]) &&
+                                      (ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2] <= ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1])) {
+                                // slope, right is lower, so we adjust left edge to previous middle point and set a new middle point
+                                long iLocalLeft = ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1];
+                                long iLocalRight = ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2];
+                                if(iLocalLeft < iLocalRight-1) {
+                                    iLibParListList1.push_back(iLocalLeft);
+                                    iLibParListList1.push_back((iLocalRight+iLocalLeft)/2);
+                                    iLibParListList1.push_back(iLocalRight);
+                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]);
+                                    chisqList1.push_back(std::nan(""));
+                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2]);
+                                } else {
+                                    // if left >= right-1, it means no middle point can be set. freeze this parameter.
+                                    iLibParListList1.push_back(iLocalLeft);
+                                    iLibParListList1.push_back(iLocalLeft);
+                                    iLibParListList1.push_back(iLocalRight);
+                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]);
+                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]);
+                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2]);
+                                }
+                            } else if((ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+0] <= ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]) &&
+                                      (ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2] > ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1])) {
+                                // slope, left is lower, so we adjust right edge to previous middle point and set a new middle point
+                                long iLocalLeft = ppParams->iLibParListListList[iLib][iLibPar][iLocalMinima+0];
+                                long iLocalRight = ppParams->iLibParListListList[iLib][iLibPar][iLocalMinima+1];
+                                if(iLocalLeft < iLocalRight-1) {
+                                    iLibParListList1.push_back(iLocalLeft);
+                                    iLibParListList1.push_back((iLocalRight+iLocalLeft)/2);
+                                    iLibParListList1.push_back(iLocalRight);
+                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+0]);
+                                    chisqList1.push_back(std::nan(""));
+                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]);
+                                } else {
+                                    // if left >= right-1, it means no middle point can be set. freeze this parameter.
+                                    iLibParListList1.push_back(iLocalLeft);
+                                    iLibParListList1.push_back(iLocalRight);
+                                    iLibParListList1.push_back(iLocalRight);
+                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+0]);
+                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]);
+                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]);
+                                }
+                            }
+                        }
+                    } else {
+                        // we fit 3 values for a parameter: first, middle and last.
+                        long iLocalLeft = 0;
+                        long iLocalRight = SDLIB->NPAR[iLibPar]-1;
+                        iLibParListList1.push_back(iLocalLeft);
+                        iLibParListList1.push_back((iLocalRight+iLocalLeft)/2);
+                        iLibParListList1.push_back(iLocalRight);
+                        chisqList1.push_back(std::nan(""));
+                        chisqList1.push_back(std::nan(""));
+                        chisqList1.push_back(std::nan(""));
+                    }
+                }
+                //
+                pParams->iLibParListListList.push_back(iLibParListList1);
+            }
+        }
+        //
+        //
+        //
+        // loop SDLIB, fit model to the data
+        
     }
+    //
+    //
+    //
+    //
+    //
+    // <TODO> old code before 20180224
     // prepare to run parallel processes <New><20141211><20141212><20160714><20160718>
     mnchi2parallelProgress = 0;
     std::vector<struct mnchi2parallelParams *> mnchi2parallelParams;

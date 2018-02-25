@@ -1,17 +1,14 @@
 /*
  compile:
-     g++ -pthread main.cpp -o michi2_v02_test
-     g++ -pthread main.cpp -o michi2_v02_201507
-     g++ -pthread main.cpp -o michi2_v02_201509
-     g++ -pthread main.cpp -o michi2_v02_201509_DL07
-     clang++ -std=c++11 -pthread main.cpp -o michi2_v04_201607
-     clang++ -std=c++11 -pthread main.cpp -o michi2_v04_20160727
- deploy:
-     \cp a.out ../../06_LVG_Synthesis/03_Minimize_Chi2/michi2_v04
- test: 
-     ./michi2_v04 -obs flux-co-ngc1068.dat -lib lib.lvg lib.lvg lib.lvg -out out.out
-     ./michi2_v04_201607  -obs test/flux-co-ngc1068.dat  -lib test/lib_big_co.lvg test/lib_big_co.lvg   -out test/out.out   -constraint "LIB1" "PAR3" "<" LIB2 par2
-     ./michi2_v04_201607  -obs test/flux-co-ngc1068.dat  -lib test/lib_big_co.lvg test/lib_big_co.lvg   -out test/out.out   -constraint LIB1 INDEX EQ LIB2 INDEX
+     g++ -pthread main.cpp -o michi2_v05
+     clang++ -std=c++11 -pthread main.cpp -o michi2_v05
+ 
+ test:
+     ./michi2_v05 \
+                  -obs flux-co-ngc1068.dat \
+                  -lib lib.lvg lib.lvg lib.lvg \
+                  -out out.out \
+                  -constraint LIB1 INDEX EQ LIB2 INDEX
 */
 
 #include <stdio.h>
@@ -42,10 +39,6 @@ int main(int argc, char **argv)
     **/
     if(argc>1)
     {
-        // michi2(argv[1],argv[2]);
-        // michi2("flux-co.dat","lib.lvg");
-        // m2chi2("flux-co.dat","lib.lvg","lib.lvg");
-        // m2chi2("flux-co.dat","flower.lvg","flower.lvg");
         std::vector<std::string> FileObsList; // Obs Flux & FlueErr List
         std::vector<std::string> FileLibList; // Lib
         std::vector<std::string> FileOutList; // Out
@@ -140,7 +133,7 @@ int main(int argc, char **argv)
                     // <TODO><20160719><dzliu> std::cout << "    -constraint \"lib4[200000]\" \"flux\" eq \"full[8:1000]\" \"integration*0.0005\" # e.g. set radio 200000um flux be the 8-1000 integration times 0.0005." << std::endl;
                     // <TODO><20160719><dzliu>
                     // ITS TOO HARD TO IMPLEMENT SO MANY THINGS
-                    // See notes in michi2_v04.cpp
+                    // See notes in michi2_v05.cpp
                     //
                     std::cout << std::endl;
                     return -1;
@@ -194,14 +187,6 @@ int main(int argc, char **argv)
         mnchi2(FileObsList,FileLibList,FileOutList,InputFilterCurveList,DebugLevel);
         //<TODO><UNCOMMNET>//
         
-//        if(argc>=2) {
-//            michi2("flux-co.dat","lib.lvg",argv[1]);
-//            // <TODO> // m2chi2("flux-co.dat","lib.lvg","lib.lvg",argv[1]);
-//        } else {
-//            michi2("flux-co.dat","lib.lvg");
-//            // <TODO> // m2chi2("flux-co.dat","lib.lvg","lib.lvg");
-//        }
-        
         std::cout << std::endl;
         std::cout << "Finally! End at " << currentDateTime() << std::endl;
         std::cout << std::endl;
@@ -210,16 +195,13 @@ int main(int argc, char **argv)
         
         std::cout << std::endl;
         std::cout << "Usage: \n";
-        std::cout << "       michi2_v04 -obs flux-co.dat -lib lib.lvg -out output.csv\n";
+        std::cout << "       michi2_v05 -obs flux-co.dat -lib lib.lvg -out output.csv\n";
         std::cout << "       \n";
-        std::cout << "       michi2_v04 -obs flux-co.dat -lib lib.lvg lib.lvg -out output.csv\n";
+        std::cout << "       michi2_v05 -obs flux-co.dat -lib lib.lvg lib.lvg -out output.csv\n";
         std::cout << "       \n";
-        std::cout << "       michi2_v04 -obs flux-co.dat -lib Star.SED DL07Lo.SED DL07Hi.SED -out output.csv\n";
+        std::cout << "       michi2_v05 -obs flux-co.dat -lib Star.SED DL07Lo.SED DL07Hi.SED -out output.csv\n";
         std::cout << "       \n";
-        // std::cout << "Version: \n\t michi2_v04 " << "2014-08-22 Orme des Merisiers" << " copyleft " << std::endl;
-        // std::cout << "Version: \n\t michi2_v04 " << "2015-04-09 Orme des Merisiers" << std::endl;
-        // std::cout << "Version: \n\t michi2_v04 " << "2016-07-14 Nanjing" << std::endl;
-        std::cout << "       michi2_v04 -obs flux-obsframe.dat \\\n";
+        std::cout << "       michi2_v05 -obs flux-obsframe.dat \\\n";
         std::cout << "                  -redshift 6.3 \\\n";
         std::cout << "                  -lib Star.SED AGN.SED DL07Hi.SED DL07Lo.SED Radio.SED \\\n";
         std::cout << "                  -out output.dat \\\n";
@@ -239,19 +221,9 @@ int main(int argc, char **argv)
         std::cout << "                  #     obs-frame wavelength and filter transmission value normalized to 1.\n";
         std::cout << "       \n";
         std::cout << "Version: \n";
-        std::cout << "         michi2_v04 " << "2018-01-10 Heidelberg" << std::endl;
-        //std::cout << "         michi2_v04 " << "2017-10-01 Heidelberg" << std::endl;
+        std::cout << "         michi2_v05 " << "2018-02-XX Heidelberg" << std::endl;
         std::cout << std::endl;
         
-        /*
-         
-        std::cout << "michi2" << std::endl;
-        std::cout << "  aim: this small code computes the chi-square between observed dataset and library dataset. Datasets must contain two independent variables, the first Var1 is used to match the obs and lib, the second Var2 is used to calculated chi-square. " << std::endl;
-        std::cout << "  use: michi2 -obs \"flux-co.dat\" -lib \"flower.lvg\"" << std::endl;
-        std::cout << "  use: m2chi2 -obs \"flux-co.dat\" -lib \"flower.lvg\" \"flower.lvg\"" << std::endl;
-        std::cout << std::endl;
-         
-         */
     }
     return 0;
 }

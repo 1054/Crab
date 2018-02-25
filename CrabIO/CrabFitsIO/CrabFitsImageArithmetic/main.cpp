@@ -22,6 +22,7 @@
      2017-07-20   also remove NAXIS1 and NAXIS2 in the mainHeader (but not recompiled yet)
      2017-07-30   -copy-wcs
      2017-09-20   found bug when run 'CrabFitsImageArithmetic fit_3_bug_20170920a.fits -ext 2 times 1.0 fit_3_bug_20170920a.model.fits -copy-wcs -debug -debug'. Should be the bug in 'addKeyword()'.
+     2018-02-25   added 'sstrOperator == "=="' and 'sstrOperator == "!="'
  
  
  */
@@ -184,22 +185,9 @@ int main(int argc, char **argv)
             long newImWidth = oldImWidth;
             long newImHeight = oldImHeight;
             //
-            // create new image array
-            double *newImage = (double *)malloc(newImWidth*newImHeight*sizeof(double));
-            //
-            // remove NaN
-            if(0==iRemoveNaN) {
-                for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = NAN; } // need cmath.h
-            } else {
-                double dblReplaceNaN = atof(cstrReplaceNaN);
-                if(debug>0) {
-                    std::cout << "DEBUG: removing all NaN values by filling " << dblReplaceNaN << std::endl;
-                }
-                for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = dblReplaceNaN; } // need cmath.h
-            }
-            //
             // check operator
             std::string sstrOperator = std::string(cstrOperator);
+            int maskOperator = 0; // apply the operation on Image (0) or on ImageMask (1).
             if(sstrOperator.find("*")!=std::string::npos ||
                sstrOperator.find("time")!=std::string::npos ||
                sstrOperator.find("multipl")!=std::string::npos ) {
@@ -218,6 +206,41 @@ int main(int argc, char **argv)
             } else if(sstrOperator.find("^")!=std::string::npos ||
                       sstrOperator.find("power")!=std::string::npos ) {
                 sstrOperator = "power of";
+            } else if(sstrOperator == "==" ||
+                      sstrOperator == "eq" ) {
+                sstrOperator = "equals";
+                maskOperator = 1;
+            } else if(sstrOperator == "!=" ||
+                      sstrOperator == "ne" ) {
+                sstrOperator = "does not equal";
+                maskOperator = 1;
+            }
+            //
+            // create new image array and image mask array
+            double *newImage;
+            int *newImageMask;
+            //
+            // initialize new image array and image mask array
+            if(maskOperator==0) {
+                //
+                // allocate memory
+                newImage = (double *)malloc(newImWidth*newImHeight*sizeof(double));
+                //
+                // remove NaN
+                if(0==iRemoveNaN) {
+                    for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = NAN; } // need cmath.h
+                } else {
+                    double dblReplaceNaN = atof(cstrReplaceNaN);
+                    if(debug>0) {
+                        std::cout << "DEBUG: removing all NaN values by filling " << dblReplaceNaN << std::endl;
+                    }
+                    for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = dblReplaceNaN; } // need cmath.h
+                }
+            } else {
+                //
+                // allocate memory
+                newImageMask = (int *)malloc(newImWidth*newImHeight*sizeof(int));
+                for(int i=0; i<newImWidth*newImHeight; i++) { newImageMask[i] = 0; }
             }
             //
             // check NumValue (evaluate)
@@ -235,17 +258,41 @@ int main(int argc, char **argv)
                 for(int jj=0; jj<=(newImHeight-1); jj++) {
                     for(int ii=0; ii<=(newImWidth-1); ii++) {
                         long kk = long(ii)+long(jj)*newImWidth;
-                        if(NAN != oldImage[kk] && oldImage[kk] == oldImage[kk]) {
-                            if("multiplies" == sstrOperator) {
-                                newImage[kk] = oldImage[kk] * dblNumValue;
-                            } else if("adds" == sstrOperator) {
-                                newImage[kk] = oldImage[kk] + dblNumValue;
-                            } else if("subtracts" == sstrOperator) {
-                                newImage[kk] = oldImage[kk] - dblNumValue;
-                            } else if("divides" == sstrOperator) {
-                                newImage[kk] = oldImage[kk] / dblNumValue;
-                            } else if("power of" == sstrOperator) {
-                                newImage[kk] = pow(oldImage[kk], dblNumValue);
+                        //
+                        // check if the operation is on Image or ImageMask
+                        if(maskOperator==0) {
+                            //
+                            // check if oldImage pixel value is NaN
+                            if(NAN != oldImage[kk] && oldImage[kk] == oldImage[kk]) {
+                                //
+                                // check Operator
+                                if("multiplies" == sstrOperator) {
+                                    newImage[kk] = oldImage[kk] * dblNumValue;
+                                } else if("adds" == sstrOperator) {
+                                    newImage[kk] = oldImage[kk] + dblNumValue;
+                                } else if("subtracts" == sstrOperator) {
+                                    newImage[kk] = oldImage[kk] - dblNumValue;
+                                } else if("divides" == sstrOperator) {
+                                    newImage[kk] = oldImage[kk] / dblNumValue;
+                                } else if("power of" == sstrOperator) {
+                                    newImage[kk] = pow(oldImage[kk], dblNumValue);
+                                }
+                            }
+                        } else {
+                            //
+                            // check Operator
+                            if("equals" == sstrOperator) {
+                                if(oldImage[kk] == dblNumValue) {
+                                    newImageMask[kk] = 1;
+                                } else {
+                                    newImageMask[kk] = 0;
+                                }
+                            } else if("does not equal" == sstrOperator) {
+                                if(oldImage[kk] == dblNumValue) {
+                                    newImageMask[kk] = 0;
+                                } else {
+                                    newImageMask[kk] = 1;
+                                }
                             }
                         }
                     }
@@ -284,21 +331,45 @@ int main(int argc, char **argv)
                         return -1;
                     }
                     //
-                    // copy image pixel by pixel
+                    // operate on image pixel by pixel
                     for(int jj=0; jj<=(newImHeight-1); jj++) {
                         for(int ii=0; ii<=(newImWidth-1); ii++) {
                             long kk = long(ii)+long(jj)*newImWidth;
-                            if(NAN != oldImage[kk] && oldImage[kk] == oldImage[kk]) {
-                                if("multiplies" == sstrOperator) {
-                                    newImage[kk] = oldImage[kk] * refImage[kk];
-                                } else if("adds" == sstrOperator) {
-                                    newImage[kk] = oldImage[kk] + refImage[kk];
-                                } else if("subtracts" == sstrOperator) {
-                                    newImage[kk] = oldImage[kk] - refImage[kk];
-                                } else if("divides" == sstrOperator) {
-                                    newImage[kk] = oldImage[kk] / refImage[kk];
-                                } else if("power of" == sstrOperator) {
-                                    newImage[kk] = pow(oldImage[kk], refImage[kk]);
+                            //
+                            // check if the operation is on Image or ImageMask
+                            if(maskOperator==0) {
+                                //
+                                // check if oldImage pixel value is NaN
+                                if(NAN != oldImage[kk] && oldImage[kk] == oldImage[kk]) {
+                                    //
+                                    // check Operator
+                                    if("multiplies" == sstrOperator) {
+                                        newImage[kk] = oldImage[kk] * refImage[kk];
+                                    } else if("adds" == sstrOperator) {
+                                        newImage[kk] = oldImage[kk] + refImage[kk];
+                                    } else if("subtracts" == sstrOperator) {
+                                        newImage[kk] = oldImage[kk] - refImage[kk];
+                                    } else if("divides" == sstrOperator) {
+                                        newImage[kk] = oldImage[kk] / refImage[kk];
+                                    } else if("power of" == sstrOperator) {
+                                        newImage[kk] = pow(oldImage[kk], refImage[kk]);
+                                    }
+                                }
+                            } else {
+                                //
+                                // check Operator
+                                if("equals" == sstrOperator) {
+                                    if(oldImage[kk] == refImage[kk]) {
+                                        newImageMask[kk] = 1;
+                                    } else {
+                                        newImageMask[kk] = 0;
+                                    }
+                                } else if("does not equal" == sstrOperator) {
+                                    if(oldImage[kk] == refImage[kk]) {
+                                        newImageMask[kk] = 0;
+                                    } else {
+                                        newImageMask[kk] = 1;
+                                    }
                                 }
                             }
                         }
@@ -316,8 +387,13 @@ int main(int argc, char **argv)
                 }
                 char *newBITPIX = new char(4);
                 memset(newBITPIX,'\0',4);
-                sprintf(newBITPIX,"%ld",-long(sizeof(double))*8);
-                errStatus = modKeyword("BITPIX",newBITPIX,cstrHeader);
+                if(maskOperator==0) {
+                    sprintf(newBITPIX,"%ld",-long(sizeof(double))*8);
+                    errStatus = modKeyword("BITPIX",newBITPIX,cstrHeader);
+                } else {
+                    sprintf(newBITPIX,"%d",int(sizeof(int))*8);
+                    errStatus = modKeyword("BITPIX",newBITPIX,cstrHeader);
+                }
                 if(debug>0) {
                     std::cout << "DEBUG: new BITPIX = " << extKeyword("BITPIX",cstrHeader) << std::endl;
                 }
@@ -468,7 +544,11 @@ int main(int argc, char **argv)
                 if(debug>0) {
                     std::cout << "CrabFitsImageArithmetic: Opening " << cstrNewFilePath << " to write" << std::endl;
                 }
-                errStatus = writeFitsD(newImage,cstrHeader,cstrNewFilePath);
+                if(maskOperator==0) {
+                    errStatus = writeFitsD(newImage,cstrHeader,cstrNewFilePath);
+                } else {
+                    errStatus = writeFitsI(newImageMask,cstrHeader,cstrNewFilePath);
+                }
                 if(errStatus==0) {
                     if(debug>0) {
                         std::cout << "CrabFitsImageArithmetic: Well done!" << std::endl;
@@ -478,8 +558,12 @@ int main(int argc, char **argv)
                     std::cout << "CrabFitsImageArithmetic: Oooh! Failed! We are sorry ... (error code " << errStatus << ")" << std::endl;
                 }
                 //
-                //
-                free(newImage); newImage = NULL;
+                // free memory and reset pointer
+                if(maskOperator==0) {
+                    free(newImage); newImage = NULL;
+                } else {
+                    free(newImageMask); newImageMask = NULL;
+                }
             }
         } else {
             std::cout << "CrabFitsImageArithmetic: Error! Fits header of extension " << extNumber << " does not contain NAXIS1 and NAXIS2!" << std::endl;

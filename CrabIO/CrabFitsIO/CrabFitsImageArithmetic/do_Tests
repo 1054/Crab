@@ -1,0 +1,25 @@
+./CrabFitsImageArithmetic_mac image_sci.fits '!=' image_sci.fits image_sci_nan_mask.fits
+
+./CrabFitsImageArithmetic_mac image_sci.fits '*' 0.0 image_sci_zero.fits
+
+./CrabFitsImageArithmetic_mac image_sci.fits '*' -1.0 image_sci_negative.fits
+
+./CrabFitsImageArithmetic_mac image_sci.fits '*' 1.0 -remove-nan image_sci_nonan.fits
+
+
+
+
+# Multiplication/Division
+./CrabFitsImageArithmetic_mac image_rms.fits '/' 10.0 image_rms_2.fits
+
+
+
+
+# Multiple extension fits image
+
+./CrabFitsImageArithmetic_mac fit_3_bug_20170920a.fits -ext 1 '-' fit_3_bug_20170920a.fits -ext 2 fit_3_bug_20170920a_residual.fits
+
+./CrabFitsImageArithmetic_mac fit_3_bug_20170920a_residual.fits 'eq' fit_3_bug_20170920a_residual.fits fit_3_bug_20170920a_residual_check_eq.fits
+
+
+

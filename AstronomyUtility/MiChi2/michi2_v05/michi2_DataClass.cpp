@@ -101,11 +101,11 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
     this->CPAR = InCPAR;
     this->NPAR = InNPAR;
     this->TPAR = StTPAR;
-    this->XNum = InNVAR[0];
-    this->YNum = InNVAR[1];
-    this->XCol = InCVAR[0];
-    this->YCol = InCVAR[1];
-    this->YErrCol = InCVAR[1]+1;
+    this->XNum = InNVAR[0]; // X data grid number in OBS file or in each model of a LIB file
+    this->YNum = InNVAR[1]; // number of models in a LIB file
+    this->XCol = InCVAR[0]; // X data array column number
+    this->YCol = InCVAR[1]; // Y data array column number
+    this->YErrCol = InCVAR[1]+1; // YError data array column number
     
     // std::cout << "DEBUG: michi2DataClass this->X=0x" << std::hex << (size_t)&this->X << std::endl;
     // std::cout << "DEBUG: michi2DataClass this->XNum=0x" << std::hex << (size_t)&this->XNum << std::endl;

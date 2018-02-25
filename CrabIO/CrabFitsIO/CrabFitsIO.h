@@ -63,13 +63,16 @@ int     readFitsSpectrumRows(const char *FilePath, const char *EXTNAME);
 double *readFitsSpectrum(const char *FilePath, const char* EXTNAME);
 
 /*writeFits*/
+int writeFitsI(int *data, char *header, const char *strFilePath);
 int writeFitsF(float *data, char *header, const char *strFilePath);
 int writeFitsD(double *data, char *header, const char *strFilePath);
+int writeFitsIS(int *data, int DataWidth, int DataHeight, const char *strFilePath);
 int writeFitsFS(float *data, int DataWidth, int DataHeight, const char *strFilePath);
 int writeFitsDS(double *data, int DataWidth, int DataHeight, const char *strFilePath);
 int checkHead2880(long headBytes, FILE* writeToFile = NULL);
 int checkData2880(long dataBytes, FILE* writeToFile = NULL);
 
+char *generateFitsHeaderIS(int DataWidth, int DataHeight);
 char *generateFitsHeaderFS(int DataWidth, int DataHeight);
 char *generateFitsHeaderDS(int DataWidth, int DataHeight);
 

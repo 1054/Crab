@@ -1875,6 +1875,60 @@ char *inverseBytes(char *content, int length)
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/*Write int type FITS.*/
+int writeFitsI(int *data, char *header, const char *strFilePath) //TODO:TCHAR?
+{
+    //errorcode - 61 输入参数无法获取.
+    //errorcode - 62 输入参数与本函数不匹配.
+    //errorcode - 50 cannot open file for r/w. unknow reason.
+    //errorcode - 53 file has been opened but cannot write.
+    int errorcode = 0;
+    int DataWidth=0,DataHeight=0,DataBits=0;
+    int flag=0,m=0;
+    char *cWidth,*cHeight,*cBits;
+    FILE *fp;
+    char *dp; //data pointer
+    
+    cWidth = extKeyword("NAXIS1",header);
+    cHeight = extKeyword("NAXIS2",header);
+    cBits = extKeyword("BITPIX",header);
+    DataWidth = atoi(cWidth);
+    DataHeight = atoi(cHeight);
+    DataBits = atoi(cBits);
+    if(DataWidth==0 || DataHeight==0 || DataBits==0) { errorcode=61; return errorcode;}
+    if(DataBits!=32) { errorcode=62; return errorcode;}
+    /*write fits header.*/
+    fp=fopen(strFilePath,"wb"); //TODO: support Chinese Path?
+    if(fp==NULL)      { errorcode=5; return errorcode;}
+    flag = fwrite(header,strlen(header),1,fp);
+    flag = checkHead2880(strlen(header),fp); //<Added><20141119><DzLIU>
+    /*write data. deciding whether swap bytes.*/
+    if(isLittleEndian2())
+    {
+        for(m=0;m<DataWidth*DataHeight;m++,dp+=4)
+        {
+            dp = (char *)&data[m];
+            flag = fwrite(&dp[3], 1, 1, fp);
+            flag = fwrite(&dp[2], 1, 1, fp);
+            flag = fwrite(&dp[1], 1, 1, fp);
+            flag = fwrite(&dp[0], 1, 1, fp);
+        }
+        int flagData = checkData2880(4*DataWidth*DataHeight,fp); //<Added><20141119><DzLIU>
+    }
+    else
+    {
+        flag = fwrite(data, 4*DataWidth*DataHeight, 1, fp);
+        int flagData = checkData2880(4*DataWidth*DataHeight,fp); //<Added><20141119><DzLIU>
+    }
+    fclose(fp);
+    if(flag!=1) { errorcode=53; return errorcode; }
+    return errorcode;
+}
+
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*Write float type FITS.*/
 int writeFitsF(float *data, char *header, const char *strFilePath) //TODO:TCHAR?
 {
@@ -2009,6 +2063,45 @@ int writeFitsD(double *data, char *header, const char *strFilePath) //TODO:TCHAR
 
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/*Write a simple int type FITS.*/
+int writeFitsIS(int *data, int DataWidth, int DataHeight, const char *strFilePath) //TCHAR
+{
+    int errorcode = 0;
+    int flag=0,m=0;
+    FILE *fp;
+    char *header;
+    char *generateFitsHeaderIS(int DataWidth, int DataHeight);
+    char *dp;
+    
+    fp=fopen(strFilePath,"wb"); //TODO: support Chinese Path?
+    if(fp==NULL) { errorcode=5; return errorcode;}
+    header = generateFitsHeaderFS(DataWidth,DataHeight);
+    flag = fwrite(header,36*80,1,fp);
+    free((void *)header);
+    /*swap bytes.*/
+    if(isLittleEndian2())
+    {
+        for(m=0;m<DataWidth*DataHeight;m++,dp+=4)
+        {
+            dp = (char *)&data[m];
+            flag = fwrite(&dp[3], 1, 1, fp);
+            flag = fwrite(&dp[2], 1, 1, fp);
+            flag = fwrite(&dp[1], 1, 1, fp);
+            flag = fwrite(&dp[0], 1, 1, fp);
+        }
+    }
+    else
+    {
+        flag = fwrite(data, 4*DataWidth*DataHeight, 1, fp);
+    }
+    
+    fclose(fp);
+    if(flag!=1) { errorcode=53; return errorcode; }
+    return errorcode;
+}
+
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 /*Write a simple float type FITS.*/
 int writeFitsFS(float *data, int DataWidth, int DataHeight, const char *strFilePath) //TCHAR
 {
@@ -2121,6 +2214,56 @@ int checkData2880(long dataBytes, FILE* writeToFile)
         }
     }
     return padData2880;
+}
+
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
+/*generateFitsHeader Int(32bits) Simplest(contains no RA,Dec info).*/
+//this function is called by the writeFitsFS automatically.
+char *generateFitsHeaderIS(int DataWidth, int DataHeight)
+{
+    int   i=0,j=0,m=0,temp1=0,temp2=0,nnX=0,nnY=0;
+    char line1[81] ="SIMPLE  =                    T / Fits standard                                  "; //actually it's 80 bytes.
+    char line2[81] ="BITPIX  =                   32 / Bits per pixel                                 "; //But the extra 1bytes is
+    char line3[81] ="NAXIS   =                    2 / Number of axes                                 "; //used for '\0'.
+    char line4[81] ="NAXIS1  =                    X / Axis length                                    ";
+    char line5[81] ="NAXIS2  =                    Y / Axis length                                    ";
+    char line6[81] ="EXTEND  =                    F / File may contain extensions                    ";
+    //char line7[81] ="                                                                                ";
+    char line36[81]="END                                                                             ";
+    char chrnnX[16]="               "; //<corrected><20150227><dzliu> 15 white spaces but char array needs 16 bytes.
+    char chrnnY[16]="               "; //<corrected><20150227><dzliu> 15 white spaces but char array needs 16 bytes.
+    char *header=NULL;
+    
+    nnX = DataWidth;
+    nnY = DataHeight;
+    //itoa(nnX,chrnnX); //some unix does not contain the itoa() function.
+    sprintf(chrnnX,"%15d",nnX);
+    sprintf(chrnnY,"%15d",nnY);
+    temp1=strlen(chrnnX);
+    temp2=strlen(chrnnY);
+    //<debug><20150227><dzliu>printf("NAXIS1-sprintf=%s NAXIS1-strlen=%d(%d)\n",chrnnX,temp1,DataWidth);
+    //<debug><20150227><dzliu>printf("NAXIS2-sprintf=%s NAXIS2-strlen=%d(%d)\n",chrnnY,temp2,DataHeight);
+    for(i=0;i<temp1;i++)
+    {
+        line4[29-i]=chrnnX[temp1-1-i];
+    }
+    for(j=0;j<temp2;j++)
+    {
+        line5[29-j]=chrnnY[temp2-1-j];
+    }
+    header = (char *)malloc((36*80+1)*sizeof(char)); //36 lines, each line is 80 bytes. //ending byte corrected 20150309 dzliu
+    memset(header,0x20,(36*80+1)); header[(36*80)]=0x0;
+    for(m=0 ,i=0;i<80;m++,i++) header[m]=line1[i];
+    for(m=80,i=0;i<80;m++,i++) header[m]=line2[i];
+    for(m=2*80,i=0;i<80;m++,i++) header[m]=line3[i];
+    for(m=3*80,i=0;i<80;m++,i++) header[m]=line4[i];
+    for(m=4*80,i=0;i<80;m++,i++) header[m]=line5[i];
+    for(m=5*80,i=0;i<80;m++,i++) header[m]=line6[i];
+    for(m=6*80;m<35*80 ;m++,i++) header[m]=0x20;
+    for(m=35*80,i=0;i<80;m++,i++) header[m]=line36[i];
+    
+    return header;
 }
 
 

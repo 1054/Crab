@@ -72,6 +72,13 @@ struct mnchi2parallelParams {
     std::vector<long> idLIBList; //          index of LIB list
     std::vector<long> ieLIBList; //      end index of LIB list
     std::vector<bool> irLIBList; // rounding index of LIB list 就是计算是否进位
+    
+    std::vector<std::vector<std::vector<double> > > chisqListListList; // the fitted chisq list of each Par in Par list of each Lib in Lib list
+    std::vector<std::vector<std::vector<long> > > iLibParListListList; // the looping index list of each Par in Par list of each Lib in Lib list
+    std::vector<std::vector<long> > iLibParBeginList;  // begin of the index of each Par in each Lib <20180224>
+    std::vector<std::vector<long> > iLibParStepList;  // step of the index of each Par in each Lib <20180224>
+    std::vector<std::vector<long> > iLibParEndList;  // end of the index of each Par in each Lib <20180224>
+    
     long iBegin; long iEnd; long i;
     long nObs; long nLib; long nRow;
     int DebugLevel=0;
