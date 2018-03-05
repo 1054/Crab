@@ -1,8 +1,8 @@
 #include "michi2_DataClass.h"
 #include "CrabStringClean.cpp"
-#include "CrabStringReadInfo.cpp"
 #include "CrabStringReadColumn.cpp"
 #include "CrabTableReadColumn.cpp"
+#include "CrabTableReadInfo.cpp"
 #include "CrabTableGetLineCount.cpp"
 
 
@@ -11,9 +11,10 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
     //
     // This Class is used for not only LIB file but also OBS file.
     //
-    this->FilePath = std::string(InputFile,InputFile+strlen(InputFile));
-    this->FileStream = new std::ifstream();
-    this->FileStream->open(InputFile);
+    if(1==1) { // <TODO> Check File Exists!
+        this->FilePath = std::string(InputFile,InputFile+strlen(InputFile));
+        this->FileStream.open(InputFile);
+    }
     // std::cout << "michi2DataClass: Good! Let's Go!" << std::endl;
     // prepare vectors
     std::string              StTEMP;                           // Temporary String
@@ -22,42 +23,42 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
     std::vector<std::string> StCPAR; std::vector<long> InCPAR; // Col Number of Each Parameter
     std::vector<std::string> StNPAR; std::vector<long> InNPAR; // Row  Count of Each Parameter
     std::vector<std::string> StTPAR;                           // Col  Title of Each Parameter
-    // read header info
-    this->HeaderLines = 0;
-    this->HeaderBytes = 0;
-    std::vector<std::string> StHeaderLines;
+    // read data info
     std::string StLine;
-    while (std::getline(*(this->FileStream), StLine)) {
-        if(StLine.compare(0,1,"#")!=0) {break;}
-        StHeaderLines.push_back(StLine);
-        this->HeaderLines++;
-        this->HeaderBytes = this->FileStream->tellg();
+    for(int i=1; i<=2; i++) { // <TODO><LIMIT> Support only =< 2 Variables (Limit <= 2 Dimensions)
+        std::string StColCVAR1 = michi2sprint("# CVAR",i," ");
+    }
+    while (std::getline(this->FileStream, StLine))
+    {
+        std::istringstream SsLine(StLine);
+        if
+        if(!StLine.compare(0,StColCVAR1.length(),StColCVAR1)==0) {  }
     }
     for(int i=1; i<=2; i++) { // <TODO><LIMIT> Support only =< 2 Variables (Limit <= 2 Dimensions)
-        if(verbose>=3) {std::cout << "michi2DataClass: CrabStringReadInfo " << michi2sprint("# CVAR",i,"") << std::flush;}
-        StTEMP = CrabStringReadInfo(StHeaderLines,michi2sprint("# CVAR",i,""));
+        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << michi2sprint("# CVAR",i,"") << std::flush;}
+        StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# CVAR",i,""));
         if(verbose>=3) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StCVAR.push_back(StTEMP); InCVAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         //
-        if(verbose>=3) {std::cout << "michi2DataClass: CrabStringReadInfo " << michi2sprint("# NVAR",i,"") << std::flush;}
-        StTEMP = CrabStringReadInfo(StHeaderLines,michi2sprint("# NVAR",i,""));
+        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << michi2sprint("# NVAR",i,"") << std::flush;}
+        StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# NVAR",i,""));
         if(verbose>=3) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StNVAR.push_back(StTEMP); InNVAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         //
     }
     for(int i=1; i<=16; i++) { // <TODO><LIMIT> Support only <= 16 Parameters <20180131> 6 --> 16
-        if(verbose>=3) {std::cout << "michi2DataClass: CrabStringReadInfo " << "# CPAR" << i << std::flush;}
-        StTEMP = CrabStringReadInfo(StHeaderLines,michi2sprint("# CPAR",i,""));
+        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# CPAR" << i << std::flush;}
+        StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# CPAR",i,""));
         if(verbose>=3) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StCPAR.push_back(StTEMP); InCPAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         //
-        if(verbose>=3) {std::cout << "michi2DataClass: CrabStringReadInfo " << "# NPAR" << i << std::flush;}
-        StTEMP = CrabStringReadInfo(StHeaderLines,michi2sprint("# NPAR",i,""));
+        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# NPAR" << i << std::flush;}
+        StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# NPAR",i,""));
         if(verbose>=3) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StNPAR.push_back(StTEMP); InNPAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         //
-        if(verbose>=3) {std::cout << "michi2DataClass: CrabStringReadInfo " << "# TPAR" << i << std::flush;}
-        StTEMP = CrabStringReadInfo(StHeaderLines,michi2sprint("# TPAR",i,""));
+        if(verbose>=3) {std::cout << "michi2DataClass: CrabTableReadInfo " << "# TPAR" << i << std::flush;}
+        StTEMP = CrabTableReadInfo(InputFile,michi2sprint("# TPAR",i,""));
         if(verbose>=3) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StTPAR.push_back(StTEMP); } // else {break;}
         //
@@ -128,7 +129,7 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
 
 michi2DataClass::~michi2DataClass()
 {
-    if(this->FileStream) { if(this->FileStream->is_open()) { this->FileStream->close(); } }
+    if(this->FileStream.is_open()) { this->FileStream.close(); }
     FilterCurveFilePath.clear(); FilePath.clear();
     X.clear(); Y.clear();
 }
@@ -208,7 +209,7 @@ std::vector<std::string> michi2DataClass::getDataBlock(long lineNumber, long lin
     long backpoint = 0;
     long backshift = 0;
     long backwidth = 0;
-    std::ifstream *backstory = (this->FileStream);
+    std::ifstream *backstory = &(this->FileStream);
     if (backstory->is_open()) {
         // backpoint = backstory->tellg(); // std::wcout << "DEBUG: " << "backpoint=" << backpoint << std::endl;
         backstory->seekg(0);
@@ -267,29 +268,44 @@ std::vector<std::string> michi2DataClass::getDataBlockQuickQuick(long lineNumber
     // prepare to read
     std::string backline;
     // skip header
+    long backpoint = 0;
+    long backshift = 0;
     long backwidth = 0;
-    this->FileStream->seekg(this->HeaderBytes);
-    // get the first data line
-    std::getline(*(this->FileStream), backline);
-    // take the first data line width as the width for all data lines // <TODO> EACH DATA LINE SHOULD HAVE SAME BYTE WIDTH !
-    backwidth = (long)this->FileStream->tellg() - this->HeaderBytes;
+    std::ifstream *backstory = &(this->FileStream);
+    if (backstory->is_open()) {
+        // backpoint = backstory->tellg(); // std::wcout << "DEBUG: " << "backpoint=" << backpoint << std::endl;
+        backstory->seekg(0);
+        while(backstory->good()) {
+            // read line and test whether starting with #
+            backshift = backstory->tellg(); // std::wcout << "DEBUG: " << "backshift=" << backshift << std::endl;
+            getline(*backstory,backline);
+            if(backline.find("#")!=0) { // not starting with #
+                // get data line width // <TODO> EACH DATA LINE SHOULD HAVE SAME BYTE WIDTH !
+                backwidth = backstory->tellg(); backwidth -= backshift; // std::wcout << "DEBUG: " << backwidth << std::endl;
+                break;
+            }
+        }
+        // backstory.seekg(backpoint); // rewind to former status
+        backstory->seekg(backshift); // rewind to the beginning of data blocks
+    }
     // prepare text block
     std::vector<std::string> textblock;
     // seek to line i
-    this->FileStream->seekg(this->HeaderBytes+(lineNumber-1)*backwidth);
+    backstory->seekg(backshift+(lineNumber-1)*backwidth);
     // debug
-    if(debug) { std::cout << "getDataBlock: " << "seeking to line " << lineNumber << " offset " << this->HeaderBytes+(lineNumber-1)*backwidth << std::endl; }
+    if(debug) { std::cout << "getDataBlock: " << "seeking to line " << lineNumber << " offset " << backshift << "+" << (lineNumber-1) << "*" << backwidth << "=" << backshift+(lineNumber-1)*backwidth << std::endl; }
     // read lines
     this->XStr.clear(); this->YStr.clear();
     this->X.clear(); this->Y.clear();
+    std::vector<std::string> TmpStrVec;
     for(int j=0; j<lineCount; j++) {
-        std::getline(*(this->FileStream), backline);
+        getline(*backstory,backline);
         textblock.push_back(backline);
-        std::vector<std::string> TmpStrVec = split(backline);
+        TmpStrVec = split(backline, ' ');
         this->XStr.push_back(TmpStrVec[this->XCol-1]);
         this->YStr.push_back(TmpStrVec[this->YCol-1]);
-        //if(debug) { std::cout << "getDataBlock: " << backline << std::flush; }
-    }   //if(debug) { std::cout << "getDataBlock: " << std::endl; }
+        if(debug) { std::cout << "getDataBlock: " << backline << std::endl; }
+    }   if(debug) { std::cout << "getDataBlock: " << std::endl; } // <TODO><DEBUG>
     this->X = michi2stod(this->XStr);
     this->Y = michi2stod(this->YStr);
     // return
@@ -297,18 +313,19 @@ std::vector<std::string> michi2DataClass::getDataBlockQuickQuick(long lineNumber
 }
 
 
-std::vector<std::string> michi2DataClass::split(const std::string &s)
+std::vector<std::string> michi2DataClass::split(std::string const& original, char separator)
 {
-    // copied from
-    // -- https://stackoverflow.com/questions/9435385/split-a-string-using-c11
-    // -- https://stackoverflow.com/questions/29441675/splitting-strings-separately-by-line-and-by-blank-space-using-getline?rq=1
-    std::stringstream ss(s);
-    std::string item;
-    std::vector<std::string> elems;
-    while (ss >> item) {
-        elems.push_back(item);
+    std::vector<std::string> results;
+    std::string::const_iterator start = original.begin();
+    std::string::const_iterator end = original.end();
+    std::string::const_iterator next = std::find( start, end, separator );
+    while ( next != end ) {
+        results.push_back( std::string( start, next ) );
+        start = next + 1;
+        next = std::find( start, end, separator );
     }
-    return elems;
+    results.push_back( std::string( start, next ) );
+    return results;
 }
 
 

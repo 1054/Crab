@@ -40,9 +40,7 @@ public:
     std::vector<string> XStr; std::vector<string> YStr; std::vector<string>  YErrStr;  long XCol; long YCol; long YErrCol; long XNum; long YNum;
     std::vector<std::vector<double> > FVAR;             std::vector<long>    NVAR;     std::vector<long> CVAR;
     std::vector<std::vector<double> > FPAR;             std::vector<long>    NPAR;     std::vector<long> CPAR;   std::vector<string> TPAR;
-    std::ifstream                    *FileStream;       std::string          FilePath;
-    long HeaderLines;
-    long HeaderBytes;
+    std::ifstream                     FileStream;       std::string          FilePath;
     // FVAR[0] = X,    FVAR[1] = Y
     // FPAR[0] = PAR1, FPAR[1] = PAR2, ...
     std::vector<string> FilterCurveFilePath; // <added><20171001>
@@ -53,7 +51,7 @@ public:
     int michi2wstoi(wstring wstr);
     std::vector<double> michi2stod(std::vector<string> strVec);
     std::vector<double> michi2wstod(std::vector<wstring> wstrVec);
-    std::vector<std::string> split(const std::string &s);
+    std::vector<std::string> split(std::string const& original, char separator); // https://stackoverflow.com/questions/24327637/what-is-the-most-efficient-c-method-to-split-a-string-based-on-a-particular-de
     std::vector<std::string> getDataBlock(long lineNumber, long lineCount, int debug = 0); // this function loads data block into this->X, this->Y
     std::vector<std::string> getDataBlockQuickQuick(long lineNumber, long lineCount, int debug = 0); // this function DOES NOT load data block into this->X, this->Y
     std::vector<std::string> readFilterCurveListFile(const char * InputFile);
