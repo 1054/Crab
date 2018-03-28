@@ -518,6 +518,55 @@ int michi2Constraint::parse(std::vector<std::string> input_args, int verbose) {
 
 
 
+
+
+bool michi2Constraint::checkLibIndexValues(std::vector<long> input_lib_index, int debug) {
+    // <20180324>
+    // here we check the constraints on LIB index values
+    bool ConstraintOK = true;
+    michi2Constraint *TempConstraint = this;
+    if( input_lib_index.size()>=TempConstraint->toLIB && TempConstraint->fromLIB==-2 && TempConstraint->toLIB>0 && TempConstraint->fromPAR==-99 && TempConstraint->toPAR==0 ) {
+        // 2018-01-10
+        // set constraint: toLIB.INDEX \Operator\ VALUE.fromAdd
+        //           e.g., LIB4  INDEX  LT        VALUE 1
+        //
+        // 2018-02-06: if the fromLIB==-2 and fromPAR==-99, then constrain toLIB.INDEX by the input constant values TempConstraint->fromListOfValues.
+        // 2018-02-06: we now allow to set a list of values as the constraints with the OR operation
+        //             as long as the PAR being constrained equals one of the value in the list, the constraint is passed.
+        //
+        long TempINDEX1 = input_lib_index.at(TempConstraint->toLIB-1); // the INDEX being constrained
+        for (int ick = 0; ick < TempConstraint->fromListOfValues.size(); ick++) {
+            long TempINDEX2 = (long)(TempConstraint->fromListOfValues[ick]); // the value to apply the constraint with, note that the LIB INDEX starts from 0 and increases by 1
+            if(debug>=1) {
+                std::cout << "michi2Constraint::check: Setting constraint: LIB" << TempConstraint->toLIB << " INDEX" << " (" << TempINDEX1 << ") " << TempConstraint->OperatorTypeStr << " VALUE (" << TempINDEX2 <<  ")";
+            }
+            if(TempConstraint->OperatorType == 0) {
+                ConstraintOK = (TempINDEX1 == TempINDEX2); // set constraint: toLIB.INDEX EQ VALUE.fromListOfValues[ick]
+            } else if(TempConstraint->OperatorType == 1) {
+                ConstraintOK = (TempINDEX1 >= TempINDEX2); // set constraint: toLIB.INDEX GE VALUE.fromListOfValues[ick]
+            } else if(TempConstraint->OperatorType == -1) {
+                ConstraintOK = (TempINDEX1 <= TempINDEX2); // set constraint: toLIB.INDEX LE VALUE.fromListOfValues[ick]
+            } else if(TempConstraint->OperatorType == 2) {
+                ConstraintOK = (TempINDEX1 > TempINDEX2); // set constraint: toLIB.INDEX GT VALUE.fromListOfValues[ick]
+            } else if(TempConstraint->OperatorType == -2) {
+                ConstraintOK = (TempINDEX1 < TempINDEX2); // set constraint: toLIB.INDEX LT VALUE.fromListOfValues[ick]
+            }
+            if(debug>=1) {
+                std::cout << " OK? " << ConstraintOK << std::endl;
+            }
+            if(ConstraintOK) {
+                break;
+            }
+        }
+    }
+    return ConstraintOK;
+}
+
+
+
+
+
+
 bool michi2Constraint::check(struct mnchi2parallelParams * pParams, int debug) {
     std::vector<michi2DataClass *> SDLIBS;
     return this->check(pParams,SDLIBS,debug);
@@ -528,6 +577,9 @@ bool michi2Constraint::check(std::vector<michi2DataClass *> SDLIBS, int debug) {
 }
 
 bool michi2Constraint::check(struct mnchi2parallelParams * pParams, std::vector<michi2DataClass *> SDLIBS, int debug) {
+    // here we check the constraints
+    // if pParams is NULL, then only check LIB1 PAR1 vs LIB2 PAR2 or LIB1 PAR1 vs value NNN
+    // otherwise check pParams INDEX etc.
     bool ConstraintOK = true;
     michi2Constraint *TempConstraint = this;
     if( SDLIBS.size()>0 && TempConstraint->fromLIB>0 && TempConstraint->toLIB>0 && TempConstraint->fromPAR>0 && TempConstraint->toPAR>0 ) {

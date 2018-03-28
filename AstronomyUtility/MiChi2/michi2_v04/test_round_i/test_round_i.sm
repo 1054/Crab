@@ -1,0 +1,88 @@
+test_round_i
+    # Usage:
+    #     echo "macro read test_round_i.sm test_round_i" | sm
+    # 
+    set ibOBS = 1
+    set nLib = 5
+    set YNum = {8 3 5 5 1}
+    # 
+    set nGlobal = 1
+    do i=0,nLib-1 {
+        set nGlobal = nGlobal * YNum[$i]
+    }
+    set nGlobal = int(nGlobal)
+    # 
+    # print global number and total number of LIB
+    define print_noheader 1
+    !echo -ne \\"$(sprintf('%15s','nGlobal'))\\"
+    do i=0,nLib-1 {
+        !echo -ne \\"$(sprintf('%15s','nLib$($i+1)'))\\"
+    }
+    print '\n' {}
+    # 
+    !echo -ne \\"$(sprintf('%15d',nGlobal))\\"
+    do i=0,nLib-1 {
+        !echo -ne \\"$(sprintf('%15d',YNum[$i]))\\"
+    }
+    print '\n' {}
+    # 
+    define print_noheader 1
+    !echo -ne \\"$(sprintf('%15s','iGlobal'))\\"
+    do i=0,nLib-1 {
+        !echo -ne \\"$(sprintf('%15s','iLib$($i+1)'))\\"
+    }
+    print '\n' {}
+    # 
+    # loop to calculate each LIB index corresponding to a global index of iGlobal
+    set dimen(ibLIBList) = $(nLib).d
+    set iTemp = 0
+    foreach iiGlobal {0 1 2 3 4 5 6 7 8 9 10 74 75 76 130 150 599 600} {
+        set iGlobal = $iiGlobal
+        while {iTemp < iGlobal} {
+            set iLib = nLib-1
+            while {iLib>=0} {
+                !echo -ne i=$(iTemp) iLib=$(iLib) '\033[0K\r'
+                set ibLIBList[iLib] = ibLIBList[iLib] + 1
+                if((ibLIBList[iLib])>(YNum[iLib]-1)) { # rounding overflow
+                    set ibLIBList[iLib] = 0 # rewind to zero or begin value
+                    #if(0==iLib) { # if the highest LIB got rounded, then we need to round idOBS as well.
+                    #    set ibOBS = ibOBS + 1
+                    #    break
+                    #}
+                } else {
+                    set iLib = -1 # if no rounding overflow happens, it will break here, so only the last LIB index was increased.
+                    #break # if no rounding overflow happens, it will break here, so only the last LIB index was increased.
+                }
+                set iLib = iLib - 1
+            }
+            set iTemp = iTemp + 1
+        }
+        !echo -ne '\033[0K\r'
+        # 
+        !echo -ne \\"$(sprintf('%15d',iGlobal))\\"
+        do i=0,nLib-1 {
+            !echo -ne \\"$(sprintf('%15d',ibLIBList[$i]))\\"
+        }
+        print '\n' {}
+        # 
+        # 
+        # Another method to compute each LIB index corresponding to a global index of iGlobal
+        set iTemp1 = iGlobal
+        set iTemp2 = nGlobal
+        do iLib = 0,nLib-1 {
+            set iTemp2 = iTemp2 / (YNum[$iLib])
+            set ibLIBList[$iLib] = iTemp1 / iTemp2
+            set iTemp1 = iTemp1 % iTemp2
+        }
+        # 
+        !echo -ne \\"$(sprintf('%15d',iGlobal))\\"
+        do i=0,nLib-1 {
+            !echo -ne \\"$(sprintf('%15d',ibLIBList[$i]))\\"
+        }
+        print '\n' {}
+        
+    }
+
+
+
+

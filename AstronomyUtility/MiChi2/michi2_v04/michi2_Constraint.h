@@ -65,6 +65,8 @@ public:
     
     int parse(std::vector<std::string> input_args, int verbose = 1);
     
+    bool checkLibIndexValues(std::vector<long> input_lib_index, int debug = 0); // this function only checks constraints on LIB index values. 
+    
     bool check(struct mnchi2parallelParams * pParams, int debug = 0);
     
     bool check(std::vector<michi2DataClass *> SDLIBS, int debug = 0);

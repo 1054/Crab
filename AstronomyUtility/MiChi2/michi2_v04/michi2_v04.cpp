@@ -424,7 +424,7 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
         SDLIBList.push_back(SDLIB);
         NumbLibPar += SDLIB->TPAR.size(); // SDLIB->TPAR is the list of parameter title in a LIB file, so its size() is the number of parameters to be fit in a LIB file.
         NumbLibVar += SDLIB->YNum;
-        NumbLibMulti = NumbLibMulti * SDLIB->YNum;
+        NumbLibMulti = NumbLibMulti * SDLIB->YNum; // this equals the total number of all LIB combinations
     }
     // check output table data file list
     // set default output table data file name for each input obs data file
@@ -469,17 +469,68 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
         SDOUT << std::endl << "#" << std::endl;
         SDOUT.close();
     }
-    // prepare to run parallel processes <New><20141211><20141212><20160714><20160718>
-    mnchi2parallelProgress = 0;
-    std::vector<struct mnchi2parallelParams *> mnchi2parallelParams;
-    std::cout << "processing: " << std::endl;
-    int iPara = NumbParallel; // the number of parallel processes
+    // do a pre-loop to determine the global start and end number <20180324> so that when user input a constraint like LIB1 INDEX EQ NN, we do not need to loop over the whole range but just a subrange.
     long iLoop = 0;
-    long iStep = long((float(NumbObs*NumbLibMulti)+float(iPara)-1)/float(iPara)); // iPara is the paralle process number, allowed to be input with arg '-parallel'. //<NOTE> +float(iPara)-1 to make sure we cover all the ranges.
-    while(iLoop >= 0 && iLoop < NumbObs*NumbLibMulti) {
+    long iGlobalStart = 0, iGlobalEnd = NumbLibMulti-1; // the global start and end number
+    if(Constraints.size()>0) {
+        iGlobalStart = -1; // this will be determined after the loop.
+        iGlobalEnd = -1; // this will be determined after the loop.
+        //std::cout << "prelooping: iLoop=" << iLoop << "(" << 0 << "-" << NumbLibMulti-1 <<  ")" << ", iGlobalStart=" << iGlobalStart << ", iGlobalEnd=" << iGlobalEnd << std::flush;
+        std::cout << "prelooping: iLoop=" << iLoop << "(" << 0 << "-" << NumbLibMulti-1 <<  ")" << ", iGlobalStart=" << iGlobalStart << ", iGlobalEnd=" << iGlobalEnd << std::endl;
+        while(iLoop >= 0 && iLoop <= NumbLibMulti-1) {
+            // <20180324>
+            //
+            // compute index of each LIB corresponding to iLoop
+            long iTemp1 = iLoop;
+            long iTemp2 = NumbLibMulti;
+            std::vector<long> iTempList;
+            for(long iLib = 0; iLib <= NumbLib-1 ; iLib++) {
+                iTemp2 = long(iTemp2 / (SDLIBList[iLib]->YNum));
+                iTempList.push_back(long(iTemp1 / iTemp2));
+                iTemp1 = iTemp1 % iTemp2; // verified by "test_round_i/test_round_i.sm" <20180324>
+            }
+            //
+            // check constraints <Added><20160719><dzliu>
+            bool ConstraintOK = true;
+            for(int iCon = 0; iCon < Constraints.size(); iCon++) {
+                michi2Constraint *TempConstraint = Constraints[iCon];
+                ConstraintOK = TempConstraint->checkLibIndexValues(iTempList,DebugLevel-1);
+                if(!ConstraintOK) {
+                    break; // break the for loop
+                }
+            }
+            if(ConstraintOK) {
+                if(iGlobalStart==-1) {iGlobalStart = iLoop;} // store iGlobalStart at the first ConstraintOK
+                iGlobalEnd = iLoop; // store iGlobalEnd till the last ConstraintOK
+            }
+            //
+            // print progress
+            if(iLoop % (NumbLibMulti/30) == 0) {
+                //std::cout << "\r" << "prelooping:                                                                                                                                            " << std::flush;
+                //std::cout << "\r" << "prelooping: iLoop=" << iLoop << "(" << 0 << "-" << NumbLibMulti-1 <<  ")" << ", i1=" << iTempList[0] << ", i2=" << iTempList[1] <<  ", iGlobalStart=" << iGlobalStart << ", iGlobalEnd=" << iGlobalEnd << std::flush;
+                std::cout << "prelooping: iLoop=" << iLoop << "(" << 0 << "-" << NumbLibMulti-1 <<  ")" << ", i1=" << iTempList[0] << ", i2=" << iTempList[1] <<  ", iGlobalStart=" << iGlobalStart << ", iGlobalEnd=" << iGlobalEnd << ", ConstraintOK=" << ConstraintOK << std::endl;
+            }
+            //
+            // next loop
+            iLoop++;
+        }
+        //std::cout << "\r" << "prelooping:                                                                                                                                            " << std::flush;
+        //std::cout << "\r" << "prelooping: iGlobalStart=" << iGlobalStart << ", iGlobalEnd=" << iGlobalEnd << std::endl;
+        std::cout << "prelooping: iGlobalStart=" << iGlobalStart << ", iGlobalEnd=" << iGlobalEnd << std::endl;
+    }
+    //
+    // prepare to run parallel processes <New><20141211><20141212><20160714><20160718>
+    // loop from iGlobalStart to iGlobalEnd <20180324>
+    mnchi2parallelProgress = iGlobalStart;
+    std::vector<struct mnchi2parallelParams *> mnchi2parallelParams;
+    int iPara = NumbParallel; // the number of parallel processes
+    long iStep = long((float(iGlobalEnd-iGlobalStart+1)+float(iPara)-1)/float(iPara)); // iPara is the paralle process number, allowed to be input with arg '-parallel'. //<NOTE> +float(iPara)-1 to make sure we cover all the ranges.
+    iLoop = iGlobalStart;
+    std::cout << "processing: iGlobalStart=" << iGlobalStart << ", iGlobalEnd=" << iGlobalEnd << ", iStep=" << iStep << std::endl;
+    while(iLoop >= iGlobalStart && iLoop <= iGlobalEnd) {
         // determine the loop range of each process,
         // and if current process is the last process, set the step to be exactly the number of loops left.
-        if((iLoop+iStep)>NumbObs*NumbLibMulti) {iStep=NumbObs*NumbLibMulti-iLoop;}
+        if((iLoop+iStep)>iGlobalEnd+1) { iStep=iGlobalEnd+1-iLoop; }
         //std::cout << "looping " << iLoop+1 << "-" << iLoop+iStep-1+1 << " / " << NumbLibMulti << "   ";
         if(DebugLevel>=2) { std::cout << "mnchi2: Creating new struct mnchi2parallelParams" << std::endl; }
         struct mnchi2parallelParams *pParams = new struct mnchi2parallelParams;
@@ -520,10 +571,10 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
         for(long iLib = 0; iLib < SDLIBList.size(); iLib++) {
             //michi2DataClass *SDLIB = SDLIBList[iLib];
             //iTemp = iTemp / SDLIB->YNum;
-            pParams->idLIBList.push_back(0); // controls the parallel processes
-            pParams->ibLIBList.push_back(0); // controls the parallel processes
-            pParams->ieLIBList.push_back(0); // controls the parallel processes
-            pParams->irLIBList.push_back(true); // controls the parallel processes
+            pParams->idLIBList.push_back(0); // controls the parallel processes: id
+            pParams->ibLIBList.push_back(0); // controls the parallel processes: ibegin
+            pParams->ieLIBList.push_back(0); // controls the parallel processes: iend
+            pParams->irLIBList.push_back(true); // controls the parallel processes: iround
             //iRest = iRest%iTemp;
             //iNext = iNext%iTemp;
         }
@@ -532,51 +583,71 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
         //
         // compute the rounding of each OBS and LIB index so as to
         // compute the loop range of each OBS and LIB index
-        long iTemp = 0;
-        while(iTemp < pParams->iBegin) {
-            for(long iLib = pParams->nLib-1; iLib >= 0 ; iLib--) {
-                pParams->ibLIBList[iLib]++;
-                if((pParams->ibLIBList[iLib])>(pParams->SDLIBList[iLib]->YNum-1)) { // rounding overflow
-                    pParams->ibLIBList[iLib] = 0; // rewind to zero or begin value
-                    if(0==iLib) { // if the highest LIB got rounded, then we need to round idOBS as well.
-                        pParams->ibOBS++;
-                        break;
-                    }
-                } else {
-                    break; // if no rounding overflow happens, it will break here, so only the last LIB index was increased.
-                }
-            }
-            iTemp++;
+        // for example, pParams->iBegin = 10, and LIB 1,2,3 have dimensions of 3,2,1,
+        // then LIB 1,2,3 ibegin should be 10/3=3, (10%3)/2=0, ((10%3)%2)/1=1.
+        //<20180324> long iTemp = 0;
+        //<20180324> while(iTemp < pParams->iBegin) {
+        //<20180324>     for(long iLib = pParams->nLib-1; iLib >= 0 ; iLib--) {
+        //<20180324>         pParams->ibLIBList[iLib]++;
+        //<20180324>         if((pParams->ibLIBList[iLib])>(pParams->SDLIBList[iLib]->YNum-1)) { // rounding overflow
+        //<20180324>             pParams->ibLIBList[iLib] = 0; // rewind to zero or begin value
+        //<20180324>             if(0==iLib) { // if the highest LIB got rounded, then we need to round idOBS as well.
+        //<20180324>                 pParams->ibOBS++;
+        //<20180324>                 break;
+        //<20180324>             }
+        //<20180324>         } else {
+        //<20180324>             break; // if no rounding overflow happens, it will break here, so only the last LIB index was increased.
+        //<20180324>         }
+        //<20180324>     }
+        //<20180324>     iTemp++;
+        //<20180324> }
+        //<20180324> iTemp = 0;
+        //<20180324> while(iTemp < pParams->iEnd) {
+        //<20180324>     for(long iLib = pParams->nLib-1; iLib >= 0 ; iLib--) {
+        //<20180324>         pParams->ieLIBList[iLib]++;
+        //<20180324>         if((pParams->ieLIBList[iLib])>(pParams->SDLIBList[iLib]->YNum-1)) { // rounding overflow
+        //<20180324>             pParams->ieLIBList[iLib] = 0; // rewind to zero or begin value
+        //<20180324>             if(0==iLib) { // if the highest LIB got rounded, then we need to round idOBS as well.
+        //<20180324>                 pParams->ieOBS++;
+        //<20180324>                 break;
+        //<20180324>             }
+        //<20180324>         } else {
+        //<20180324>             break; // if no rounding overflow happens, it will break here, so only the last LIB index was increased.
+        //<20180324>         }
+        //<20180324>     }
+        //<20180324>     iTemp++;
+        //<20180324> }
+        //<20180324>
+        // Another method to compute each LIB index corresponding to a global index of pParams->iBegin <20180324>
+        long iTemp1 = pParams->iBegin;
+        long iTemp2 = NumbLibMulti;
+        for(long iLib = 0; iLib <= pParams->nLib-1 ; iLib++) {
+            iTemp2 = long(iTemp2 / (SDLIBList[iLib]->YNum));
+            pParams->ibLIBList[iLib] = long(iTemp1 / iTemp2);
+            iTemp1 = iTemp1 % iTemp2; // verified by "test_round_i/test_round_i.sm" <20180324>
         }
-        iTemp = 0;
-        while(iTemp < pParams->iEnd) {
-            for(long iLib = pParams->nLib-1; iLib >= 0 ; iLib--) {
-                pParams->ieLIBList[iLib]++;
-                if((pParams->ieLIBList[iLib])>(pParams->SDLIBList[iLib]->YNum-1)) { // rounding overflow
-                    pParams->ieLIBList[iLib] = 0; // rewind to zero or begin value
-                    if(0==iLib) { // if the highest LIB got rounded, then we need to round idOBS as well.
-                        pParams->ieOBS++;
-                        break;
-                    }
-                } else {
-                    break; // if no rounding overflow happens, it will break here, so only the last LIB index was increased.
-                }
-            }
-            iTemp++;
+        // also compute for pParams->iEnd
+        iTemp1 = pParams->iEnd;
+        iTemp2 = NumbLibMulti;
+        for(long iLib = 0; iLib <= pParams->nLib-1 ; iLib++) {
+            iTemp2 = long(iTemp2 / (SDLIBList[iLib]->YNum));
+            pParams->ieLIBList[iLib] = long(iTemp1 / iTemp2);
+            iTemp1 = iTemp1 % iTemp2; // verified by "test_round_i/test_round_i.sm" <20180324>
         }
+        //
         // set initial loop values
         pParams->idOBS = pParams->ibOBS; // index of OBS list
         pParams->irOBS = true; // 是否进位
         for(long iLib = 0; iLib < pParams->nLib ; iLib++) {
             pParams->idLIBList[iLib] = pParams->ibLIBList[iLib]; // index of LIB list
-            pParams->irLIBList[iLib] = true; // 是否进位。一个LIB文件包含了多个Templates，我们遍历每一个Template与其它LIB中的Templates的组合，所以该变量判断是否该LIB中当前Template已经与所有其它LIB中的Templates都组合过了，若是，则进位，即切换至该LIB种的下一个Template，与其它LIB中的Templates进行组合。
+            pParams->irLIBList[iLib] = true; // 是否进位。一个LIB文件包含了多个Templates，我们遍历每一个Template与其它LIB中的Templates的组合，所以该变量判断是否该LIB中当前Template已经与所有其它LIB中的Templates都组合过了，若是，则进位，即切换至该LIB中的下一个Template，与其它LIB中的Templates进行组合。
         }
         // print info and prepare next loop
-        if(DebugLevel>=1) {
-            std::cout << "looping " << iLoop+1 << "-" << iLoop+iStep-1+1 << "/" << NumbLibMulti;
+        if(DebugLevel>=0) {
+            std::cout << "looping " << iLoop << "-" << iLoop+iStep-1 << "/" << iGlobalEnd; // loop index starts from 0,
             std::cout << " OBS " << pParams->ibOBS+1 << "-" << pParams->ieOBS+1;
             for(long iLib = 0; iLib < SDLIBList.size(); iLib++) {
-                std::cout << " LIB" << iLib+1 << " " << pParams->ibLIBList[iLib]+1 << "-" << pParams->ieLIBList[iLib]+1 << "/" << pParams->SDLIBList[iLib]->YNum;
+                std::cout << " LIB" << iLib+1 << " " << pParams->ibLIBList[iLib] << "-" << pParams->ieLIBList[iLib] << "/" << pParams->SDLIBList[iLib]->YNum; // LIB number starts from 1, but LIB index (for the templates therein) starts from 0
             }
         }
         std::cout << std::endl;
@@ -602,7 +673,7 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
     // and print progress
     int ndigits = 0;
     //std::cout << std::setw(8) << std::right << mnchi2parallelProgress << "||";
-    std::cout << "[" << mnchi2parallelProgress << "/" << NumbObs*NumbLibMulti << "]"; //<20180130> //<20180206>
+    std::cout << "[" << mnchi2parallelProgress << "/" << iGlobalEnd << "]"; //<20180130> //<20180206>
     for(long ip=0; ip<mnchi2parallelParams.size(); ip++) {
         // print progress first line
         ndigits = (int)log10((double)(mnchi2parallelParams[ip]->iEnd+1)) + 1;
@@ -616,8 +687,8 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
     std::cout << std::endl;
     // wait for all threads
     // and print progress
-    while(mnchi2parallelProgress <= NumbObs*NumbLibMulti) {
-        std::cout << "[" << mnchi2parallelProgress << "/" << NumbObs*NumbLibMulti << "]"; //<20180116>
+    while(mnchi2parallelProgress <= iGlobalEnd+1) {
+        std::cout << "[" << mnchi2parallelProgress << "/" << iGlobalEnd << "]"; //<20180116>
         // print progress
         for(long ip=0; ip<mnchi2parallelParams.size(); ip++) {
             ndigits = (int)log10((double)(mnchi2parallelParams[ip]->iEnd+1)) + 1;
@@ -629,10 +700,10 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
             }
         }
         std::cout<< std::endl;
-        if(mnchi2parallelProgress >= NumbObs*NumbLibMulti) {
+        if(mnchi2parallelProgress >= iGlobalEnd+1) {
             break;
         } else {
-            int random_sleep_seconds = log10(NumbObs*NumbLibMulti) + rand() % (int)(log10(NumbObs*NumbLibMulti)+1);
+            int random_sleep_seconds = log10(iGlobalEnd+1) + rand() % (int)(log10(iGlobalEnd+1)+1);
             if(DebugLevel>=2) { std::cout << "mnchi2: Sleeping for " << random_sleep_seconds << " seconds" << std::endl; }
             sleep(random_sleep_seconds); // sleep for 4 to 8 seconds
             continue;
