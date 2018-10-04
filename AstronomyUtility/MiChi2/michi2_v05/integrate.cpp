@@ -14,7 +14,7 @@ using namespace std;
 
 
 
-double integrate(vector<double> &x, vector<double> &y, vector<double> &xrange)
+double integrate(vector<double> const&x, vector<double> const&y, vector<double> const&xrange)
 {
     
     // x must be in increasing order
@@ -44,10 +44,11 @@ double integrate(vector<double> &x, vector<double> &y, vector<double> &xrange)
 
 
 
-double integrate_LIR(vector<double> &x, vector<double> &y, vector<double> &xrange)
+double integrate_LIR(vector<double> const&x, vector<double> const&y, vector<double> const&xrange)
 {
     
     // x must be in increasing order
+    // this function assumes x unit is um and compute really physical LIR
     
     long i=0, j=0, k=0;
     double output_integral = 0.0;

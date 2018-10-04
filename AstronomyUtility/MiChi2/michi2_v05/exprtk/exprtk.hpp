@@ -15995,14 +15995,16 @@ namespace exprtk
          e_rtrn_string = 1
       };
 
-      typedef T type;
+      //typedef T type;  // 20180930 dzliu commented out this line
       typedef type_store<T> generic_type;
       typedef typename generic_type::parameter_list parameter_list_t;
 
-      igeneric_function(const std::string& param_seq = "", const return_type rtr_type = e_rtrn_scalar)
+      explicit igeneric_function(const std::string& param_seq = "", const return_type rtr_type = e_rtrn_scalar)
       : parameter_sequence(param_seq),
         rtrn_type(rtr_type)
-      {}
+      {} // 20180930 dzliu added "explicit" at the front -- not working...
+       // 20180930 dzliu found the problem (after several hours of checking) -- when creating user defined functions, we need `new` it!
+       // for example, 
 
       virtual ~igeneric_function()
       {}

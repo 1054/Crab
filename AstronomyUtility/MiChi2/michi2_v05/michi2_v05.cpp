@@ -10,35 +10,45 @@
 
 #include "michi2_v05.h"
 #include "spline.cpp"
-#include "integrate.cpp"
+
 extern vector<double> spline(vector<double> &x, vector<double> &y, vector<double> &output_x);
-extern double integrate(vector<double> &x, vector<double> &y, vector<double> &xrange);
-extern double integrate_LIR(vector<double> &x, vector<double> &y, vector<double> &xrange);
 
 
 
-const char *InfoRedshift = "";
+//const char *InfoRedshift = "";
 
 int NumbParallel = 2; // number of parallel subprocesses
 
-double GlobalMinimumChisq = std::nan(""); // GlobalMinimumChisq
+double Sampling = 0.8; // sampling fraction of the whole parater space
 
-std::vector<michi2Constraint *> Constraints;
+//double GlobalMinimumChisq = nan(""); // GlobalMinimumChisq
+
+//std::vector<michi2Constraint *> Constraints;
 
 std::vector<FilterCurveXY *> FilterCurves;
 
+michi2ParallelPool *ppPool = new michi2ParallelPool();
+
+std::default_random_engine RandomNumberGenerator;
 
 
+
+/*
+  MatchedObsLibStruct is a subroutine to match Obs and Lib.
+  Obs and Lib all are 1D function, with two 1D arrays X and Y. But the sampling in X is different.
+  This subroutine matches Lib X array to Obs X array and spline the Lib Y array at each Obs X array.
+  We multiply OnePlusRedshift to Lib X array before the match.
+*/
 MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLIB, int debug)
 {
     // This function will find the Y value in LIB whose X value matches the X value of each OBS
     
     MatchedObsLibStruct MatchedDAT;
-    //std::cout << "michi2MatchObs: MatchedDAT=0x" << std::hex << (size_t)&MatchedDAT << std::endl;
+    //std::cout << "michi2MatchObs: MatchedDAT=0x" << std::hex << (size_t)&MatchedDAT << std::dec << std::endl;
     
     // check DCOBS
     if(DCOBS->X.size()!=DCOBS->XNum || DCLIB->X.size()!=DCLIB->Y.size()) {
-        std::cout << "michi2MatchObs: checking OBS and LIB data failed! OBS->X.size()=" << DCOBS->X.size() << " OBS->XNum=" << DCOBS->XNum << " OBS->Y.size()=" << DCOBS->Y.size() << " OBS->YNum=" << DCOBS->YNum << std::endl;
+        std::cout << "michi2MatchObs: Error! Checking OBS and LIB data failed! OBS->X.size()=" << DCOBS->X.size() << " OBS->XNum=" << DCOBS->XNum << " OBS->Y.size()=" << DCOBS->Y.size() << " OBS->YNum=" << DCOBS->YNum << std::endl;
         return MatchedDAT;
     }
     
@@ -54,20 +64,21 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
     //debug = 3; // <Debug> // <20160718> now put in argument
 
     double OnePlusRedshift = 1.0; //
-    if(strlen(InfoRedshift)>0) { OnePlusRedshift = 1.0+atof(InfoRedshift); }
-
+    //if(strlen(InfoRedshift)>0) { OnePlusRedshift = 1.0+atof(InfoRedshift); }
+    if(std::isnan(DCOBS->XNorm)) {DCOBS->XNorm = 1.0;}
+    
     
     for(int k=0; k<DCOBS->XNum; k++) {
         DCOBS->Matched[k]=0; // <TODO> we will always find a match for obs.
-        if(debug>=2) { std::cout << "michi2MatchObs: debugging: we are trying to match obs X=" << DCOBS->XStr[k] << "/" << OnePlusRedshift << "=" << DCOBS->X[k]/OnePlusRedshift << " within lib X range " << LibRangeXMin << " " << LibRangeXMax << std::endl; }
-        if(DCOBS->X[k]/OnePlusRedshift>=LibRangeXMin && DCOBS->X[k]/OnePlusRedshift<=LibRangeXMax) {
+        if(debug>=2) { std::cout << "michi2MatchObs: debugging: we are trying to match obs X=" << DCOBS->XStr[k] << "(XNorm=" << DCOBS->XNorm << ", X*XNorm=" << DCOBS->X[k]*DCOBS->XNorm << " within lib X range " << LibRangeXMin << " " << LibRangeXMax << std::endl; }
+        if(DCOBS->X[k]*DCOBS->XNorm>=LibRangeXMin && DCOBS->X[k]*DCOBS->XNorm<=LibRangeXMax) {
             DCOBS->Matched[k]=1; // <TODO> we will always find a match for obs.
             // now we need to find a value from library
             double tmpdiffvalue = -1.0;
             double mindiffvalue = -1.0;
             long   mindiffindex = -1;
             for(int j=0; j<DCLIB->XNum; j++) {
-                tmpdiffvalue = (DCOBS->X[k]/OnePlusRedshift - DCLIB->X[j]); // go search for the left side of OBS data point on X axis
+                tmpdiffvalue = (DCOBS->X[k]*DCOBS->XNorm - DCLIB->X[j]); // go search for the left side of OBS data point on X axis
                 if(tmpdiffvalue>=0.0 && mindiffvalue<0.0) { mindiffvalue=tmpdiffvalue; mindiffindex=j; } // initial value
                 if(tmpdiffvalue>=0.0 && tmpdiffvalue<mindiffvalue) { mindiffvalue=tmpdiffvalue; mindiffindex=j; } // compare value
             }
@@ -77,17 +88,17 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                 int j = mindiffindex;
                 int MatchedLibI = j;
                 double MatchedLibY = DCLIB->Y[j];
-                if(debug>=1) { std::cout << "michi2MatchObs: debugging: got matched lib Y value " << MatchedLibY << " at X between " << DCLIB->X[mindiffindex] << " " << DCLIB->X[mindiffindex+1] << std::endl; }
+                if(debug>=2) { std::cout << "michi2MatchObs: debugging: got matched lib Y value " << MatchedLibY << " at X between " << DCLIB->X[mindiffindex] << " " << DCLIB->X[mindiffindex+1] << std::endl; }
                 // do linear interpolate to get more accurate MatchedLibY
                 if(j<DCLIB->XNum-1) {
                     double f1_l1 = DCLIB->Y[j]; // left-side LIB data point
                     double f1_l2 = DCLIB->Y[j+1]; // right-side LIB data point, e.g. if we are matching ObsX = 24.0, LibX = 23.95, then we interpolate LibX(23.95,24.15)=>ObsX(24.00)
-                    double f1_a1 = (DCOBS->X[k]/OnePlusRedshift - DCLIB->X[j]); // as the e.g., a1 =  0.05
-                    double f1_a2 = (DCLIB->X[j+1] - DCOBS->X[k]/OnePlusRedshift); // as the e.g., a2 =  0.15
+                    double f1_a1 = (DCOBS->X[k]*DCOBS->XNorm - DCLIB->X[j]); // as the e.g., a1 =  0.05
+                    double f1_a2 = (DCLIB->X[j+1] - DCOBS->X[k]*DCOBS->XNorm); // as the e.g., a2 =  0.15
                     double f1_ai = (f1_a1+f1_a2); // then f1 = f1_l1 * 75% + f1_l2 * 25%
                     double f1_li = f1_l1*(f1_a2/f1_ai)+f1_l2*(f1_a1/f1_ai); // <TODO> bi-linear interpolation!
                     MatchedLibY = f1_li;
-                    if(debug>=1) { std::cout << "michi2MatchObs: debugging: interpolated accurate lib Y value " << MatchedLibY << " at obs X " << DCOBS->X[k]/OnePlusRedshift << std::endl; }
+                    if(debug>=2) { std::cout << "michi2MatchObs: debugging: interpolated accurate lib Y value " << MatchedLibY << " at obs X " << DCOBS->X[k]*DCOBS->XNorm << std::endl; }
                 }
                 //
                 // <20170930>
@@ -96,6 +107,7 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                 std::string TempFilterCurveFilePath; TempFilterCurveFilePath.clear();
                 std::vector<double> FilterCurveX; FilterCurveX.clear();
                 std::vector<double> FilterCurveY; FilterCurveY.clear();
+                if(debug>=2) { std::cout << "michi2MatchObs: debugging: FilterCurves.size() " << FilterCurves.size() << " k " << k << std::endl; }
                 if(FilterCurves.size()>k) {
                     if(FilterCurves[k]) {
                         // re-use global variable
@@ -106,6 +118,7 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                         if(debug>=1) { std::cout << "michi2MatchObs: debugging: applying filter curve from FilterCurves[" << k << "]" << std::endl; }
                     }
                 }
+                if(debug>=2) { std::cout << "michi2MatchObs: debugging: FilterCurveX.size() " << FilterCurveX.size() << " FilterCurveY.size() " << FilterCurveY.size() << " DCOBS->FilterCurveFilePath.size() " << DCOBS->FilterCurveFilePath.size() << std::endl; }
                 if((FilterCurveX.size()==0 || FilterCurveY.size()==0) && DCOBS->FilterCurveFilePath.size()>k) {
                     if(!DCOBS->FilterCurveFilePath[k].empty()) {
                         if(DCOBS->FilterCurveFilePath[k].find("none")==std::string::npos &&
@@ -129,7 +142,7 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                                             FilterCurveFileLineStrList.push_back(FilterCurveFileLineStr);
                                         } // https://stackoverflow.com/questions/9435385/split-a-string-using-c11
                                         if(FilterCurveFileLineStrList.size()>=2) {
-                                            if(debug>=3) { std::cout << "michi2MatchObs: debugging: applying filter curve from file: FilterCurveX = " << FilterCurveFileLineStrList[0] << ", FilterCurveY = " << FilterCurveFileLineStrList[1] << std::endl;  }
+                                            if(debug>=2) { std::cout << "michi2MatchObs: debugging: applying filter curve from file: FilterCurveX = " << FilterCurveFileLineStrList[0] << ", FilterCurveY = " << FilterCurveFileLineStrList[1] << std::endl;  }
                                             double temp_x1 = atof(FilterCurveFileLineStrList[0].c_str());
                                             double temp_y1 = atof(FilterCurveFileLineStrList[1].c_str());
                                             FilterCurveX.push_back(temp_x1);
@@ -153,19 +166,19 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                     // spline FilterCurveX FilterCurveY LIBX FilterFactorY
                     if(debug>=2) { std::cout << "michi2MatchObs: debugging: splining filter curve" << std::endl; }
                     for(int i1=0; i1<FilterCurveX.size(); i1++) {
-                        FilterCurveX[i1] = FilterCurveX[i1] / OnePlusRedshift;
+                        FilterCurveX[i1] = FilterCurveX[i1] * DCOBS->XNorm; // apply the same XNorm as OBS, for example 1/(1+z).
                         if(debug>=3) { std::cout << "michi2MatchObs: debugging: applying filter curve FilterCurveX = " << FilterCurveX[i1] << ", FilterCurveY = " << FilterCurveY[i1] << std::endl;  }
                     }
                     //
                     std::vector<double> FilterCurveY_Matched;
                     //for(int i1=0; i1<DCLIB->X.size(); i1++) {
-                        //if(DCLIB->X[i1]>=FilterCurveX.front()/OnePlusRedshift && DCLIB->X[i1]<=FilterCurveX.back()/OnePlusRedshift) {
+                        //if(DCLIB->X[i1]>=FilterCurveX.front()*DCOBS->XNorm && DCLIB->X[i1]<=FilterCurveX.back()*DCOBS->XNorm) {
                         //    FilterCurveY_Matched[i1] = 1.0;
                         //} else {
                         //    FilterCurveY_Matched[i1] = 0.0;
                         //}
                     //}
-                    //std::cout << "michi2MatchObs: debugging: FilterCurveY_Matched=0x" << std::hex << (size_t)&FilterCurveY_Matched << std::endl;
+                    //std::cout << "michi2MatchObs: debugging: FilterCurveY_Matched=0x" << std::hex << (size_t)&FilterCurveY_Matched << std::dec << std::endl;
                     
                     FilterCurveY_Matched = spline(FilterCurveX, FilterCurveY, DCLIB->X);
                     //double FilterCurveY_Matched_Total = 0.0;
@@ -173,13 +186,13 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                     //    FilterCurveY_Matched_Total += FilterCurveY_Matched[i1];
                     //    //std::cout << "michi2MatchObs: debugging: splining filter curve value " << FilterCurveY_Matched[i1] << std::endl;
                     //}
-                    //std::cout << "michi2MatchObs: debugging: FilterCurveY_Matched=0x" << std::hex << (size_t)&FilterCurveY_Matched << std::endl;
-                    //std::cout << "michi2MatchObs: debugging: DCLIB=0x" << std::hex << (size_t)&DCLIB << std::endl;
-                    //std::cout << "michi2MatchObs: debugging: DCLIB->X=0x" << std::hex << (size_t)&DCLIB->X << std::endl;
-                    //std::cout << "michi2MatchObs: debugging: DCLIB->Y=0x" << std::hex << (size_t)&DCLIB->Y << std::endl;
-                    //std::cout << "michi2MatchObs: debugging: DCLIB->FilterCurveFilePath=0x" << std::hex << (size_t)&DCLIB->FilterCurveFilePath << std::endl;
-                    //std::cout << "michi2MatchObs: debugging: DCLIB->TPAR=0x" << std::hex << (size_t)&DCLIB->TPAR << std::endl;
-                    //std::cout << "michi2MatchObs: debugging: DCOBS->FilterCurveFilePath=0x" << std::hex << (size_t)&DCOBS->FilterCurveFilePath << std::endl;
+                    //std::cout << "michi2MatchObs: debugging: FilterCurveY_Matched=0x" << std::hex << (size_t)&FilterCurveY_Matched << std::dec << std::endl;
+                    //std::cout << "michi2MatchObs: debugging: DCLIB=0x" << std::hex << (size_t)&DCLIB << std::dec << std::endl;
+                    //std::cout << "michi2MatchObs: debugging: DCLIB->X=0x" << std::hex << (size_t)&DCLIB->X << std::dec << std::endl;
+                    //std::cout << "michi2MatchObs: debugging: DCLIB->Y=0x" << std::hex << (size_t)&DCLIB->Y << std::dec << std::endl;
+                    //std::cout << "michi2MatchObs: debugging: DCLIB->FilterCurveFilePath=0x" << std::hex << (size_t)&DCLIB->FilterCurveFilePath << std::dec << std::endl;
+                    //std::cout << "michi2MatchObs: debugging: DCLIB->TPAR=0x" << std::hex << (size_t)&DCLIB->TPAR << std::dec << std::endl;
+                    //std::cout << "michi2MatchObs: debugging: DCOBS->FilterCurveFilePath=0x" << std::hex << (size_t)&DCOBS->FilterCurveFilePath << std::dec << std::endl;
                     //
                     if(debug>=2) { std::cout << "michi2MatchObs: debugging: splining filter curve done" << std::endl; }
                     if(DCLIB->X.front()<FilterCurveX.back() && DCLIB->X.back()>FilterCurveX.front()) {
@@ -206,27 +219,27 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                     // store into global variable FilterCurves for re-using
                     if(FilterCurves.size()<=k) {
                         for(int i1=0; i1<FilterCurveX.size(); i1++) {
-                            FilterCurveX[i1] = FilterCurveX[i1] * OnePlusRedshift;
+                            FilterCurveX[i1] = FilterCurveX[i1] / DCOBS->XNorm; // restore back to original FilterCurveX
                         }
                         FilterCurves.resize(k+1);
                         FilterCurves[k] = new FilterCurveXY();
                         FilterCurves[k]->X.assign(FilterCurveX.begin(), FilterCurveX.end());
                         FilterCurves[k]->Y.assign(FilterCurveY.begin(), FilterCurveY.end());
                         FilterCurves[k]->Name = TempFilterCurveFilePath;
-                        if(debug>=1) { std::cout << "michi2MatchObs: debugging: stored filter curve into FilterCurves[" << k << "]" << std::endl; }
+                        if(debug>=2) { std::cout << "michi2MatchObs: debugging: stored filter curve into FilterCurves[" << k << "]" << std::endl; }
                     }
                 }
+                if(debug>=3) { std::cout << "michi2MatchObs: debugging: DCLIB " << DCLIB << " DCOBS " << DCOBS << std::endl; }
+                if(debug>=3) { std::cout << "michi2MatchObs: debugging: DCLIB->Matched["<<j<<"] " << DCLIB->Matched[j] << " DCOBS->Matched["<<k<<"] " << DCOBS->Matched[k] << std::endl; }
                 //
                 // save into MatchedDAT data structure
                 DCLIB->Matched[j]=1;
                 DCOBS->Matched[k]=1;
-                MatchedDAT.j0.push_back(DCOBS->X[k]/OnePlusRedshift); // obs
+                MatchedDAT.j0.push_back(DCOBS->X[k]*DCOBS->XNorm); // obs
                 MatchedDAT.f0.push_back(DCOBS->Y[k]); // obs
                 MatchedDAT.df.push_back(DCOBS->YErr[k]); // obs unc
                 MatchedDAT.f1.push_back(MatchedLibY);
-                if(debug>=1) { std::cout << "michi2MatchObs: debugging: got matched lib Y value " << MatchedLibY << " comparing to obs Y value " << DCOBS->Y[k] << " at obs X value " << DCOBS->X[k] << "/" << OnePlusRedshift << "=" << DCOBS->X[k]/OnePlusRedshift << std::endl; }
-                // std::cout << "michi2MatchObs: debugging: got it! " << DCOBS->X[k]/OnePlusRedshift << " " << DCOBS->Y[k]/OnePlusRedshift << " " << DCLIB->Y[j];
-                //if(debug>=2) {std::cout << "michi2MatchObs: debugging: FilterCurves=0x" << std::hex << (size_t)&FilterCurves << std::endl;}
+                if(debug>=1) { std::cout << "michi2MatchObs: debugging: got matched lib Y value " << MatchedLibY << " comparing to obs Y value " << DCOBS->Y[k] << " at obs X value " << DCOBS->X[k] << "*" << DCOBS->XNorm << "=" << DCOBS->X[k]*DCOBS->XNorm << std::endl; }
                 
                 
                 // <TODO><20171001> program stacked here when jumping out of this level
@@ -241,19 +254,19 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
                 // no nearest LIB data found to OBS data? <TODO>
                 if(debug>=1) { std::cout << "michi2MatchObs: debugging: got no matched lib data within lib X range " << LibRangeXMin << " " << LibRangeXMax << "? (This should not happen!)" << std::endl; }
             }
-            //if(debug>=2) {std::cout << "michi2MatchObs: debugging: FilterCurves=0x" << std::hex << (size_t)&FilterCurves << std::endl;}
+            //if(debug>=2) {std::cout << "michi2MatchObs: debugging: FilterCurves=0x" << std::hex << (size_t)&FilterCurves << std::dec << std::endl;}
         } else {
             DCOBS->Matched[k]=1;
-            MatchedDAT.j0.push_back(DCOBS->X[k]/OnePlusRedshift); // obs
+            MatchedDAT.j0.push_back(DCOBS->X[k]*DCOBS->XNorm); // obs
             MatchedDAT.f0.push_back(DCOBS->Y[k]); // obs
             MatchedDAT.df.push_back(DCOBS->YErr[k]); // obs unc
             MatchedDAT.f1.push_back(0.0); // lib <TODO>
             // MatchedDAT.f1.push_back(std::numeric_limits<double>::quiet_NaN()); // lib <TODO> what if lib does not cover full obs xrange ?
-            if(debug>=1) { std::cout << "michi2MatchObs: debugging: no matched lib found for the given obs X value " << DCOBS->X[k] << "/" << OnePlusRedshift << "=" << DCOBS->X[k]/OnePlusRedshift << std::endl; }
+            if(debug>=1) { std::cout << "michi2MatchObs: debugging: no matched lib found for the given obs X value " << DCOBS->X[k] << "*" << DCOBS->XNorm << "=" << DCOBS->X[k]*DCOBS->XNorm << std::endl; }
         }
     }
     
-    //if(debug>=2) {std::cout << "michi2MatchObs: debugging: FilterCurves=0x" << std::hex << (size_t)&FilterCurves << std::endl;}
+    //if(debug>=2) {std::cout << "michi2MatchObs: debugging: FilterCurves=0x" << std::hex << (size_t)&FilterCurves << std::dec << std::endl;}
     
     return MatchedDAT;
 }
@@ -311,6 +324,91 @@ double michi2VecMean(std::vector<double> vec)
     return vecMean;
 }
 
+int michi2RandomIndexNearbyMinimumPoint(std::vector<double> vec, double RandomRadius)
+{
+    // find minimum point, then randomly choose a nearby index
+    // we use Gaussian random
+    int output_index = -1;
+    double tmp_minchisq = nan("");
+    int tmp_argwhere_minchisq = -1; // find miminum chisq element index
+    std::vector<int> tmp_argwhere_nanvalue; // find the NaN element index
+    for (int m=0; m<vec.size(); m++) { // loop to find the minimum chisq element index or the first NaN element index
+        // for each value of k-th PAR in j-th LIB for i-th OBS
+        if(!std::isnan(vec[m])) { // if it is non-NaN, then its chisq will be considered
+            if(!std::isnan(tmp_minchisq)) {
+                if(vec[m]<tmp_minchisq) { tmp_minchisq = vec[m]; tmp_argwhere_minchisq = tmp_argwhere_nanvalue.size()-1; } // make tmp_argwhere_minchisq the index in the tmp_argwhere_nanvalue array.
+            } else { tmp_minchisq = vec[m]; tmp_argwhere_minchisq = tmp_argwhere_nanvalue.size()-1; } // make tmp_argwhere_minchisq the index in the tmp_argwhere_nanvalue array.
+        } else { tmp_argwhere_nanvalue.push_back(m); } // store all NaN element index
+    }
+    /*
+    if(0==tmp_argwhere_nanvalue.size()) { // if there are no NaN element, this means all this parameter values have been looped. Move to next iObs.
+        iLibSubIdList.clear();
+        break;
+    }
+     */
+    /*
+     // generate random index only in NaN area
+    if(!std::isnan(tmp_minchisq)) { // if found the minimum chisq element index, then we compute a random number around it assuming a normal distribution
+        std::normal_distribution<float> tmp_distrib(float(tmp_argwhere_minchisq)+0.5, float(tmp_argwhere_nanvalue.size())/RandomRadius); // <TODO> width=N/3.0, if N = 5.0 then width = 1.4, see http://www.cplusplus.com/reference/random/normal_distribution/
+        iLibSubIdList[k] = tmp_argwhere_nanvalue[(int)(tmp_distrib(RandomNumberGenerator)) % tmp_argwhere_nanvalue.size()];
+    } else { // if not valid chisq minimum element, then randomly take a NaN element
+        iLibSubIdList[k] = tmp_argwhere_nanvalue[(int)(std::rand() % tmp_argwhere_nanvalue.size())]; // std::rand()%XXX constraints the max number to be XXX-1, otherwise is RANDOM_MAX which is maybe 65535
+    }
+     */
+    if(!std::isnan(tmp_minchisq)) { // if found the minimum chisq element index, then we compute a random number around it assuming a normal distribution
+        //std::normal_distribution<float> tmp_distrib(float(tmp_argwhere_minchisq)+0.5, float(tmp_argwhere_nanvalue.size())/RandomRadius);
+        std::normal_distribution<float> tmp_distrib(float(tmp_argwhere_minchisq)+0.5, RandomRadius);
+        output_index = (int)(tmp_distrib(RandomNumberGenerator)) % vec.size();
+    } else { // if not valid chisq minimum element, then randomly take a NaN element
+        output_index = (int)(std::rand() % vec.size());
+    }
+    //
+    return output_index;
+}
+
+int michi2FindIndexOfMinimumValue(std::vector<double> vec)
+{
+    int tmp_argwhere_min = -1;
+    double tmp_min = nan("");
+    for (int i=0; i<vec.size(); i++) {
+        if(!std::isnan(vec[i])) {
+            if(std::isnan(tmp_min)) {tmp_argwhere_min = i; tmp_min = vec[i];}
+            else if(vec[i] < tmp_min) {tmp_argwhere_min = i; tmp_min = vec[i];}
+        }
+    }
+    return tmp_argwhere_min;
+}
+
+
+/*
+ long michi2FindClosestValue(std::vector<long> const& vec, long input_value)
+{
+    // see https://stackoverflow.com/questions/8647635/elegant-way-to-find-closest-value-in-a-vector-from-above
+    long tmp_argwhere_min = -1;
+    long tmp_min = vec[0];
+    for (int i=0; i<vec.size(); i++) {
+        if(vec[i]==input_value) {tmp_argwhere_min = i; tmp_min = vec[i]; return tmp_min;} // if there is a same value, return it
+    }
+    for (int i=0; i<vec.size(); i++) {
+        if(std::abs(vec[i]-input_value) < std::abs(tmp_min-input_value)) {tmp_argwhere_min = i; tmp_min = vec[i];}
+    }
+    return tmp_min;
+}
+ // replaced by ppPool->findIndexOfClosestIdInPool()
+ */
+
+
+/*
+long michi2FindIndexOfClosestValue(std::vector<long> vec, long input_value)
+{
+    auto const it = std::lower_bound(vec.begin(), vec.end(), input_value);
+    if (it == vec.end()) {
+        return vec.back();
+    }
+    return std::distance(vec.begin(), it);
+}
+ // replaced by ppPool->findIndexOfClosestIdInPool()
+ */
 
 
 
@@ -352,57 +450,178 @@ double michi2VecMean(std::vector<double> vec)
 
 
 
-/* 20160714 mnchi2 */
+/*
+  20160714 mnchi2
+  This is the main subroutine to achieve multi-thread model fitting.
+*/
 /* --- pthread ---- */
 pthread_mutex_t mnchi2parallelMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t mnchi2parallelCondition = PTHREAD_COND_INITIALIZER;
-long mnchi2parallelProgress = 0;
+//long mnchi2parallelProgress = 0;
 /* ---------------- */
 
-void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> InputLibList, std::vector<std::string> OutputTableList, std::vector<std::string> InputFilterCurveList, int DebugLevel)
+void mnchi2(std::vector<std::string> InputObsList,
+            std::vector<std::string> InputLibList,
+            std::vector<std::string> OutputTableList,
+            std::vector<double>      InputRedshiftList,
+            std::vector<std::string> InputConstraintList,
+            std::vector<std::string> InputFilterCurveList,
+            int DebugLevel)
 {
     //
-    // check input obs data file list
+    // read input obs data file list
     // and store basic information into 'SDOBSList',
     // also check 'InputFilterCurveList' for each obs data file.
+    //
     if(0==InputObsList.size()) {
         std::cout << "Error! mnchi2 InputObsList is empty!" << std::endl; return;
     }
     std::vector<michi2DataClass *> SDOBSList; SDOBSList.clear();
-    long NumbObs = InputObsList.size();
+    int NumbObs = InputObsList.size();
     for(int i=0; i<InputObsList.size(); i++) {
-        michi2DataClass *SDOBS = new michi2DataClass(InputObsList.at(i).c_str(), DebugLevel);
+        michi2DataClass *SDOBS = new michi2DataClass(InputObsList.at(i).c_str(), DebugLevel-1);
         if(InputFilterCurveList.size()>i) {
             SDOBS->readFilterCurveListFile(InputFilterCurveList.at(i).c_str());
+        }
+        if(InputRedshiftList.size()>i) {
+            SDOBS->XNorm = 1.0/(1.0+InputRedshiftList[i]); // apply XNorm for each OBS if there is an InputRedshift paired with it.
+            SDOBS->YNorm = (1.0+InputRedshiftList[i]); // redshift to rest-frame, assuming flux density unit is mJy (erg s-1 cm-2 Hz-1), Y' = Y * (1+z) and X' = X / (1+z).
         }
         SDOBSList.push_back(SDOBS);
     }
     //
-    // check input lib data file list
+    // read input lib data file list
     // and store basic information into 'SDLIBList'.
+    //
     if(0==InputLibList.size()) {
-        std::cout << "Error! mnchi2 InputLibList is empty!" << std::endl; return;
+        std::cout << "Error! mnchi2 InputLibList is empty!" << std::endl; exit (EXIT_FAILURE); // return;
     }
     std::vector<michi2DataClass *> SDLIBList; SDLIBList.clear();
-    long NumbLib = InputLibList.size(), NumbLibPar = 0, NumbLibVar = 0, NumbLibMulti = 1;
+    //int NumbLib = InputLibList.size(), NumbLibPar = 0, NumbLibVar = 0, NumbLibMulti = 1;
     for(int i=0; i<InputLibList.size(); i++) {
-        michi2DataClass *SDLIB = new michi2DataClass(InputLibList.at(i).c_str(), DebugLevel);
+        michi2DataClass *SDLIB = new michi2DataClass(InputLibList.at(i).c_str(), DebugLevel-1);
+        bool CheckLibParConsistency = SDLIB->checkParameterConsistency(DebugLevel);
+        if(!CheckLibParConsistency) {std::cout << "Error! mnchi2 InputLibList["<<i<<"] \"" << InputLibList.at(i) << "\" has invalid format!" << std::endl; exit (EXIT_FAILURE);}
+        SDLIB->XNorm = 1.0;
+        SDLIB->YNorm = 1.0;
         SDLIBList.push_back(SDLIB);
-        NumbLibPar += SDLIB->TPAR.size(); // SDLIB->TPAR is the list of parameter title in a LIB file, so its size() is the number of parameters to be fit in a LIB file.
-        NumbLibVar += SDLIB->YNum; // SDLIB->YNum is the number of all independent models in one LIB file, while SDLIB->XNum is the number of wavelength or any X axis in one model.
-        NumbLibMulti = NumbLibMulti * SDLIB->YNum; // This gives the number of all model combinations among all LIB files.
+        //NumbLibPar += SDLIB->TPAR.size(); // SDLIB->TPAR is the list of parameter title in a LIB file, so its size() is the number of parameters to be fit in a LIB file.
+        //NumbLibVar += SDLIB->YNum; // SDLIB->YNum is the number of all independent models in one LIB file, while SDLIB->XNum is the number of wavelength or any X axis in one model.
+        //NumbLibMulti = NumbLibMulti * SDLIB->YNum; // This gives the number of all model combinations among all LIB files.
     }
+    //
     // check output table data file list
-    // set default output table data file name for each input obs data file
     // and prepare output file pointer
+    // and loop SDOUTList and write info and chisq table file header
+    //
     if(0==OutputTableList.size()) {
         std::cout << "Error! mnchi2 OutputTableList is empty!" << std::endl; return;
     }
-    //std::vector<std::ofstream*> SDOUTList; SDOUTList.clear();
+    if(InputObsList.size()!=OutputTableList.size()) {
+        std::cout << "Error! mnchi2 InputObsList and OutputTableList do not match in size!" << std::endl; return;
+    }
+    std::vector<std::ofstream*> SDOUTList; SDOUTList.clear();
+    for(int i=0; i<OutputTableList.size(); i++) {
+        std::ofstream *SDOUT = new ofstream(OutputTableList.at(i).c_str(), std::ofstream::out); // std::ofstream SDOUT(pParams->OutputTableList.at(i).c_str(), std::ofstream::out | std::ofstream::app);
+        //
+        // write info file
+        // output the input obs and lib files
+        std::string OutputInfoFile = OutputTableList[i]; OutputInfoFile.append(".info");
+        std::ofstream OutputInfoFileStream(OutputInfoFile.c_str());
+        if(DebugLevel>=1) {std::cout << "mnchi2: writing into " << OutputInfoFile << std::endl; }
+        if(i<InputObsList.size()) {
+            OutputInfoFileStream << "OBS = " << InputObsList[i] << std::endl;
+        } else {
+            OutputInfoFileStream << "OBS = " << "N/A" << std::endl;
+        }
+        OutputInfoFileStream << "NLIB = " << InputLibList.size() << std::endl;
+        for(int j=0; j<InputLibList.size(); j++) {
+            OutputInfoFileStream << "LIB" << j+1 << " = " << InputLibList[j] << std::endl;
+        }
+        OutputInfoFileStream << "OUT = " << OutputTableList[i] << std::endl;
+        if(i<InputRedshiftList.size()) {
+            OutputInfoFileStream << "REDSHIFT = " << std::to_string(InputRedshiftList[i]) << std::endl;
+        }
+        OutputInfoFileStream.close();
+        //
+        // write chisq table file
+        // output i0, chi2, iN, aN column headers
+        if(DebugLevel>=0) {std::cout << "mnchi2: writing into " << OutputTableList.at(i).c_str() << std::endl; }
+        *SDOUT << "#" << std::setw(10) << "i0" << std::setw(15) << "chi2"; // write the output file header line
+        std::ostringstream tmpstr;
+        for(int j=0; j<InputLibList.size(); j++) {
+            tmpstr.str(""); tmpstr << "i" << j+1; *SDOUT << std::setw(10) << tmpstr.str();
+            tmpstr.str(""); tmpstr << "a" << j+1; *SDOUT << std::setw(15) << tmpstr.str();
+        }
+        //
+        // loop SDLIB, output paramN column headers
+        for(int j=0; j<SDLIBList.size(); j++) {
+            for(int iLibPar=0; iLibPar<SDLIBList[j]->TPAR.size(); iLibPar++) {
+                *SDOUT << std::setw(15) << SDLIBList[j]->TPAR[iLibPar]; // write each title of parameter to be fit in each LIB file
+            }
+        }
+        *SDOUT << std::endl << "#" << std::endl;
+        SDOUT->flush();
+        SDOUTList.push_back(SDOUT);
+    }
     //
+    // Make constraints
     //
+    if(DebugLevel>=0) {std::cout << "mnchi2: making constraints " << std::endl; }
+    std::vector<michi2Constraint *> Constraints; Constraints.clear();
+    for(int i=0; i<InputConstraintList.size(); i++) {
+        if(!InputConstraintList[i].empty()) {
+            if(i==0) {
+                for(int j=0; j<SDLIBList.size(); j++) { SDLIBList[j]->loadDataBlock(0); } // initialize everything with first LIB model. -- no need to be done here. now implemented when `new michi2Constraint`.
+            }
+            std::string TempConstraintStr = InputConstraintList[i];
+            michi2Constraint *TempConstraint = new michi2Constraint();
+            TempConstraint->parse(TempConstraintStr, SDOBSList[0], SDLIBList, DebugLevel-1); // initialize everything with first OBS and first LIB model.
+            if(DebugLevel>=2) {std::cout << "mnchi2: parsing constraint " << i+1 << " \"" << TempConstraint->ConstraintStr << "\""; }
+            //
+            // set DataBlockIndexIsFreezed if the LIB INDEX depends on user input constraints
+            if(TempConstraint->ConstraintType == michi2Constraint::EnumConstraintType::INDEX) {
+                for(int k=0; k<TempConstraint->AssignmentsLibIndices.size(); k++) {
+                    SDLIBList[TempConstraint->AssignmentsLibIndices[k]]->DataBlockIndexIsFreezed = true;
+                    if(DebugLevel>=2) {std::cout << " ... LIB" << TempConstraint->AssignmentsLibIndices[k]+1 << "INDEX will be freezed!";}
+                }
+            }
+            if(DebugLevel>=2) {std::cout << std::endl;}
+            //
+            Constraints.push_back(TempConstraint);
+            //
+            InputConstraintList[i] = TempConstraintStr;
+        }
+    }
     //
+    // test function SED()
     //
+    if(DebugLevel>=2) {
+        //std::cout << "mnchi2: testing SED<double>() ... " << std::endl;
+        //SED<double> *SED_func_test = new SED<double>();
+        //double var_test_123 = (*SED_func_test).SED(SDLIBList[2]->X, SDLIBList[2]->Y);
+    }
+    //
+    // initialize global variable michi2ParallelPool *ppPool
+    //
+    ppPool->initialize(SDOBSList, SDLIBList, SDOUTList, Constraints, NumbParallel, DebugLevel-1);
+    //
+    // make pthread
+    //
+    for (int ip=0; ip<ppPool->NumbParallel; ip++) {
+        //
+        // <20150309> make pthread
+        //if(DebugLevel>=4) { std::cout << "mnchi2: &(ppPool->ParamsList["<<ip<<"]) = 0x" << std::hex << (size_t)((ppPool->ParamsList[ip])) << std::dec << std::endl; }
+        pthread_t thread1; pthread_create(&thread1, NULL, &mnchi2parallel, (void *)(ppPool->ParamsList[ip]));
+        //
+        // sleep for a few seconds to allow the subprocess to be created.
+        //if(i1>=500) {sleep(60);} else {sleep(2);}
+        //sleep(5);// before 20180114
+        //sleep(3);// before 20180206
+        if(DebugLevel>=1) { std::cout << "mnchi2: sleeping for 2 seconds" << std::endl; }
+        usleep(2000);
+    }
+    
     //
     //
     //
@@ -424,773 +643,544 @@ void mnchi2(std::vector<std::string> InputObsList, std::vector<std::string> Inpu
     //
     // (forget about the above steps)
     // (I do not think a Markov chain with a uniform sampling for all parameters will save time)
-    // (I should just try my own half-interval search)
-    // We will:
-    //    1. For each param, select first, last and middle values, make '3*NumLib' combinations.
     //
     //
     //
+    
+    
+    
+    
+    
     //
-    // loop SDOBS
-    for(int i=0; i<InputObsList.size(); i++) {
-        //
-        // prepare output file names
-        if(OutputTableList.size()<i) {
-            OutputTableList.push_back(InputObsList.at(i).insert(0,"mnchi2-").append(".out"));
-        }
-        //
-        // write info file
-        // output the input obs and lib files
-        std::string OutputInfoFile = OutputTableList.at(i); OutputInfoFile.append(".info");
-        std::ofstream OutputInfoFileStream(OutputInfoFile.c_str());
-        OutputInfoFileStream << "OBS = " << InputObsList.at(i) << std::endl;
-        OutputInfoFileStream << "NLIB = " << InputLibList.size() << std::endl;
-        for(long iLib=0; iLib<InputLibList.size(); iLib++) {
-            OutputInfoFileStream << "LIB" << iLib+1 << " = " << InputLibList.at(iLib) << std::endl;
-        }
-        OutputInfoFileStream << "OUT = " << OutputTableList.at(i) << std::endl;
-        if(strlen(InfoRedshift)>0) {
-            OutputInfoFileStream << "REDSHIFT = " << InfoRedshift << std::endl;
-        }
-        OutputInfoFileStream.close();
-        //
-        // write chisq table file
-        // output i0, chi2, iN, aN column headers
-        std::ofstream SDOUT(OutputTableList.at(i).c_str());
-        SDOUT << "#" << std::setw(7) << "i0" << std::setw(15) << "chi2"; // write the output file header line
-        std::ostringstream tmpstr;
-        for(long iLib=0; iLib<InputLibList.size(); iLib++) {
-            tmpstr.str(""); tmpstr << "i" << iLib+1; SDOUT << std::setw(10) << tmpstr.str();
-            tmpstr.str(""); tmpstr << "a" << iLib+1; SDOUT << std::setw(15) << tmpstr.str();
-        }
-        //
-        // loop SDLIB, output paramN column headers
-        for(long iLib=0; iLib<SDLIBList.size(); iLib++) {
-            michi2DataClass *SDLIB = SDLIBList[iLib]; // can not use 'SDLIBList.at(i)' <BUG><fixed><20160727><dzliu>
-            for(long iLibPar=0; iLibPar<SDLIB->TPAR.size(); iLibPar++) {
-                SDOUT << std::setw(15) << SDLIB->TPAR[iLibPar]; // write each title of parameter to be fit in each LIB file
-            }
-        }
-        SDOUT << std::endl << "#" << std::endl;
-        SDOUT.close();
-        //
-        //
-        //
-        //
-        //
-        //
-        // prepare looping
-        struct mnchi2parallelParams *ppParams = NULL; // this pointer points to a previously fitted 'pParams' struct.
-        //
-        // start looping
-        while (true) {
-            //
-            // create subprocess structure
-            struct mnchi2parallelParams *pParams = new struct mnchi2parallelParams;
-            //
-            // all subprocesses share the same OBS data structure
-            pParams->SDOBSList = SDOBSList;
-            //
-            // all subprocesses share the same LIB data structure
-            pParams->SDLIBList = SDLIBList;
-            //
-            // prepare model combinations and fit to the data
-            // we first prepare 3 lists of lists,
-            // we use an example to explain this
-            // if we have 3 LIB files,
-            // in the 1st LIB file, we have 2 parameters, 1st par has 10 values and 2nd par has 3 values, and we want to loop the [first,middle,last] values of both 1st and 2nd parameters.
-            // in the 2nd LIB file, we have 4 parameters, which have 10,2,2,3 values respectively, and we want to loop the [first(,middle),last] values of each parameter.
-            // in the 3rd LIB file, we have 6 parameters, which have 10,2,2,3,1,1 values respectively, and we want to loop the [first(,middle)(,last)] values of each parameter.
-            // then, iLibParListListList is a list with NLIB dimension
-            //       iLibParListListList = [ iLibParListList1, iLibParListList2, iLibParListList3 ]
-            //       iLibParListList1 = [ iLibParList1, iLibParList2 ] // Lib1
-            //                            iLibParList1 = [ i1_par1, i2_par1, i3_par1 ]
-            //                            iLibParList2 = [ i1_par2, i2_par2, i3_par2 ]
-            //       iLibParListList2 = [ iLibParList1, iLibParList2, iLibParList3, iLibParList4 ] // Lib2
-            //                            iLibParList1 = [ i1_par1, i2_par1, i3_par1 ]
-            //                            iLibParList2 = [ i1_par2, i2_par2 ]
-            //                            iLibParList3 = [ i1_par3, i2_par3 ]
-            //                            iLibParList4 = [ i1_par4, i2_par4, i3_par4 ]
-            //       iLibParListList3 = [ iLibParList1, iLibParList2, iLibParList3, iLibParList4, iLibParList5, iLibParList6 ] // Lib3
-            //                            iLibParList1 = [ i1_par1, i2_par1, i3_par1 ]
-            //                            iLibParList2 = [ i1_par2, i2_par2 ]
-            //                            iLibParList3 = [ i1_par3, i2_par3 ]
-            //                            iLibParList4 = [ i1_par4, i2_par4, i3_par4 ]
-            //                            iLibParList5 = [ i1_par5 ]
-            //                            iLibParList6 = [ i1_par6 ]
-            //
-            pParams->iLibParListListList.clear();
-            pParams->chisqListListList.clear();
-            for(long iLib=0; iLib<SDLIBList.size(); iLib++) {
-                // loop each lib, determine the range of each parameter to fit
-                std::vector<std::vector<long> > iLibParListList1;
-                std::vector<std::vector<double> > chisqListList1;
-                //
-                michi2DataClass *SDLIB = SDLIBList[iLib]; // can not use 'SDLIBList.at(i)' <BUG><fixed><20160727><dzliu>
-                //
-                for(long iLibPar=0; iLibPar<SDLIB->TPAR.size(); iLibPar++) {
-                    // loop each parameter in a lib, determine the range of this parameter to fit the data
-                    std::vector<long> iLibParList1;
-                    std::vector<double> chisqList1;
-                    //
-                    if(ppParams) {
-                        // if previously fitted, then we first find the least-chisq parameter range, then select first, middle and last values in that range for the next fitting
-                        // we allow multiple local minima
-                        for (long iLocalMinima=0; iLocalMinima<chisqListListList[iLib][iLibPar].size(); iLocalMinima+=3) {
-                            if((ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+0] > ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]) &&
-                               (ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2] > ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1])) {
-                                // valley, adjust the middle point randomly to +1/4 or -1/4
-                                long iLocalLeft = ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1];
-                                long iLocalRight = ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2];
-                                if((iLocalRight-iLocalLeft)/4>0) {
-                                    long iLocalMiddle = iLocalLeft + ((rand()%2+1)*2-3)*(iLocalRight-iLocalLeft)/4; // (rand()%2+1) => 1 to 2
-                                }
-                            } else if((ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+0] <= ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]) &&
-                                      (ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2] <= ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1])) {
-                                // hill, split into two local minima
-                                //
-                            } else if((ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+0] > ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]) &&
-                                      (ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2] <= ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1])) {
-                                // slope, right is lower, so we adjust left edge to previous middle point and set a new middle point
-                                long iLocalLeft = ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1];
-                                long iLocalRight = ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2];
-                                if(iLocalLeft < iLocalRight-1) {
-                                    iLibParListList1.push_back(iLocalLeft);
-                                    iLibParListList1.push_back((iLocalRight+iLocalLeft)/2);
-                                    iLibParListList1.push_back(iLocalRight);
-                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]);
-                                    chisqList1.push_back(std::nan(""));
-                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2]);
-                                } else {
-                                    // if left >= right-1, it means no middle point can be set. freeze this parameter.
-                                    iLibParListList1.push_back(iLocalLeft);
-                                    iLibParListList1.push_back(iLocalLeft);
-                                    iLibParListList1.push_back(iLocalRight);
-                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]);
-                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]);
-                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2]);
-                                }
-                            } else if((ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+0] <= ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]) &&
-                                      (ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+2] > ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1])) {
-                                // slope, left is lower, so we adjust right edge to previous middle point and set a new middle point
-                                long iLocalLeft = ppParams->iLibParListListList[iLib][iLibPar][iLocalMinima+0];
-                                long iLocalRight = ppParams->iLibParListListList[iLib][iLibPar][iLocalMinima+1];
-                                if(iLocalLeft < iLocalRight-1) {
-                                    iLibParListList1.push_back(iLocalLeft);
-                                    iLibParListList1.push_back((iLocalRight+iLocalLeft)/2);
-                                    iLibParListList1.push_back(iLocalRight);
-                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+0]);
-                                    chisqList1.push_back(std::nan(""));
-                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]);
-                                } else {
-                                    // if left >= right-1, it means no middle point can be set. freeze this parameter.
-                                    iLibParListList1.push_back(iLocalLeft);
-                                    iLibParListList1.push_back(iLocalRight);
-                                    iLibParListList1.push_back(iLocalRight);
-                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+0]);
-                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]);
-                                    chisqList1.push_back(ppParams->chisqListListList[iLib][iLibPar][iLocalMinima+1]);
-                                }
-                            }
-                        }
-                    } else {
-                        // we fit 3 values for a parameter: first, middle and last.
-                        long iLocalLeft = 0;
-                        long iLocalRight = SDLIB->NPAR[iLibPar]-1;
-                        iLibParListList1.push_back(iLocalLeft);
-                        iLibParListList1.push_back((iLocalRight+iLocalLeft)/2);
-                        iLibParListList1.push_back(iLocalRight);
-                        chisqList1.push_back(std::nan(""));
-                        chisqList1.push_back(std::nan(""));
-                        chisqList1.push_back(std::nan(""));
-                    }
-                }
-                //
-                pParams->iLibParListListList.push_back(iLibParListList1);
-            }
-        }
-        //
-        //
-        //
-        // loop SDLIB, fit model to the data
-        
-    }
+    // wait for all threads and print progress
     //
-    //
-    //
-    //
-    //
-    // <TODO> old code before 20180224
-    // prepare to run parallel processes <New><20141211><20141212><20160714><20160718>
-    mnchi2parallelProgress = 0;
-    std::vector<struct mnchi2parallelParams *> mnchi2parallelParams;
-    std::cout << "processing: " << std::endl;
-    int iPara = NumbParallel; // the number of parallel processes
-    long iLoop = 0;
-    long iStep = long((float(NumbObs*NumbLibMulti)+float(iPara)-1)/float(iPara)); // iPara is the paralle process number, allowed to be input with arg '-parallel'. //<NOTE> +float(iPara)-1 to make sure we cover all the ranges.
-    while(iLoop >= 0 && iLoop < NumbObs*NumbLibMulti) {
-        // determine the loop range of each process,
-        // and if current process is the last process, set the step to be exactly the number of loops left.
-        if((iLoop+iStep)>NumbObs*NumbLibMulti) {iStep=NumbObs*NumbLibMulti-iLoop;}
-        //std::cout << "looping " << iLoop+1 << "-" << iLoop+iStep-1+1 << " / " << NumbLibMulti << "   ";
-        struct mnchi2parallelParams *pParams = new struct mnchi2parallelParams;
-        //<TODO><DELETE>// pParams->i0=0;
-        //<TODO><DELETE>// for(long iLib=0; iLib<NumbLib; iLib++) {pParams->iList[iLib]=0;}
-        //std::cout << pParams << std::endl; // check that the param strcut is well set
-        mnchi2parallelParams.push_back(pParams);
+    while( ((double)(ppPool->IdDone.size()) < Sampling * (double)(ppPool->NumbOfAllLoops)) &&
+          (ppPool->IdPool.size()>0) )
+    {
         //
-        // all subprocesses share the same OBS data structure
-        pParams->SDOBSList = SDOBSList;
-        //
-        // prepare separated LIB data structure, otherwise error occurs
-        //pParams->SDLIBList = SDLIBList;
-        pParams->SDLIBList.clear();
-        for(int i=0; i<InputLibList.size(); i++) {
-            michi2DataClass *SDLIB = new michi2DataClass(InputLibList.at(i).c_str(), DebugLevel);
-            pParams->SDLIBList.push_back(SDLIB);
-        }
-        //
-        // divide all loops into parallel sub processes
-        pParams->i = iLoop;
-        pParams->iBegin = iLoop;
-        pParams->iEnd = iLoop+iStep-1;
-        pParams->nObs = NumbObs;
-        pParams->nLib = NumbLib;
-        pParams->nRow = NumbLibMulti;
-        //std::cout << "DEBUG: Total scan " << NumbLibMulti << " iLoop " << iLoop << " iStep " << iStep << std::endl;
-        //
-        // initialize the loop range of each OBS and LIB index
-        //pParams->idOBS = (long(iLoop/NumbLibMulti));
-        //pParams->ibOBS = (long(iLoop/NumbLibMulti));
-        //pParams->ieOBS = (long((iLoop+iStep-1)/NumbLibMulti));
-        //pParams->irOBS = true;
-        //long iRest = iLoop%NumbLibMulti;
-        //long iNext = (iLoop+iStep-1)%NumbLibMulti;
-        //long iTemp = NumbLibMulti;
-        for(long iLib = 0; iLib < SDLIBList.size(); iLib++) {
-            //michi2DataClass *SDLIB = SDLIBList[iLib];
-            //iTemp = iTemp / SDLIB->YNum;
-            pParams->idLIBList.push_back(0); // controls the parallel processes
-            pParams->ibLIBList.push_back(0); // controls the parallel processes
-            pParams->ieLIBList.push_back(0); // controls the parallel processes
-            pParams->irLIBList.push_back(true); // controls the parallel processes
-            //iRest = iRest%iTemp;
-            //iNext = iNext%iTemp;
-        }
-        pParams->ibOBS = 0;
-        pParams->ieOBS = 0;
-        //
-        // compute the rounding of each OBS and LIB index so as to
-        // compute the loop range of each OBS and LIB index
-        long iTemp = 0;
-        while(iTemp < pParams->iBegin) {
-            for(long iLib = pParams->nLib-1; iLib >= 0 ; iLib--) {
-                pParams->ibLIBList[iLib]++;
-                if((pParams->ibLIBList[iLib])>(pParams->SDLIBList[iLib]->YNum-1)) { // rounding overflow
-                    pParams->ibLIBList[iLib] = 0; // rewind to zero or begin value
-                    if(0==iLib) { // if the highest LIB got rounded, then we need to round idOBS as well.
-                        pParams->ibOBS++;
-                        break;
-                    }
-                } else {
-                    break; // if no rounding overflow happens, it will break here, so only the last LIB index was increased.
-                }
-            }
-            iTemp++;
-        }
-        iTemp = 0;
-        while(iTemp < pParams->iEnd) {
-            for(long iLib = pParams->nLib-1; iLib >= 0 ; iLib--) {
-                pParams->ieLIBList[iLib]++;
-                if((pParams->ieLIBList[iLib])>(pParams->SDLIBList[iLib]->YNum-1)) { // rounding overflow
-                    pParams->ieLIBList[iLib] = 0; // rewind to zero or begin value
-                    if(0==iLib) { // if the highest LIB got rounded, then we need to round idOBS as well.
-                        pParams->ieOBS++;
-                        break;
-                    }
-                } else {
-                    break; // if no rounding overflow happens, it will break here, so only the last LIB index was increased.
-                }
-            }
-            iTemp++;
-        }
-        // set initial loop values
-        pParams->idOBS = pParams->ibOBS; // index of OBS list
-        pParams->irOBS = true; // 是否进位
-        for(long iLib = 0; iLib < pParams->nLib ; iLib++) {
-            pParams->idLIBList[iLib] = pParams->ibLIBList[iLib]; // index of LIB list
-            pParams->irLIBList[iLib] = true; // 是否进位。一个LIB文件包含了多个Templates，我们遍历每一个Template与其它LIB中的Templates的组合，所以该变量判断是否该LIB中当前Template已经与所有其它LIB中的Templates都组合过了，若是，则进位，即切换至该LIB种的下一个Template，与其它LIB中的Templates进行组合。
-        }
-        // print info and prepare next loop
-        if(DebugLevel>=1) {
-            std::cout << "looping " << iLoop+1 << "-" << iLoop+iStep-1+1 << "/" << NumbLibMulti;
-            std::cout << " OBS " << pParams->ibOBS+1 << "-" << pParams->ieOBS+1;
-            for(long iLib = 0; iLib < SDLIBList.size(); iLib++) {
-                std::cout << " LIB" << iLib+1 << " " << pParams->ibLIBList[iLib]+1 << "-" << pParams->ieLIBList[iLib]+1 << "/" << pParams->SDLIBList[iLib]->YNum;
-            }
-        }
-        std::cout << std::endl;
-        iLoop = iLoop + iStep;
-        // setup OUT list
-        //pParams->SDOUTList = SDOUTList;
-        pParams->InputLibList = InputLibList;
-        pParams->OutputTableList = OutputTableList;
-        // set debug level
-        pParams->DebugLevel = DebugLevel;
-        //
-        // <20150309> make pthread
-        pthread_t thread1; pthread_create(&thread1, NULL, &mnchi2parallel, pParams);
-        //
-        // sleep for a few seconds to allow the subprocess to be created.
-        //if(i1>=500) {sleep(60);} else {sleep(2);}
-        //sleep(5);// before 20180114
-        sleep(3);
-    }
-    // show initial info for all threads
-    // and print progress
-    int ndigits = 0;
-    //std::cout << std::setw(8) << std::right << mnchi2parallelProgress << "||";
-    for(long ip=0; ip<mnchi2parallelParams.size(); ip++) {
-        std::cout << "[" << mnchi2parallelProgress << "/" << NumbObs*NumbLibMulti << "]"; //<20180130>
-        // print progress first line
-        ndigits = (int)log10((double)(mnchi2parallelParams[ip]->iEnd+1)) + 1;
-        //std::cout << std::setw(15) << std::right << mnchi2parallelParams[ip]->iBegin << "|" << mnchi2parallelParams[ip]->nObs*mnchi2parallelParams[ip]->nRow << "|"; //<20180116>
-        std::cout << std::setw(4+ndigits) << std::right << mnchi2parallelParams[ip]->iBegin << "|" << std::setw(ndigits) << std::left << mnchi2parallelParams[ip]->iEnd+1 << "|"; //<20180116>
-        for(long iLib = 0; iLib < mnchi2parallelParams[ip]->nLib; iLib++) {
-            ndigits = (int)log10((double)(mnchi2parallelParams[ip]->SDLIBList[iLib]->YNum)) + 1;
-            std::cout << std::setw(ndigits) << std::right << 0 << "|" << std::setw(ndigits) << std::left << mnchi2parallelParams[ip]->SDLIBList[iLib]->YNum << "|";
-        }
-    }
-    std::cout << std::endl;
-    // wait for all threads
-    // and print progress
-    while(mnchi2parallelProgress <= NumbObs*NumbLibMulti) {
-        std::cout << "[" << mnchi2parallelProgress << "/" << NumbObs*NumbLibMulti << "]"; //<20180116>
         // print progress
-        for(long ip=0; ip<mnchi2parallelParams.size(); ip++) {
-            ndigits = (int)log10((double)(mnchi2parallelParams[ip]->iEnd+1)) + 1;
-            //std::cout << std::setw(15) << std::right << mnchi2parallelParams[ip]->i << "|" << mnchi2parallelParams[ip]->nObs*mnchi2parallelParams[ip]->nRow << "|"; //<20180116>
-            std::cout << std::setw(4+ndigits) << std::right << mnchi2parallelParams[ip]->i << "|" << std::setw(ndigits) << std::left << mnchi2parallelParams[ip]->iEnd+1 << "|"; //<20180116>
-            for(long iLib = 0; iLib < mnchi2parallelParams[ip]->nLib; iLib++) {
-                ndigits = (int)log10((double)(mnchi2parallelParams[ip]->SDLIBList[iLib]->YNum)) + 1;
-                std::cout << std::setw(ndigits) << std::right << mnchi2parallelParams[ip]->idLIBList[iLib] << "|" << std::setw(ndigits) << std::left << mnchi2parallelParams[ip]->SDLIBList[iLib]->YNum << "|";
+        std::stringstream progress_info;
+        std::stringstream progress_info_prefix;
+        if(DebugLevel>=0) {
+            int ndigits = (int)(std::ceil(log10( (long)(Sampling * (double)(ppPool->NumbOfAllLoops)) )));
+            progress_info_prefix << "[" << std::setw(ndigits) << std::right << ppPool->IdDone.size() << "/" << std::left << (long)(Sampling * (double)(ppPool->NumbOfAllLoops)) << "]"; //<20180116>
+            for(int ip=0; ip<ppPool->NumbParallel; ip++) {
+                if(ip==0) { progress_info << progress_info_prefix.str(); }
+                else { progress_info << std::setw(progress_info_prefix.str().size()) << " "; }
+                progress_info << " 0x" << std::hex << (size_t)(ppPool->ParamsList[ip]) << std::dec;
+                progress_info << " " << ppPool->ParamsList[ip]->LoopInfoStr;
+                progress_info << "\n"; // if(ip<ppPool->NumbParallel-1) {progress_info << "\n";} // print new line except for the last line
             }
         }
-        std::cout<< std::endl;
-        if(mnchi2parallelProgress >= NumbObs*NumbLibMulti) {
-            break;
+        //
+        // print parameters
+        /*
+        if(DebugLevel>=1) {
+            for(int i=0; i<ppPool->nObs; i++) {
+                progress_info << " PAR {";
+                for(int j=0; j<ppPool->nLib; j++) {
+                    if(j>0) {progress_info << "|";}
+                    for(int k=0; k<ppPool->SDLIBList[j]->NPAR.size(); k++) {
+                        int ndigits3 = (int)(std::ceil(log10((double)(ppPool->SDLIBList[j]->NPAR[k]))));
+                        if(k>0) {progress_info << ",";}
+                        progress_info << std::setw(ndigits3) << std::right << ppPool->ARGMINPARAMS[i][j][k] << "/" << std::setw(ndigits3) << std::left << ppPool->SDLIBList[j]->NPAR[k];
+                    }
+                }
+                progress_info << "}";
+            }
+        }
+         */
+        if(DebugLevel>=1) {
+            for(int i=0; i<ppPool->nObs; i++) {
+                progress_info << std::setw(progress_info_prefix.str().size()) << " ";
+                progress_info << " --- FITTED PARAMS {";
+                double progress_chisq = nan("");
+                int line_break_width = 120;
+                int line_break_counter = (long)(std::ceil((double)(progress_info.str().size()) / (double)(line_break_width))) * line_break_width;
+                for(int j=0; j<ppPool->nLib; j++) {
+                    for(int k=0; k<ppPool->SDLIBList[j]->NPAR.size(); k++) {
+                        //int ndigits3 = (int)(std::ceil(log10((double)( *std::max_element( ppPool->VALUE4PARAMS[i][j][k].begin(), ppPool->VALUE4PARAMS[i][j][k].end() ) ))));
+                        progress_info << ppPool->SDLIBList[j]->TPAR.at(k) << " = "; // PAR title
+                        if(ppPool->ARGMINPARAMS[i][j][k] >= 0) {
+                            //progress_info << std::setw(ndigits3) << std::right << ppPool->VALUE4PARAMS[i][j][k].at(ppPool->ARGMINPARAMS[i][j][k]);
+                            progress_info << ppPool->VALUE4PARAMS[i][j][k].at(ppPool->ARGMINPARAMS[i][j][k]);
+                            progress_chisq = ppPool->CHISQ4PARAMS[i][j][k].at(ppPool->ARGMINPARAMS[i][j][k]);
+                        } else {
+                            //progress_info << std::setw(ndigits3) << std::right << -1;
+                            progress_info << -1;
+                        }
+                        if(k<ppPool->SDLIBList[j]->NPAR.size()-1) {progress_info << ", ";} // print ", " after each PAR
+                        if(k==ppPool->SDLIBList[j]->NPAR.size()-1 && j<ppPool->nLib-1) {progress_info << "; ";} // print "; " after all PARs for each LIB
+                        if(progress_info.str().size() > line_break_counter) { // insert possible line break here
+                            progress_info << "\n" << std::setw(progress_info_prefix.str().size() + std::string(" --- FITTED PARAMS {").size()) << " "; // line break
+                            line_break_counter+=line_break_width;
+                        }
+                    }
+                }
+                progress_info << "}";
+                progress_info << "\n";
+                progress_info << std::setw(progress_info_prefix.str().size()) << " ";
+                progress_info << " --- CHISQ {" << progress_chisq << "}";
+            }
+        }
+        std::cout << "\n" << progress_info.str() << std::endl;
+        //
+        // sleep
+        if( ((double)(ppPool->IdDone.size()) < Sampling * (double)(ppPool->NumbOfAllLoops)) &&
+           (ppPool->IdPool.size()>0) )
+        {
+            if(DebugLevel>=1) {
+                sleep(1); // sleep for 1 second
+            } else {
+                sleep(4 + rand() % 4); // sleep for 4 to 8 seconds
+            }
         } else {
-            sleep(4 + rand() % 4); // sleep for 4 to 8 seconds
-            continue;
+            break;
         }
     }
-    // all threads finished
-    // print progress of 100%
-    ndigits = (int)log10((double)(mnchi2parallelParams[0]->iEnd+1)) + 1;
-    std::cout << std::setw(4+ndigits) << std::right << "100%" << "||" << std::endl; //<20180116>
-    // clean
-    for(long ip=0; ip<mnchi2parallelParams.size(); ip++) {
-        delete mnchi2parallelParams[ip]; mnchi2parallelParams[ip]=NULL;
-    }
+    //
+    // when all threads finished, print a progress of 100%
+    //
+    int ndigitsfinal = (int)(std::ceil(log10((double)(ppPool->NumbOfAllLoops)))) * 2 + 1;
+    std::cout << "[" << std::setw(ndigitsfinal) << std::right << "100%" << "]" << std::endl;
+    
+    
+    //
+    // TODO:
+    // output ppPool->CHISQ4PARAMS and ppPool->VALUE4PARAMS
+    //
+    
 }
 
 void *mnchi2parallel(void *params)
 {
+    //
+    // take over params as pParams
     struct mnchi2parallelParams *pParams = (struct mnchi2parallelParams *)params;
     int debug = pParams->DebugLevel;
-    if(debug>=1) {std::cout << "mnchi2parallel: Making parallel process " << pParams << std::endl;}
+    //
+    // prepare debug info
+    std::stringstream process_info;
+    process_info << "mnchi2parallel: subprocess 0x" << std::hex << (size_t)(pParams) << std::dec;
+    std::stringstream debug_info;
+    long process_delay = 0;
+    //
+    if(debug>=1) {std::cout << process_info.str() << ": Debugging level " << debug << std::endl;}
+    if(debug>=4) {std::cout << process_info.str() << ": pParams = 0x" << std::hex << (size_t)(pParams) << std::dec << std::endl;}
+    if(debug>=1) {for(int i=0; i<pParams->SDOBSList.size(); i++) {std::cout << process_info.str() << ": Connected to pParams->SDOBSList["<<i<<"] = 0x" << std::hex << (size_t)(pParams->SDOBSList[i]) << std::dec << std::endl;}}
+    if(debug>=1) {for(int i=0; i<pParams->SDLIBList.size(); i++) {std::cout << process_info.str() << ": Connected to pParams->SDLIBList["<<i<<"] = 0x" << std::hex << (size_t)(pParams->SDLIBList[i]) << std::dec << std::endl;}}
+    if(debug>=2) {for(int i=0; i<pParams->SDLIBList.size(); i++) {std::cout << process_info.str() << ": Connected to pParams->SDLIBList["<<i<<"]->X.data() = 0x" << std::hex << (size_t)(pParams->SDLIBList[i]->X.data()) << std::dec << " size " << pParams->SDLIBList[i]->X.size() << " pParams->SDLIBList["<<i<<"]->Y.data() = 0x" << std::hex << (size_t)(pParams->SDLIBList[i]->Y.data()) << std::dec << " size " << pParams->SDLIBList[i]->Y.size() << std::endl;}} // std::vector::data() is supported since c++11.
+    if(debug>=2) {for(int i=0; i<pParams->SDLIBList.size(); i++) {std::cout << process_info.str() << ": Connected to &(pParams->SDLIBList["<<i<<"]->X[0]) = 0x" << std::hex << (size_t)(&(pParams->SDLIBList[i]->X[0])) << std::dec << " size " << pParams->SDLIBList[i]->X.size() << " &(pParams->SDLIBList["<<i<<"]->Y[0]) = 0x" << std::hex << (size_t)(&(pParams->SDLIBList[i]->Y[0])) << std::dec << " size " << pParams->SDLIBList[i]->Y.size() << std::endl;}} // std::vector::data() is supported since c++11.
+    //
+    // initialize pParams
+    pParams->iObs = -1; pParams->iLib.resize(pParams->SDLIBList.size(), -1);
+    //
+    // prepare LoopInfo stringstream
+    pParams->LoopInfoStr = "<NO INFO>";
+    pParams->LoopInfo.str("");
+    pParams->LoopInfo << "OBS [" << pParams->iObs+1 << "/" << pParams->nObs << "]" << " ";
+    pParams->LoopInfo << "LIB [";
+    for(int j = 0; j < pParams->iLib.size(); j++) {
+        int ndigits3 = (int)(std::ceil(log10((double)(pParams->SDLIBList[j]->YNum)))); if(j>0) {pParams->LoopInfo << "|";}
+        pParams->LoopInfo << std::setw(ndigits3) << std::right << pParams->iLib[j]+1 << "/" << std::setw(ndigits3) << std::left << pParams->SDLIBList[j]->YNum;
+    } pParams->LoopInfo << "]"; pParams->LoopInfoStr = pParams->LoopInfo.str();
+    //
+    // hand over constraint strs for each subprocess
+    //pthread_mutex_lock(&mnchi2parallelMutex); // lock mutex
+    std::vector<michi2Constraint *> SubprocessConstraints; SubprocessConstraints.clear();
+    for(int i = 0; i < ppPool->OtherConstraints.size(); i++) { // ppPool->OtherConstraints are non-INDEX constraints.
+        michi2Constraint *TempConstraint = new michi2Constraint(); // must new these constraints for each subprocess.
+        std::string TempConstraintStr = ppPool->OtherConstraints[i]->ConstraintStr;
+        TempConstraint->parse(TempConstraintStr, pParams->SDOBSList[0], pParams->SDLIBList, debug-1); // initialize everything with first OBS and first LIB model. // <TODO> what if iObs changed? Hope constraints are not on OBS... <TODO>
+        SubprocessConstraints.push_back(TempConstraint);
+    }
+    std::vector<michi2Constraint *> FreezedConstraints; FreezedConstraints.clear();
+    for(int i = 0; i < ppPool->FreezedConstraints.size(); i++) { // ppPool->OtherConstraints are non-INDEX constraints.
+        michi2Constraint *TempConstraint = new michi2Constraint(); // must new these constraints for each subprocess.
+        std::string TempConstraintStr = ppPool->FreezedConstraints[i]->ConstraintStr;
+        TempConstraint->parse(TempConstraintStr, pParams->SDOBSList[0], pParams->SDLIBList, debug-1); // initialize everything with first OBS and first LIB model. // <TODO> what if iObs changed? Hope constraints are not on OBS... <TODO>
+        FreezedConstraints.push_back(TempConstraint);
+    }
+    //pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex
+    //
+    // prepare string variable for storing the output content for each Obs
     std::vector<std::string> pStrings; pStrings.resize(pParams->nObs);
     //
-    //std::vector<std::stringstream*> pStreams;
-    //for(long iObs = 0; iObs < pParams->nObs; iObs++) {
-    //    std::stringstream pStream;
-    //    pStreams.push_back(&pStream);
-    //}
-    //std::vector<std::stringstream> pStreams; pStreams.resize(pParams->nObs);
-    //
-    // check loop begin status
-    if(pParams->i != pParams->iBegin) {
-        std::cout << "mnchi2parallel: Error! pParams->i != pParams->iBegin! This should not happen!" << std::endl;
-    }
-    //
-    //std::cout << "DEBUG: pParams=0x" << std::hex << (size_t)pParams << std::endl;
-    //std::cout << "DEBUG: &pParams->SDOBSList=0x" << std::hex << (size_t)&pParams->SDOBSList << std::endl;
-    //std::cout << "DEBUG: &pParams->SDLIBList=0x" << std::hex << (size_t)&pParams->SDLIBList << std::endl;
-    //std::cout << "DEBUG: &pParams->InputLibList=0x" << std::hex << (size_t)&pParams->InputLibList << std::endl;
-    //std::cout << "DEBUG: &pParams->OutputTableList=0x" << std::hex << (size_t)&pParams->OutputTableList << std::endl;
-    ////
-    //// check loop rounding status
-    //pParams->irOBS = true;
-    //for(long iLib = 0; iLib < pParams->nLib; iLib++) {
-    //    pParams->irLIBList[iLib] = true;
-    //}
-    //
-    // prepare the list of michi2DataClass
-    michi2DataClass *SDOBS = NULL;
-    std::vector<michi2DataClass *> SDLIBS; SDLIBS.resize(pParams->nLib);
-    //
-    // loop
-    while (pParams->i <= pParams->iEnd) {
-        if(debug>=1) {
-            //std::cout << "mnchi2parallel: Looping " << pParams->i << "/" << pParams->iEnd << " OBS" << pParams->idOBS+1; //<20180116>
-            std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Looping " << pParams->i << "/" << pParams->iEnd+1 << " OBS" << pParams->idOBS+1; //<20180116>
-            for(long iLib = 0; iLib < pParams->nLib; iLib++) {
-                std::cout << " LIB" << iLib+1 << " data block " << pParams->idLIBList[iLib]+1 << "/" << pParams->SDLIBList[iLib]->YNum;
-            } std::cout << std::endl;
-        }
+    // while loop
+    while( ((double)(ppPool->IdDone.size()) < Sampling * (double)(ppPool->NumbOfAllLoops)) &&
+           (ppPool->IdPool.size()>0) )
+    {
+        std::chrono::high_resolution_clock::time_point Timer1 = std::chrono::high_resolution_clock::now();
+        std::chrono::high_resolution_clock::time_point Timer2 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double,std::milli> TimeSpan = Timer2 - Timer1;
+        if(debug>=1) {std::cout << process_info.str() << ": Starting IdPool at time 0" << std::endl;}
         //
-        // check constraints <Added><20160719><dzliu>
-        bool ConstraintOK = true;
-        if(Constraints.size()>0) {
-            for(int iCon = 0; iCon < Constraints.size(); iCon++) {
-                michi2Constraint *TempConstraint = Constraints[iCon];
-                ConstraintOK = TempConstraint->check(pParams,debug-1);
-                if(!ConstraintOK) {break;}
-            }
-        }
+        // prepare iObs
+        int iObs = pParams->iObs;
         //
-        // if passed the constraint check
-        // <20180110> moved the reading of OBS data block and LIB data block after the constraint, which can speed up a lot!
-        if(ConstraintOK) {
-            if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Passed the INDEX constraint check!" << std::endl;}
-            //
-            // get OBS data block
-            if(pParams->irOBS) {
-                if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Reading OBS " << pParams->idOBS+1 << " data" << std::endl;}
-                SDOBS = pParams->SDOBSList.at(pParams->idOBS);
-                pParams->irOBS = false;
-            }
-            //
-            // get LIB data block
-            for(long iLib = 0; iLib < pParams->nLib; iLib++) {
-                if(pParams->irLIBList[iLib]) {
-                    //std::cout << "DEBUG: SDLIBS[" << iLib << "]=0x" << std::hex << (size_t)SDLIBS[iLib] << ", " << "pParams->SDLIBList[" << iLib << "]=0x" << std::hex << (size_t)pParams->SDLIBList[iLib] << std::endl;
-                    SDLIBS[iLib] = pParams->SDLIBList[iLib];
-                    //std::cout << "DEBUG: SDLIBS[" << iLib << "]=0x" << std::hex << (size_t)SDLIBS[iLib] << std::endl;
-                    SDLIBS[iLib]->getDataBlock(pParams->idLIBList[iLib] * SDLIBS[iLib]->XNum + 1, SDLIBS[iLib]->XNum);
-                    if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Reading LIB" << iLib+1 << " data block " << pParams->idLIBList[iLib]+1 << "/" << pParams->SDLIBList[iLib]->YNum << std::endl;}
-                    pParams->irLIBList[iLib] = false;
-                }
-            }
-            //
-            // check constraints again, now with SDLIBS and SDOBS
-            if(Constraints.size()>0) {
-                for(int iCon = 0; iCon < Constraints.size(); iCon++) {
-                    michi2Constraint *TempConstraint = Constraints[iCon];
-                    ConstraintOK = TempConstraint->check(SDLIBS,debug-1);
-                    if(!ConstraintOK) {break;}
-                }
-            }
-            //
-            // if passed the second constraint check
-            if(ConstraintOK) {
-                if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Passed the LIB PAR constraint check!" << std::endl;}
-                //
-                // prepare MinPack input data structure
-                std::vector<std::vector<double> > fLIB; fLIB.clear();
-                std::vector<double> fOBS;
-                std::vector<double> eOBS;
-                std::vector<double> aFIT; aFIT.resize(pParams->nLib);
-                //
-                // match LIB to OBS data block
-                // match LIB to OBS data block <updated><20170930> apply filter curves to fLIB at each wOBS, if the running mode is SED.
-                if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Matching LIBs to OBS." << std::endl;}
-                for(long iLib = 0; iLib < pParams->nLib; iLib++) {
-                    if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Matching LIB" << iLib+1 << " to OBS" << pParams->idOBS+1 << std::endl;}
-                    MatchedObsLibStruct SDDAT = michi2MatchObs(SDOBS, SDLIBS[iLib], debug-2); // set debug>=3 to debug this.
-                    if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Matched LIB" << iLib+1 << " to OBS" << pParams->idOBS+1 << std::endl;}
-                    // check data block
-                    if(SDDAT.f0.size()>0) {
-                        // min chi2 by n components
-                        fLIB.push_back(SDDAT.f1);
-                        if(iLib == (pParams->nLib-1)) {
-                            fOBS = SDDAT.f0; eOBS = SDDAT.df;
-                        }
-                    } else {
-                        std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Error! Failed to read data block from LIB" << iLib+1 << " " << pParams->InputLibList.at(iLib) << std::endl;
-                        return(NULL);
-                    }
-                }
-                //
-                // do MinPack
-                if(fLIB.size()>0) {
-                    //
-                    michi2MinPack *MPACK = new michi2MinPack(fLIB,fOBS,eOBS);
-                    if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Initializing MPACK." << std::endl;}
-                    //
-                    //
-                    // check constraints on LIB coefficients <Added><20160719><dzliu>
-                    if(Constraints.size()>0) {
-                        for(int iCon = 0; iCon < Constraints.size(); iCon++) {
-                            michi2Constraint *TempConstraint = Constraints[iCon];
-                            //
-                            // set constraint for michi2MinPack.
-                            // 20180114: using new method for evaluating the user input equation
-                            //
-                            // Note that only constraints to the LIB NORM (normalization of some library) will be applied here.
-                            // Other constraints to the LIB INDEX etc. are applied above, see the code
-                            //     ConstraintOK = TempConstraint->check(pParams,debug-1);
-                            //
-                            // Case 1:
-                            //     LIB5.NORM = LIR(8,1000)
-                            // Case 2:
-                            //     LIB5.NORM = "((10^LIB3_PAR3)+(10^LIB4_PAR3))/3750/10^2.4"
-                            //
-                            if(1==1 &&
-                               TempConstraint->fromLIB<=0 &&
-                               TempConstraint->toLIB>0 &&
-                               TempConstraint->toLIB<=pParams->nLib &&
-                               !TempConstraint->fromEquation.empty() &&
-                               !TempConstraint->fromVariable.empty() &&
-                               !TempConstraint->toEquation.empty() &&
-                               !TempConstraint->toVariable.empty() ) {
-                                //
-                                // check if the destination is the normalization (NORM) of some LIB or not.
-                                std::vector<double> TempVariableValues;
-                                if(TempConstraint->toVariable[0] == "NORM" || TempConstraint->toVariable[0] == "NORMALIZATION") {
-                                    //
-                                    // print debug info
-                                    if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Setting constraint on LIB" << TempConstraint->toLIB << " normalization!" << std::endl;}
-                                    //
-                                    // evaluate some variables, e.g., LIB*_PAR*,
-                                    for(int iVar=0; iVar<TempConstraint->fromVariable.size(); iVar++) {
-                                        //
-                                        // print debug info
-                                        if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Parsing variable " << std::flush;
-                                            std::cout << TempConstraint->fromVariable[iVar] << std::endl;}
-                                        //
-                                        // determine the value of each variable in the equation must have a value
-                                        // each variable in the equation must have a value
-                                        std::string sVar = TempConstraint->fromVariable[iVar];
-                                        double dVar = std::nan("");
-                                        //
-                                        // if the variable is LIR*
-                                        if(sVar.find("LIR")==0) {
-                                            // then compute LIR
-                                            double LibIntegrated[pParams->nLib];
-                                            double LibIntegratedTotal = 0.0;
-                                            std::vector<double> LibIntegrateRange; LibIntegrateRange.push_back(8.0); LibIntegrateRange.push_back(1000.0);
-                                            for(long iLib=0; iLib < pParams->nLib; iLib++) {
-                                                LibIntegrated[iLib] = integrate_LIR(SDLIBS[iLib]->X, SDLIBS[iLib]->Y, LibIntegrateRange);
-                                                LibIntegratedTotal += LibIntegrated[iLib];
-                                                // print debug info
-                                                if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": debugging: calculating integral: LIB" << iLib+1 << " LIR(" <<LibIntegrateRange[0] << "," << LibIntegrateRange[1] << ") = " << LibIntegrated[iLib] << std::endl;}
-                                            }
-                                            // now we got the LIR as the variable value
-                                            dVar = LibIntegratedTotal;
-                                            // print debug info
-                                            if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": debugging: setting constraint variable " << sVar << " = " << dVar << std::endl;}
-                                        }
-                                        //
-                                        // else if the variable is LIB*_PAR*
-                                        else if(sVar.find("LIB")==0 && sVar.find("PAR")>0) {
-                                            if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": debugging: setting constraint variable " << sVar << std::endl;}
-                                            std::regex t_regex_1("LIB([0-9]+)_PAR([0-9]+).*");
-                                            std::smatch t_match_1;
-                                            if(std::regex_search(sVar,t_match_1,t_regex_1) && t_match_1.size()>2) {
-                                                int t_lib_number = std::atoi(t_match_1.str(1).c_str());
-                                                int t_par_number = std::atoi(t_match_1.str(2).c_str());
-                                                // now we got the LIB*_PAR* as the variable value
-                                                if(t_par_number <= SDLIBS[t_lib_number-1]->FPAR.size()) {
-                                                    dVar = SDLIBS[t_lib_number-1]->FPAR[t_par_number-1][0];
-                                                } else {
-                                                    std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Error! The parameter number " << t_par_number << " exceeds the max parameter number " << SDLIBS[t_lib_number-1]->FPAR.size() << " in LIB" << t_lib_number << "!" << std::endl;
-                                                    exit (EXIT_FAILURE);
-                                                }
-                                                // print debug info
-                                                if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": debugging: setting constraint variable " << sVar << " = " << dVar << std::endl;}
-                                            }
-                                        }
-                                        TempVariableValues.push_back(dVar);
-                                    }
-                                    
-                                    //
-                                    // Now we set MPACK->constrain().
-                                    //
-                                    if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Setting MPACK->constrain()" << std::endl;}
-                                    MPACK->constrain(TempConstraint->toLIB, TempConstraint->fromEquation, TempConstraint->fromVariable, TempVariableValues);
-                                }
-                            }
-                            //
-                            // set constraints:
-                            // using the old method
-                            else {
-                                if(TempConstraint->fromLIB==-1 &&
-                                   TempConstraint->fromPAR==-3 &&
-                                   TempConstraint->toLIB>0 &&
-                                   TempConstraint->toLIB<=pParams->nLib &&
-                                   TempConstraint->toPAR==-1 )
-                                {//
-                                    // print debug info
-                                    if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Setting constraint on LIB" << TempConstraint->toLIB << " normalization ... (old method)" << std::endl;}
-                                    //
-                                    // set constraint: LIB5 NORM EQ SED LIR(8,1000), i.e., fixing the normalization of LIB5 to the vLv(8,1000), i.e., qIR=250
-                                    // -- NOTE vLv is not INT! vLv is the integration of \int x*SED dx, but INT is just the integration of \int SED dx.
-                                    //
-                                    //<DEBUG><20171001> std::cout << "DEBUG: setting constraint: LIB" << TempConstraint->toLIB << "NORM EQ SED vLv(8,1000)*1.061619121e-06, i.e. q_IR = 2.4, 10^q_IR = S_IR(8-1000)/(3.75e12Wm-2)/(S_(1.4GHz)/1Wm-2Hz-1)." << std::endl;
-                                    //
-                                    // in this case, LIB5 is not fitted but its normalization is fully deteremined by other LIBs (or by the full SED vLv)
-                                    double LibIntegrated[pParams->nLib];
-                                    double LibIntegratedTotal = 0.0;
-                                    std::vector<double> LibIntegrateRange; LibIntegrateRange.push_back(TempConstraint->fromLowerX); LibIntegrateRange.push_back(TempConstraint->fromUpperX);
-                                    // now we calculate the vLv(8,1000) of each LIB
-                                    for(long iLib=0; iLib < pParams->nLib; iLib++) {
-                                        LibIntegrated[iLib] = integrate_LIR(SDLIBS[iLib]->X, SDLIBS[iLib]->Y, LibIntegrateRange);
-                                        LibIntegratedTotal += LibIntegrated[iLib];
-                                        //<DEBUG><20171001>
-                                        if(debug>=4) {
-                                            std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": debugging: calculating integral: LIB" << iLib+1 << " INT(" <<TempConstraint->fromLowerX << "," << TempConstraint->fromUpperX << ") = " << LibIntegrated[iLib] << std::endl;
-                                        }
-                                    }
-                                    //
-                                    // then we calculate the coefficients of each LIB's vLv(8,1000) comparing to LIB5's vLv(8,1000)
-                                    // and we set LibConstrainNumbers and LibConstrainFactors, that is,
-                                    // the normalization of the destination LIB, TempConstraint->toLIB, depends on
-                                    // the list of LIBs in LibConstrainNumbers, and the factors are in LibConstrainFactors.
-                                    std::vector<int> LibConstrainNumbers;
-                                    std::vector<double> LibConstrainFactors;
-                                    for(long iLib=0; iLib < pParams->nLib; iLib++) {
-                                        if(iLib!=TempConstraint->toLIB-1) {
-                                            double TempCoefficient = 1.0;
-                                            if(!std::isnan(TempConstraint->toMultiplication)) { TempCoefficient = TempCoefficient / TempConstraint->toMultiplication; }
-                                            if(!std::isnan(TempConstraint->fromMultiplication)) { TempCoefficient = TempCoefficient * TempConstraint->fromMultiplication; }
-                                            LibConstrainNumbers.push_back(iLib+1);
-                                            //<before><20180110>//LibConstrainFactors.push_back( LibIntegrated[iLib] / (TempConstraint->toMultiplication/TempConstraint->fromMultiplication - LibIntegrated[TempConstraint->toLIB-1]) );
-                                            LibConstrainFactors.push_back( LibIntegrated[iLib] / (1.0 / TempCoefficient - LibIntegrated[TempConstraint->toLIB-1]) ); //<20180110>//
-                                            // -- NOTE
-                                            // e.g., if we want
-                                            //      S_(1.4GHz) = 1.061619121e-6 * S_(IR,8-1000), assuming the radio SED templates are normalized to S_(1.4GHz) = 1 mJy
-                                            // then we need
-                                            //      TempConstraint->toMultiplication is 1, TempConstraint->fromMultiplication = 1.061619121e-6.
-                                            // and we have
-                                            //      a1 * LibInt1 + a2 * LibInt2 + a3 * LibInt3 = S_(IR,8-1000)
-                                            // so we get
-                                            //      a1 * LibInt1 + a2 * LibInt2 + a3 * LibInt3 = S_(1.4GHz) / 1.061619121e-6
-                                            //      a1 * LibInt1 + a2 * LibInt2 + a3 * LibInt3 = a3 / 1.061619121e-6
-                                            //      a3 * (1/1.061619121e-6 - LibInt3) = a1 * LibInt1 + a2 * LibInt2
-                                            //      a3  = a1 * LibInt1/((1/1.061619121e-6)-LibInt3) + a2 * LibInt2/((1/1.061619121e-6)-LibInt3)
-                                            //
-                                            //<DEBUG><20171001> std::cout << "DEBUG: calculating integral: LIB" << iLib+1 << " INT(" <<TempConstraint->fromLowerX << "," << TempConstraint->fromUpperX << ") = " << LibIntegrated[iLib] << ", " << "LibConstrainFactor = " << LibConstrainFactors[LibConstrainFactors.size()-1] << std::endl;
-                                        } else {
-                                            //<DEBUG><20171001> std::cout << "DEBUG: calculating integral: LIB" << iLib+1 << " INT(" <<TempConstraint->fromLowerX << "," << TempConstraint->fromUpperX << ") = " << LibIntegrated[iLib] << std::endl;
-                                        }
-                                    }
-                                    //
-                                    if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Setting MPACK->constrain()" << std::endl;}
-                                    MPACK->constrain(TempConstraint->toLIB, LibConstrainNumbers, LibConstrainFactors);
-                                    //
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    //
-                    if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Calling MPACK->fit()" << std::endl;}
-                    //
-                    MPACK->fit();
-                    //
-                    // check parameter and write output results to stream
-                    double chi2 = 0.0; for(int j=0;j<MPACK->chi2.size();j++) {chi2+=MPACK->chi2[j];}
-                    std::stringstream pStream;
-                    pStream << std::setw(8) << pParams->i << std::setw(15) << chi2;
-                    for(long iLib = 0; iLib < pParams->nLib; iLib++) {
-                        aFIT[iLib] = MPACK->aCOE[iLib];
-                        pStream << std::setw(10) << pParams->idLIBList[iLib] * pParams->SDLIBList[iLib]->XNum << std::setw(15) << aFIT.at(iLib);
-                    }
-                    for(long iLib = 0; iLib < pParams->nLib; iLib++) {
-                        //michi2DataClass *SDLIB = pParams->SDLIBList[iLib];
-                        michi2DataClass *SDLIB = SDLIBS.at(iLib);
-                        for(long iLibPar=0; iLibPar<SDLIB->FPAR.size(); iLibPar++) {
-                            pStream << std::setw(15) << SDLIB->FPAR[iLibPar][0];
-                        }
-                    }
-                    delete MPACK; MPACK = NULL;
-                    pStream << std::endl;
-                    pStrings[pParams->idOBS] += pStream.str();
-                    if(debug>=2) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Done MPACK" << pStream.str();
-                        std::cout << std::endl;}
-                }
-            } else {
-                // failed to pass the constraint check
-                if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Did not pass the second constraint check!" << std::endl;}
-            }
-        } else {
-            // failed to pass the constraint check
-            if(debug>=3) {std::cout << "mnchi2parallel: subprocess " << pParams->iBegin << ": Did not pass the constraint check!" << std::endl;}
-        }
+        // choose a random iObs from iObsPool if not ready
+        if(iObs<0) { iObs = ppPool->iObsPool[std::rand() % ppPool->iObsPool.size()]; }
         //
-        // compute the rounding of each LIB index idLIBList[iLib] and goto next loop
-        for(long iLib = pParams->nLib-1; iLib >= 0 ; iLib--) {
-            pParams->idLIBList[iLib]++;
-            pParams->irLIBList[iLib] = true;
-            if((pParams->idLIBList[iLib])>(pParams->SDLIBList[iLib]->YNum-1)) { // rounding overflow
-                pParams->idLIBList[iLib] = 0; // rewind to zero or begin value
-                if(0==iLib) { // if the highest LIB got rounded, then we need to round idOBS as well.
-                    // great we have done all the LIB loops for one OBS data, move to the next OBS data.
-                    pParams->idOBS++;
-                    pParams->irOBS = true;
-                    break;
-                }
-            } else {
-                break; // if no rounding overflow happens, it will break here, so only the last LIB index was increased.
-            }
-        }
+        // prepare iLib (IdLibList), which is a list of indices for models in each LIB1, LIB2, LIB3, ...
+        std::vector<int> iLib; iLib.resize(pParams->SDLIBList.size(), -1);
         //
-        // goto next loop
-        pParams->i++;
-    }
-    //
-    // check other processes, wait in order
-    // <20180116> moved pthread_mutex_lock inside the loop, and added sleep time.
-    for(;;) {
         // lock mutex
-        pthread_mutex_lock(&mnchi2parallelMutex);
-        std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now locked! checking current waiting subprocess " << mnchi2parallelProgress << std::endl;
-        // test if now we are ok to write result file
-        if(pParams->iBegin==mnchi2parallelProgress) {
-            // thread ok to write!
-            std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": got ya! subprocess now being processed for output!" << std::endl;
-            for(long iObs = 0; iObs < pParams->nObs; iObs++) {
-                if(!pStrings[iObs].empty()) {
-                    std::ofstream SDOUT(pParams->OutputTableList.at(iObs).c_str(), std::ofstream::out | std::ofstream::app);
-                    SDOUT << pStrings[iObs];
-                    SDOUT.close();
-                    //*pParams->SDOUTList.at(iObs) << pStrings[iObs] << std::flush;
+        pthread_mutex_lock(&mnchi2parallelMutex); // lock mutex for writing ppPool->CHISQ4PARAMS
+        if(debug>=2) {std::cout << process_info.str() << ": pthread mutex locked for analyzing chisq array!" << std::endl;}
+        //
+        // analyze chisq array for each parameter in each LIB for current iObs
+        while (true) {
+            int i = iObs;
+            // for i-th OBS
+            //bool HasProcessedAll = true; // no, this is not ture, even we have all valid values for each PAR, we still have not looped all combinations between PARs.
+            for (int j=0; j<ppPool->CHISQ4PARAMS[i].size(); j++) {
+                // for j-th LIB
+                if(pParams->SDLIBList[j]->DataBlockIndexIsFreezed) {
+                    iLib[j] = 0;
+                    continue;
                 }
-                //<TODO><DELETE>// if(1) {std::cout << "DEBUG: pStrings[iObs]" << pStrings[iObs] << std::endl;}
-                //pParams->SDOUTList.at(iObs)->close();
+                std::vector<int> iLibSubIdList; iLibSubIdList.resize(pParams->SDLIBList[j]->NPAR.size(), -1);
+                for (int k=0; k<ppPool->CHISQ4PARAMS[i][j].size(); k++) {
+                    // for k-th PAR
+                    // check if has processed all
+                    int nProbed = 0;
+                    for(int m=0; m<ppPool->CHISQ4PARAMS[i][j][k].size(); m++) { // loop values for k-th PAR
+                        if(std::isnan(ppPool->CHISQ4PARAMS[i][j][k][m])) {
+                            //HasProcessedAll = false;
+                        } else {
+                            nProbed++; // count number of probed grid points in the chisq space for a given PAR
+                        }
+                    }
+                    // analyze chisq array for each parameter
+                    // first find the minimum chisq point, if all are NaN then it will set NaN to ppPool->ARGMINPARAMS[i][j][k]
+                    ppPool->ARGMINPARAMS[i][j][k] = michi2FindIndexOfMinimumValue(ppPool->CHISQ4PARAMS[i][j][k]);
+                    // then determine a radius for next step finding a Gaussian random index nearby the minimum chisq point, the radius is larger if the chisq space is less probed
+                    double RandomRadius = (double)(ppPool->CHISQ4PARAMS[i][j][k].size())/1.0; // (double)(ppPool->CHISQ4PARAMS[i][j][k].size())/std::sqrt((double)(nProbed)+1.0); // if size = 10, nProbed = 0, then RandomRadius = 10/sqrt(1) ~ 10; // if size = 10, nProbed = 1, then RandomRadius = 10/sqrt(2) ~ 7; // if size = 10, nProbed = 5, then RandomRadius = 10/sqrt(6) ~ 4;
+                    if(RandomRadius<3.0) {RandomRadius = 3.0;} // set a minimum random radius
+                    // then find an element nearby the minimum chisq point which will be fitted in this loop
+                    iLibSubIdList[k] = michi2RandomIndexNearbyMinimumPoint(ppPool->CHISQ4PARAMS[i][j][k], RandomRadius);
+                    // setting the selected model chisq to 999999.9 so that other processes will not try to fit it at the same time
+                    if(std::isnan(ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]])) {
+                        ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]] = 999999.9;
+                    }
+                    // -> this will mark 999999.9 for iLibSubIdList[k]-th value of each PAR in each free LIB.
+                }
+                // convert SubIdList to the model index in j-th LIB
+                iLib[j] = pParams->SDLIBList[j]->convertSubIdListToId(iLibSubIdList); // taking the (iLib[j])-th model from the j-th LIB.
+                if(debug>=4) {std::cout << process_info.str() << ": analyzing chisq for LIB" << j+1 << " IdModel " << iLib[j] << " SubIdList "; for(int ick=0; ick<iLibSubIdList.size(); ick++) {std::cout << iLibSubIdList[ick] << "/" << pParams->SDLIBList[j]->NPAR[ick] << " ";} std::cout << std::endl;}
             }
-            //std::cout << std::endl;
-            //pthread_cond_signal(&mnchi2parallelCondition); // send finish signal //<20180116><DZLIU> I do the subprocess waiting by my self, using the number 'mnchi2parallelProgress', so I do not need this cond_wait().
-            // unlock mutex
-            pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex // <BUG><20180116><DZLIU>: must unlock before break!!
-            break;
-        } else {
-            // wait while other earlier threads to write result file
-            //pthread_cond_wait(&mnchi2parallelCondition, &mnchi2parallelMutex); //<20180116><DZLIU> I do the subprocess waiting by my self, using the number 'mnchi2parallelProgress', so I do not need this cond_wait().
-            std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now still waiting for subprocess " << mnchi2parallelProgress << std::endl;
-            // unlock mutex
-            pthread_mutex_unlock(&mnchi2parallelMutex);
-            std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now unlocked!" << std::endl;
-            // sleep
-            int random_sleep_seconds = rand() % 10;
-            std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": sleeping for " << 5 + random_sleep_seconds << " seconds ..." << std::endl;
-            sleep(5 + random_sleep_seconds);
-            continue;
+            /*
+            if(HasProcessedAll) { // if jump to here, then it means there are no unprocessed parameter for this iObs. Remove this iObs from ppPool->iObsPool and pick up another iObs from ppPool->iObsPool to fit.
+                ppPool->iObsPool.erase(std::remove(ppPool->iObsPool.begin(), ppPool->iObsPool.end(), iObs), ppPool->iObsPool.end()); // remove iObs from iObsPool. See https://stackoverflow.com/questions/3385229/c-erase-vector-element-by-value-rather-than-by-position
+                if(ppPool->iObsPool.size() > 0) {
+                    iObs = ppPool->iObsPool.at(std::rand() % ppPool->iObsPool.size());
+                    continue;
+                } else {
+                    iObs = -1; // no iObs to loop! all finished!
+                    break; // finished chi-square analysis
+                }
+            }
+            */
+            // iObs is not changed and iLib has been newly determined from the above chi-square analysis. Now let's proceed!
+            break; // finished chi-square analysis
         }
+        //
+        // unlock mutex
+        pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex
+        if(debug>=2) {std::cout << process_info.str() << ": pthread mutex unlocked!" << std::endl;}
+        //
+        // update current data block index for LIBs
+        for(int i = 0; i < iLib.size(); i++) {
+            pParams->SDLIBList[i]->CurrentDataBlockIndex = iLib[i];
+            pParams->SDLIBList[i]->CurrentDataBlockIndexAsDouble = (double)(iLib[i]);
+        }
+        //
+        // parse INDEX constraints
+        if(debug>=1) {std::cout << process_info.str() << ": parsing INDEX constraints" << std::endl;}
+        for(int i = 0; i < FreezedConstraints.size(); i++) { // FreezedConstraints are INDEX constraints.
+            //FreezedConstraints[i]->recompile(debug-1); //<20181002> no need to recompile now, exprtk issue has been fixed. see test under "test_michi2Constraint_expr2/" folder.
+            FreezedConstraints[i]->evaluate(); // evaluate the expression, this->SDLIBList[j]->CurrentDataBlockIndexAsDouble will be updated
+            for(int j = 0; j < FreezedConstraints[i]->AssignmentsLibIndices.size(); j++) {
+                int k = FreezedConstraints[i]->AssignmentsLibIndices[j];
+                pParams->SDLIBList[k]->CurrentDataBlockIndex = (long)(pParams->SDLIBList[k]->CurrentDataBlockIndexAsDouble);
+                iLib[k] = pParams->SDLIBList[k]->CurrentDataBlockIndex;
+            }
+        }
+        //
+        // convert (iLib, iObs) pair to iPool for fitting the data and model
+        if(debug>=1) {std::cout << process_info.str() << ": ppPool->convertIdLibListToIdPool(iLib,iObs), iLib=["; for(int j=0; j<iLib.size(); j++) {std::cout << iLib[j]; if(j<iLib.size()-1) {std::cout << ",";}} std::cout << "], iObs=" << iObs << std::endl;}
+        long long iPool = ppPool->convertIdLibListToIdPool(iLib, iObs); // convert paired OBS and LIBs indices to a global pool index
+        if(iPool<0) {iPool = ppPool->convertIdLibListToIdPool(iLib, iObs, 1); } // debug it if we get negative iPool! 
+        if(debug>=1) {std::cout << process_info.str() << ": ppPool->convertIdLibListToIdPool(iLib,iObs), iLib=["; for(int j=0; j<iLib.size(); j++) {std::cout << iLib[j]; if(j<iLib.size()-1) {std::cout << ",";}} std::cout << "], iObs=" << iObs << ", iPool = " << iPool << std::endl;}
+        //
+        // find a nearest iPool in ppPool->IdPool
+        ////long iPool2 = michi2FindClosestValue(ppPool->IdPool, iPool); // this can prevent from repeated processing
+        ////int iObs2 = ppPool->convertIdPoolToIdObs(iPool2);
+        ////std::vector<int> iLib2 = ppPool->convertIdPoolToIdLibList(iPool2); // this is buggy because of the freezed SubIds can not be computed well
+        //long argWhere2 = michi2FindIndexOfClosestValue(ppPool->IdPool, iPool); // this can prevent from repeated processing
+        pthread_mutex_lock(&mnchi2parallelMutex); // lock mutex for calling ppPool->findIndexOfClosestIdInPool() to query ppPool->IdPool
+        if(debug>=2) {std::cout << process_info.str() << ": pthread mutex locked for querying ppPool->IdPool!" << std::endl;}
+        if(debug>=1) {std::cout << process_info.str() << ": ppPool->findIndexOfClosestIdInPool(iPool=" << iPool << ")" << std::endl;}
+        long argWhere2 = ppPool->findIndexOfClosestIdInPool(iPool); // we only process what are in the Pool
+        long long iPool2; std::vector<int> SubIdList2; int iObs2; std::vector<int> iLib2;
+        if(debug>=1) {std::cout << process_info.str() << ": ppPool->findIndexOfClosestIdInPool(iPool=" << iPool << ") returned " << argWhere2 << std::endl;}
+        if(argWhere2 >= 0) {
+            iPool2 = ppPool->IdPool.at(argWhere2);
+            SubIdList2 = ppPool->SubIdListPool.at(argWhere2);
+            iObs2 = SubIdList2.front();
+            iLib2.resize(SubIdList2.size()-1); iLib2.assign(SubIdList2.begin()+1, SubIdList2.end());
+        } else {
+            iPool2 = iPool;
+            iObs2 = iObs;
+            iLib2 = iLib;
+        }
+        pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex
+        if(debug>=2) {std::cout << process_info.str() << ": pthread mutex unlocked!" << std::endl;}
+        if(debug>=2) {
+            std::cout << "mnchi2parallel: DEBUG: iObs = " << iObs << ", iLib = "; for(int k=0; k<iLib.size(); k++) {std::cout << iLib[k] << " ";} std::cout << ", iPool = " << iPool << std::endl;
+            std::cout << "mnchi2parallel: DEBUG: iObs2 = " << iObs2 << ", iLib2 = "; for(int k=0; k<iLib2.size(); k++) {std::cout << iLib2[k] << " ";} std::cout << ", iPool2 = " << iPool2 << std::endl;
+            //std::cout << "mnchi2parallel: DEBUG: ppPool->IdPool = "; for(int k=0; k<ppPool->IdPool.size(); k++) {std::cout << ppPool->IdPool[k] << " ";} std::cout << std::endl;
+        }
+        if(iPool2 != iPool) { // this can happen if user has some constraints which filtered out some IdPool.
+            // mark current iPool CHISQ to 999999.9 so that other processes will not try to run it. we will update CHISQ after each loop.
+            pthread_mutex_lock(&mnchi2parallelMutex); // lock mutex for writing ppPool->CHISQ4PARAMS, if iPool2 != iPool, i.e., iPool did not pass the constraints.
+            // for i-th OBS
+            for (int i=iObs2, j=0; j<ppPool->CHISQ4PARAMS[i].size(); j++) {
+                // for j-th LIB
+                std::vector<int> iLibSubIdList = pParams->SDLIBList[j]->convertIdToSubIdList(iLib2[j]);
+                for (int k=0; k<ppPool->CHISQ4PARAMS[i][j].size(); k++) {
+                    // for k-th PAR
+                    if(std::isnan(ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]])) {
+                        ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]] = 999999.9;
+                    }
+                }
+            }
+            pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex
+            pParams->iPool = iPool2;
+            pParams->iObs = iObs2;
+            pParams->iLib = iLib2;
+        } else {
+            pParams->iPool = iPool;
+            pParams->iObs = iObs;
+            pParams->iLib = iLib;
+        }
+        //
+        Timer2 = std::chrono::high_resolution_clock::now(); TimeSpan = Timer2 - Timer1;
+        if(debug>=1) {std::cout << process_info.str() << ": Determined a pParams->iPool " << pParams->iPool << " at time 0+" << TimeSpan.count() << " ms" << std::endl;}
+        //
+        //
+        //
+        //
+        // update LoopInfo stringstream
+        pParams->LoopInfoStr = "<NO INFO>";
+        pParams->LoopInfo.str("");
+        pParams->LoopInfo << "OBS [" << pParams->iObs+1 << "/" << pParams->nObs << "]" << " ";
+        pParams->LoopInfo << "LIB [";
+        for(int j = 0; j < pParams->iLib.size(); j++) {
+            int ndigits3 = (int)(std::ceil(log10((double)(pParams->SDLIBList[j]->YNum)))); if(j>0) {pParams->LoopInfo << "|";}
+            pParams->LoopInfo << std::setw(ndigits3) << std::right << pParams->iLib[j]+1 << "/" << std::setw(ndigits3) << std::left << pParams->SDLIBList[j]->YNum;
+        } pParams->LoopInfo << "]"; pParams->LoopInfoStr = pParams->LoopInfo.str();
+        //
+        //
+        //
+        //
+        //
+        //
+        // print debug info
+        if(debug>=1) {
+            // print progress
+            debug_info.str("");
+            debug_info << process_info.str() << ": Processing OBS" << pParams->iObs+1;
+            for(int i=0; i<pParams->nLib; i++) {
+                debug_info << " LIB" << i+1 << " data block " << pParams->iLib[i]+1 << "/" << pParams->SDLIBList[i]->YNum;
+            }
+            debug_info << "\n";
+            std::cout << debug_info.str() << std::flush;
+        }
+        //
+        //
+        //
+        // get LIB data block
+        for(int i=0; i<pParams->nLib; i++) {
+            if(debug>=2) {std::cout << process_info.str() << ": Reading LIB" << i+1 << " data block " << pParams->iLib[i]+1 << "/" << pParams->SDLIBList[i]->YNum << ", pParams->SDLIBList[i]->X.data() = 0x" << std::hex << (size_t)(pParams->SDLIBList[i]->X.data()) << std::dec << ", pParams->SDLIBList[i]->Y.data() = 0x" << std::hex << (size_t)(pParams->SDLIBList[i]->Y.data()) << std::dec << std::endl;}
+            //pParams->SDLIBList[i]->getDataBlockQuickQuick(pParams->iLib[i] * pParams->SDLIBList[i]->XNum + 1, pParams->SDLIBList[i]->XNum); // replaced by loadDataBlock()
+            pParams->SDLIBList[i]->loadDataBlock(pParams->iLib[i], debug-1); // this will update pParams->SDLIBList[i]->FPAR[NPAR][:], pParams->SDLIBList[i]->X[:] and pParams->SDLIBList[i]->Y[:]
+            if(debug>=2) {std::cout << process_info.str() << ": Read LIB" << i+1 << " data block " << pParams->iLib[i]+1 << "/" << pParams->SDLIBList[i]->YNum << ", pParams->SDLIBList[i]->X.data() = 0x" << std::hex << (size_t)(pParams->SDLIBList[i]->X.data()) << std::dec << ", pParams->SDLIBList[i]->Y.data() = 0x" << std::hex << (size_t)(pParams->SDLIBList[i]->Y.data()) << std::dec << std::endl;}
+        }
+        //
+        // check constraints again <Added><20160719><dzliu> <20181001><dzliu>
+        std::vector<michi2Constraint *> NormalizationConstraints; NormalizationConstraints.clear();
+        bool ConstraintOK = true;
+        for(int i = 0; i < SubprocessConstraints.size(); i++) { // SubprocessConstraints are from ppPool->OtherConstraints, which are LIB PAR constraints
+            if(SubprocessConstraints[i]->ConstraintType == michi2Constraint::EnumConstraintType::NORM) { // we will hand over NORM constraints to MPACK
+                SubprocessConstraints[i]->recompile(debug-1); //<20181002><TODO> seems still need to recompile here
+                double ConstraintValue = SubprocessConstraints[i]->evaluate();
+                NormalizationConstraints.push_back(SubprocessConstraints[i]);
+            } else { // check other constraints, e.g., on LIB PARs
+                SubprocessConstraints[i]->recompile(debug-1); //<20181002><TODO> seems still need to recompile here
+                double ConstraintValue = SubprocessConstraints[i]->evaluate();
+                if(ConstraintOK) {ConstraintOK = (ConstraintValue>0);}
+                if(debug>=3) {
+                    debug_info.str("");
+                    debug_info << process_info.str() << ": Checking SubprocessConstraints["<<i<<"]: \"" << SubprocessConstraints[i]->ConstraintStr << "\" ... " << ConstraintValue;
+                }
+                if(debug>=4) {
+                    for(int ick=0; ick<SubprocessConstraints[i]->Variables.size(); ick++) {
+                        debug_info << " ... " << SubprocessConstraints[i]->Variables[ick] << " = " << SubprocessConstraints[i]->VariablesValueStrs[ick];
+                    }
+                }
+                if(debug>=3) {
+                    debug_info << "\n";
+                    std::cout << debug_info.str() << std::flush;
+                }
+            }
+            //if(!ConstraintOK) {break;}
+        }
+        if(!ConstraintOK) {
+            //
+            // did not pass the constraint check, skip this model
+            if(debug>=3) {std::cout << process_info.str() << ": Did not pass the constraint check! Skip!" << std::endl;}
+            Timer2 = std::chrono::high_resolution_clock::now(); TimeSpan = Timer2 - Timer1;
+            if(debug>=1) {std::cout << process_info.str() << ": Time spent in this loop is " << TimeSpan.count() << " ms" << std::endl;}
+            //
+            // remove current pParams->iPool from ppPool->IdPool
+            bool iremoveok = false;
+            pthread_mutex_lock(&mnchi2parallelMutex); // lock mutex for calling ppPool->removeIdInPool() to remove pParams->iPool from ppPool->IdPool
+            if(debug>=2) {std::cout << process_info.str() << ": pthread mutex locked for removing iPool which did not pass the constrains from Pool!" << std::endl;}
+            iremoveok = ppPool->removeIdInPool(pParams->iPool);  // remove pParams->iPool from ppPool->IdPool due to failed passing user constraints // note that ppPool->CHISQ4PARAMS[i][j][iLibSubIdList[j]] now is still 999999.9
+            pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex
+            if(debug>=2) {std::cout << process_info.str() << ": pthread mutex unlocked!" << std::endl;}
+            //
+            // check
+            if(iremoveok) {
+                if(debug>=3) {std::cout << process_info.str() << ": Erased IdPool " << pParams->iPool << " ppPool->IdPool.size() " << ppPool->IdPool.size() << std::endl;}
+                //if(debug>=3) {std::cout << process_info.str() << ": Erased IdPool " << pParams->iPool << " michi2FindClosestValue(ppPool->IdPool, pParams->iPool) " << michi2FindClosestValue(ppPool->IdPool, pParams->iPool) << std::endl;}
+            } else {
+                std::cout << process_info.str() << ": Error! Failed to remove iPool " << pParams->iPool << " from ppPool->IdPool!" << std::endl;
+                exit (EXIT_FAILURE);
+            }
+            //
+            // continue
+            continue;
+        } else {
+            if(debug>=3) {std::cout << process_info.str() << ": Passed the constraint check!" << std::endl;}
+            if(debug>=1) {Timer2 = std::chrono::high_resolution_clock::now(); TimeSpan = Timer2 - Timer1; std::cout << process_info.str() << ": Time spent so far is " << TimeSpan.count() << " ms" << std::endl;}
+        }
+        //
+        //
+        //
+        // prepare MinPack input data structure
+        std::vector<std::vector<double> > fLIB; fLIB.clear();
+        std::vector<double> fOBS;
+        std::vector<double> eOBS;
+        std::vector<double> aFIT; aFIT.resize(pParams->nLib);
+        //
+        // match LIB to OBS data block
+        // match LIB to OBS data block <updated><20170930> apply filter curves to fLIB at each wOBS, if the running mode is SED.
+        if(debug>=2) {std::cout << process_info.str() << ": Matching LIBs to OBS." << std::endl;}
+        for(int i=0; i<pParams->nLib; i++) {
+            if(debug>=3) {std::cout << process_info.str() << ": Matching LIB" << i+1 << " to OBS" << pParams->iObs+1 << std::endl;}
+            MatchedObsLibStruct SDDAT = michi2MatchObs(pParams->SDOBSList[pParams->iObs],
+                                                       pParams->SDLIBList[i],
+                                                       debug-1);
+                                                       // set debug>=3 to debug this.
+            if(debug>=3) {std::cout << process_info.str() << ": Matched LIB" << i+1 << " to OBS" << pParams->iObs+1 << std::endl;}
+            // check data block
+            if(SDDAT.f0.size()>0) {
+                // min chi2 by n components
+                fLIB.push_back(SDDAT.f1);
+                if(i == (pParams->nLib-1)) {
+                    fOBS = SDDAT.f0; eOBS = SDDAT.df;
+                }
+            } else {
+                std::cout << process_info.str() << ": Error! Failed to read data block from LIB" << i+1 << " \"" << pParams->SDLIBList[i]->FilePath << "\"" << std::endl;
+                return(NULL);
+            }
+        }
+        //
+        Timer2 = std::chrono::high_resolution_clock::now(); TimeSpan = Timer2 - Timer1;
+        if(debug>=1) {std::cout << process_info.str() << ": Start MPACK at time 0+" << TimeSpan.count() << " ms" << std::endl;}
+        //
+        // do MinPack
+        //
+        michi2MinPack *MPACK = new michi2MinPack(fLIB, fOBS, eOBS, NormalizationConstraints, debug-3);
+        if(debug>=3) {std::cout << process_info.str() << ": Initializing MPACK." << std::endl;}
+        //
+        // call MPACK->fit()
+        if(debug>=3) {std::cout << process_info.str() << ": Calling MPACK->fit()" << std::endl;}
+        int t0 = std::time(NULL);
+        MPACK->fit();
+        int t1 = std::time(NULL);
+        if(debug>=3) {std::cout << process_info.str() << ": Finished MPACK->fit() in " << t1 - t0 << " seconds" << std::endl;}
+        //
+        // check parameter and write output results to stream
+        double chi2 = 0.0; for(int j=0;j<MPACK->chi2.size();j++) {chi2+=MPACK->chi2[j];}
+        std::stringstream pStream;
+        std::stringstream pHeader;
+        pStream << std::setw(10+1) << pParams->iPool << std::setw(15) << chi2;
+        pHeader << std::setw(10+1) << "IdPool" << std::setw(15) << "chi2";
+        for(int i=0; i<pParams->nLib; i++) {
+            aFIT[i] = MPACK->aCOE[i];
+            pStream << std::setw(10) << pParams->iLib[i] * pParams->SDLIBList[i]->XNum << std::setw(15) << aFIT.at(i);
+            pHeader << std::setw(10) << "i"+std::to_string(i+1) << std::setw(15) << "a"+std::to_string(i+1);
+            pParams->SDLIBList[i]->YNorm = aFIT[i];
+        }
+        for(int i=0; i<pParams->nLib; i++) {
+            for(int iLibPar=0; iLibPar<pParams->SDLIBList[i]->FPAR.size(); iLibPar++) {
+                pStream << std::setw(15) << pParams->SDLIBList[i]->FPAR[iLibPar][0];
+                pHeader << std::setw(15) << pParams->SDLIBList[i]->TPAR[iLibPar];
+            }
+        }
+        delete MPACK; MPACK = NULL;
+        pStream << std::endl;
+        pHeader << std::endl;
+        //pStrings[pParams->iObs] += pStream.str();
+        pStrings[pParams->iObs] = pStream.str();
+        //
+        Timer2 = std::chrono::high_resolution_clock::now(); TimeSpan = Timer2 - Timer1;
+        if(debug>=1) {std::cout << process_info.str() << ": Done MPACK at time 0+" << TimeSpan.count() << " ms" << std::endl;}
+        if(debug>=2) {std::cout << process_info.str() << ": " << pHeader.str() << std::flush;}
+        if(debug>=2) {std::cout << process_info.str() << ": " << pStream.str() << std::flush;}
+        
+        
+        
+        //
+        // write to chisq table file and update ppPool->CHISQ4PARAMS
+        pthread_mutex_lock(&mnchi2parallelMutex); // lock mutex for updating ppPool->CHISQ4PARAMS
+        if(debug>=2) {std::cout << process_info.str() << ": pthread mutex locked for updating chisq array, removing iPool from Pool and writing to file!" << std::endl;}
+        if(debug>=1) {std::cout << process_info.str() << ": Now writing to file!" << std::endl;}
+        for(int i = pParams->iObs; i <= pParams->iObs; i++) { // for i = iObs only
+            if(!pStrings[i].empty()) {
+                *(ppPool->SDOUTList[i]) << pStrings[pParams->iObs];
+                ppPool->SDOUTList[i]->flush();
+            }
+            if(debug>=1) {std::cout << process_info.str() << ": Now updating chisq array!" << std::endl;}
+            for(int j = 0; j < pParams->nLib; j++) {
+                std::vector<int> iLibSubIdList = pParams->SDLIBList[j]->convertIdToSubIdList(pParams->iLib[j]);
+                for(int k = 0; k < pParams->SDLIBList[j]->NPAR.size(); k++) {
+                    //for(int m=0; m < pParams->SDLIBList[j]->NPAR[k]; m++) {}
+                    if(std::isnan(ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]])) {
+                        ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]] = chi2;
+                    } else if(ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]] > chi2) {
+                        ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]] = chi2; // this will update every j LIB and k PAR.
+                    }
+                }
+            }
+            if(debug>=1) {std::cout << process_info.str() << ": Now updated chisq array!" << std::endl;}
+        }
+        ppPool->removeIdInPool(pParams->iPool); // remove pParams->iPool from ppPool->IdPool after finished this loop.
+        if(debug>=1) {std::cout << process_info.str() << ": Finished pParams->iPool " << pParams->iPool << ", ppPool->IdPool.size() " << ppPool->IdPool.size() << std::endl;}
+        ppPool->IdDone.push_back(pParams->iPool); // add to iLibDone
+        ppPool->SubIdListDone.push_back(ppPool->convertIdToSubIdList(pParams->iPool));
+        pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex
+        if(debug>=2) {std::cout << process_info.str() << ": pthread mutex unlocked!" << std::endl;}
+        //
+        Timer2 = std::chrono::high_resolution_clock::now(); TimeSpan = Timer2 - Timer1;
+        if(debug>=1) {std::cout << process_info.str() << ": Finished IdPool at time 0+" << TimeSpan.count() << " ms" << std::endl << std::endl;}
+        if(debug>=2) {process_delay += 2*debug;}
+        if(debug>=1) {std::cout << process_info.str() << ": Sleeping for " << process_delay << " seconds." << std::endl << std::endl << std::endl; sleep(process_delay);}
+        
     }
-    //
-    // lock mutex
-    pthread_mutex_lock(&mnchi2parallelMutex);
-    //
-    // update mnchi2parallelProgress
-    //<20180116> now lock mutex when modify it!
-    //mnchi2parallelProgress = pParams->i; // <BUG><20180116><DZLIU>
-    mnchi2parallelProgress = pParams->iEnd+1; // <FIX><20180116><DZLIU>
-    std::cout << "mnchi2parallel: current subprocess iBegin=" << pParams->iBegin << " iEnd=" << pParams->iEnd << ": subprocess now finished! ready to check next subprocess " << mnchi2parallelProgress << std::endl;
-    //
-    // unlock mutex
-    pthread_mutex_unlock(&mnchi2parallelMutex);
     //
     // return
     return(NULL);

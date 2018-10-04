@@ -5,10 +5,11 @@
  
  test:
      ./michi2_v05 \
-                  -obs flux-co-ngc1068.dat \
+                  -obs flux-SED.dat \
                   -lib lib.lvg lib.lvg lib.lvg \
                   -out out.out \
-                  -constraint LIB1 INDEX EQ LIB2 INDEX
+                  -constraint LIB1 INDEX EQ LIB2 INDEX \
+                  -constraint LIB3 NORM EQ LIB2 LIR
 */
 
 #include <stdio.h>
@@ -18,8 +19,11 @@
 #include <string>
 #include <iostream>     // std::cout, std::endl
 #include <iomanip>      // std::setw
-#include <time.h>
-#include "michi2_v05.h" // Constraints,
+#include <sstream>      // std::istringstream
+#include <sys/types.h>  // mkdir
+#include <sys/stat.h>   // stat, S_ISDIR, mkdir
+//#include <time.h>
+#include "michi2_v05.h" // Constraints, Sampling, NumbParallel
 #include "currentdatetime.cpp"
 extern const std::string currentDateTime();
 
@@ -27,6 +31,77 @@ using namespace std;
 
 
 
+
+
+/*
+ * some useful subroutines
+ */
+
+bool is_file_exist(const char *fileName)
+{
+    // check file existence
+    // from https://stackoverflow.com/questions/12774207/fastest-way-to-check-if-a-file-exist-using-standard-c-c11-c
+    std::ifstream infile(fileName);
+    return infile.good();
+}
+
+bool is_dir_exist(const char *DirPath)
+{
+    // check folder existence
+    // see https://stackoverflow.com/questions/12510874/how-can-i-check-if-a-directory-exists
+    struct stat s = {0};
+    if(0==stat(DirPath, &s) && S_ISDIR(s.st_mode)) {return true;}
+    return false;
+}
+
+const char kPathSeparator =
+#ifdef _WIN32
+'\\';
+#else
+'/';
+#endif
+
+void check_folder_existence(const char* path)
+{
+    std::string sStr(path);
+    size_t iPos = sStr.find_last_of(kPathSeparator);
+    if(iPos==std::string::npos) {
+        return; // no folder in path
+    }
+    std::istringstream sStream(path);
+    std::string s("");
+    std::string sDir("");
+    while(getline(sStream, s, kPathSeparator)) {
+        if(sDir.empty()) {sDir = s;} else {sDir += kPathSeparator; sDir += s;}
+        if(!is_dir_exist(sDir.c_str())) {
+            if(0!=mkdir(sDir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)) {
+                std::cout << "Error! Failed to create the output directory \"" << sDir << "\"! Exit!" << std::endl;
+                exit (EXIT_FAILURE);
+            }
+        }
+    }
+    return;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+ * main()
+ */
 
 int main(int argc, char **argv)
 {
@@ -42,111 +117,98 @@ int main(int argc, char **argv)
         std::vector<std::string> FileObsList; // Obs Flux & FlueErr List
         std::vector<std::string> FileLibList; // Lib
         std::vector<std::string> FileOutList; // Out
-        std::vector<std::string> InputFilterCurveList; // Obs Filter Curve List
+        std::vector<std::string> InputFilterCurveList; // Input Filter Curve List
+        std::vector<std::string> InputConstraintList; // Input Constraint List
+        std::vector<double> InputRedshiftList; // Input Redshift List
+        double InputSampling;
         int DebugLevel = 0; // DebugLevel
-        Constraints.clear();
+        //Constraints.clear();
         std::cout << "Welcome!" << std::endl << std::endl;
         int i=0;
+        enum class argMode {obs, lib, out, filter, redshift, parallel, constraint, sampling, none};
+        argMode arg_mode = argMode::none;
         while(i<argc) {
-            if(0==strncmp(argv[i],"-obs",4))
-            {
-                i++;
-                while(i<argc) {
-                    if(0!=strncmp(argv[i],"-",1)) {
-                        FileObsList.push_back(argv[i]);
-                    } else {break;}
-                    i++;
-                }
+            if(0==strncmp(argv[i],"-obs",4)) {
+                arg_mode = argMode::obs; i++;
             }
-            else if(0==strncmp(argv[i],"-filter",7))
-            {
-                i++;
-                while(i<argc) {
-                    if(0!=strncmp(argv[i],"-",1)) {
-                        InputFilterCurveList.push_back(argv[i]);
-                    } else {break;}
-                    i++;
-                }
+            else if(0==strncmp(argv[i],"-lib",4)) {
+                arg_mode = argMode::lib; i++;
             }
-            else if(0==strncmp(argv[i],"-lib",4))
-            {
-                i++;
-                while(i<argc) {
-                    if(0!=strncmp(argv[i],"-",1)) {
-                        FileLibList.push_back(argv[i]);
-                    } else {break;}
-                    i++;
-                }
+            else if(0==strncmp(argv[i],"-out",4)) {
+                arg_mode = argMode::out; i++;
             }
-            else if(0==strncmp(argv[i],"-out",4))
-            {
-                i++;
-                while(i<argc) {
-                    if(0!=strncmp(argv[i],"-",1)) {
+            else if(0==strncmp(argv[i],"-filter",7)) {
+                arg_mode = argMode::filter; i++;
+            }
+            else if(0==strncmp(argv[i],"-redshift",9) || 0==strcmp(argv[i],"-z")) {
+                arg_mode = argMode::redshift; i++;
+            }
+            else if(0==strncmp(argv[i],"-parallel",9) || 0==strcmp(argv[i],"-p")) {
+                arg_mode = argMode::parallel; i++;
+            }
+            else if(0==strncmp(argv[i],"-constrain",10)) {
+                arg_mode = argMode::constraint; InputConstraintList.push_back(std::string("")); i++;
+            }
+            else if(0==strncmp(argv[i],"-sampling",9)) {
+                arg_mode = argMode::sampling; i++;
+            }
+            else if(0==strcmp(argv[i],"-debug")) {
+                arg_mode = argMode::none; i++; DebugLevel++;
+            }
+            else {
+                switch (arg_mode) {
+                    case argMode::obs:
+                        if(is_file_exist(argv[i])) {
+                            FileObsList.push_back(argv[i]);
+                        } else { std::cout << "Error! The input observation data \"" << argv[i] << "\" does not exist!" << std::endl; exit (EXIT_FAILURE); }
+                        break;
+                    case argMode::lib:
+                        if(is_file_exist(argv[i])) {
+                            FileLibList.push_back(argv[i]);
+                        } else { std::cout << "Error! The input library data \"" << argv[i] << "\" does not exist!" << std::endl; exit (EXIT_FAILURE); }
+                        break;
+                    case argMode::out:
+                        check_folder_existence(argv[i]);
                         FileOutList.push_back(argv[i]);
-                    } else {break;}
-                    i++;
+                        break;
+                    case argMode::filter:
+                        if(is_file_exist(argv[i])) {
+                            InputFilterCurveList.push_back(argv[i]);
+                        } else { std::cout << "Error! The input filter curve data \"" << argv[i] << "\" does not exist!" << std::endl; exit (EXIT_FAILURE); }
+                        break;
+                    case argMode::redshift:
+                        if(strspn(argv[i],"+-.eE0123456789")==strlen(argv[i])) {
+                            //InfoRedshift = argv[i];
+                            InputRedshiftList.push_back(std::stod(std::string(argv[i])));
+                        } else { std::cout << "Error! The input redshift " << argv[i] << " is invalid!" << std::endl; exit (EXIT_FAILURE); }
+                        break;
+                    case argMode::parallel:
+                        if(strspn(argv[i],"0123456789")==strlen(argv[i])) {
+                            NumbParallel = atoi(argv[i]);
+                        } else { std::cout << "Error! The input parallel number " << argv[i] << " is invalid!" << std::endl; exit (EXIT_FAILURE); }
+                        break;
+                    case argMode::constraint:
+                        // (obsolete)
+                        // a valid constraint requires 5 arguments:
+                        // LIB1 PAR1 OPERATOR LIB2 PAR2
+                        // for example -constraint LIB3-DL07 PAR1-UMIN EQ LIB4-DL07 PAR1-UMIN
+                        // (new)
+                        // the constraint now accept a string with very large flexibility
+                        //michi2Constraint *TempConstraint = new michi2Constraint(argv[i+1], argv[i+2], argv[i+3], argv[i+4], argv[i+5]);
+                        //Constraints.push_back(TempConstraint);
+                        InputConstraintList.back() += argv[i];
+                        InputConstraintList.back() += " ";
+                        break;
+                    case argMode::sampling:
+                        InputSampling = std::stod(std::string(argv[i]));
+                        Sampling = InputSampling;
+                        break;
+                    case argMode::none:
+                        break;
+                    default:
+                        arg_mode = argMode::none;
+                        break;
                 }
-            }
-            else if(0==strncmp(argv[i],"-redshift",9) || 0==strcmp(argv[i],"-z"))
-            {
-                i++;
-                if(i<argc) {
-                    if(strspn(argv[i],"+-.eE0123456789")==strlen(argv[i])) {
-                        InfoRedshift = argv[i]; i++;
-                    } else {
-                        std::cout << "Error! Input redshift is invalid!" << std::endl;
-                    }
-                }
-            }
-            else if(0==strncmp(argv[i],"-parallel",9) || 0==strcmp(argv[i],"-p"))
-            {
-                i++;
-                if(i<argc) {
-                    if(strspn(argv[i],"0123456789")==strlen(argv[i])) {
-                        NumbParallel = atoi(argv[i]); i++;
-                    } else {
-                        std::cout << "Error! Input parallel is invalid!" << std::endl;
-                    }
-                }
-            }
-            else if(0==strncmp(argv[i],"-constrain",10) || 0==strncmp(argv[i],"-con",4) || 0==strcmp(argv[i],"-s"))
-            {
-                // i++;
-                // a valid constraint requires 5 arguments:
-                // LIB1 PAR1 OPERATOR LIB2 PAR2
-                // for example -constraint LIB3-DL07 PAR1-UMIN EQ LIB4-DL07 PAR1-UMIN
-                if((i+5)<argc) {
-                    michi2Constraint *TempConstraint = new michi2Constraint(argv[i+1], argv[i+2], argv[i+3], argv[i+4], argv[i+5]);
-                    Constraints.push_back(TempConstraint);
-                    i+=5;
-                } else {
-                    std::cout << std::endl;
-                    std::cout << "Error! The input constraint should have 5 arguments, e.g. lib3 par3 < lib2 par3." << std::endl;
-                    std::cout << "Examples:" << std::endl;
-                    std::cout << "    -constraint lib2 par3 eq lib3 par3 # e.g. DL07 cold+warm SED, cold Umin should be equal to warm Umin." << std::endl;
-                    std::cout << "    -constraint lib1 par1 lt lib2 par1 # e.g. LVG two-component CO SLED, cold T_kin should be less than warm T_kin." << std::endl;
-                    std::cout << "Notes:" << std::endl;
-                    std::cout << "    We can set several constraints for example" << std::endl;
-                    std::cout << "    -constraint lib1 par1 le lib2 par1 -constraint lib1 par2 le lib2 par2" << std::endl;
-                    std::cout << "    This is for LVG two-component CO SLED, both T_kin and n_H2 are set to be smaller in colder component." << std::endl;
-                    // <TODO><20160719><dzliu> std::cout << "    -constraint \"lib4[200000]\" \"flux\" eq \"full[8:1000]\" \"integration*0.0005\" # e.g. set radio 200000um flux be the 8-1000 integration times 0.0005." << std::endl;
-                    // <TODO><20160719><dzliu>
-                    // ITS TOO HARD TO IMPLEMENT SO MANY THINGS
-                    // See notes in michi2_v05.cpp
-                    //
-                    std::cout << std::endl;
-                    return -1;
-                }
-                i++;
-            }
-            else if(0==strcmp(argv[i],"-debug"))
-            {
-                i++;
-                DebugLevel++;
-            }
-            else
-            {
                 i++;
             }
         }
@@ -162,7 +224,22 @@ int main(int argc, char **argv)
         std::cout << std::endl;
         std::cout << "We will output to:" << std::endl;
         for(int iOut = 0; iOut < FileOutList.size(); iOut++) {
-            std::cout << "\t" << FileOutList[iOut];
+            std::cout << "\t" << FileOutList[iOut] << std::endl;
+        }
+        std::cout << std::endl;
+        std::cout << std::endl;
+        std::cout << "We will apply following filter curves:" << std::endl;
+        for(int iFil = 0; iFil < InputFilterCurveList.size(); iFil++) {
+            std::cout << "\t" << InputFilterCurveList[iFil] << std::endl;
+        }
+        std::cout << std::endl;
+        std::cout << "We will apply following constraints:" << std::endl;
+        for(int iCon = 0; iCon < InputConstraintList.size(); iCon++) {
+            if(!InputConstraintList.empty()) {
+                std::cout << "\t" << InputConstraintList[iCon] << std::endl;
+                //michi2Constraint *TempConstraint = new michi2Constraint(InputConstraintList[iCon]);
+                //Constraints.push_back();
+            }
         }
         std::cout << std::endl;
         std::cout << std::endl;
@@ -183,9 +260,11 @@ int main(int argc, char **argv)
         //     m4chi2(FileObs,FileLib,FileLi2,FileLi3,FileLi4,FileOut);
         // }
 
-        //<TODO><UNCOMMNET>//
-        mnchi2(FileObsList,FileLibList,FileOutList,InputFilterCurveList,DebugLevel);
-        //<TODO><UNCOMMNET>//
+        //
+        mnchi2(FileObsList, FileLibList, FileOutList, InputRedshiftList, InputConstraintList, InputFilterCurveList, DebugLevel);
+        //
+        // TODO: InputSampling
+        //
         
         std::cout << std::endl;
         std::cout << "Finally! End at " << currentDateTime() << std::endl;
@@ -205,26 +284,83 @@ int main(int argc, char **argv)
         std::cout << "                  -redshift 6.3 \\\n";
         std::cout << "                  -lib Star.SED AGN.SED DL07Hi.SED DL07Lo.SED Radio.SED \\\n";
         std::cout << "                  -out output.dat \\\n";
-        std::cout << "                  -constrain LIB3 INDEX EQ LIB4 INDEX \\\n";
-        std::cout << "                  -constrain LIB5 NORM EQ SED \"vLv(8,1000)*1.061619121e-06\" \\\n";
+        std::cout << "                  -constraint LIB3 INDEX EQ LIB4 INDEX \\\n";
+        std::cout << "                  -constraint \"LIB3_INDEX = LIB4_INDEX\" \\\n";
+        std::cout << "                  -constraint \"LIB1_PAR1 >= 0.2\" \\\n";
+        std::cout << "                  -constraint \"LIB3_PAR1 >= 1.0\" \\\n";
+        std::cout << "                  -constraint \"LIB5_NORM := ((LIB3_NORM*(10^LIB3_PAR3))+(LIB4_NORM*(10^LIB4_PAR3)))*40.31970/3750/10^2.4\" \\\n";
         std::cout << "                  -filter filter.list\n";
-        std::cout << "                  # (*) The first constraint means that we lock the index of DL07Hi.SED and\n";
-        std::cout << "                  #     DL07Lo.SED to be the same, i.e. same Umin, qPAH, etc.\n";
-        std::cout << "                  # (*) The second constraint means that we lock the normalization of Radio.SED\n";
-        std::cout << "                  #     to total IR luminosity vLv(8,1000) following the IR-radio correlation,\n";
-        std::cout << "                  #     i.e. with q_IR = 2.4, S_(1.4GHz)/S_(IR,8-1000) = 1.0/3750/10^2.4 = 1.061619121e-06\n";
+        std::cout << "                  -sampling 0.01\n";
+        std::cout << "                  # (*) The option \"-constraint\" provides powerful control on what models to fit.\n";
+        std::cout << "                  #   - The first constraint means that we lock the index of DL07Hi.SED and DL07Lo.SED\n";
+        std::cout << "                  #       to be the same, i.e. same Umin, qPAH, etc.\n";
+        std::cout << "                  #   - The second constraint is the same as the first one but in a more modern format\n";
+        std::cout << "                  #       which is using exprtk package and is recommended to use.\n";
+        std::cout << "                  #   - The third constraint means that we limit the 1st parameter of 1st library,\n";
+        std::cout << "                  #       i.e., EBV in Star.SED, to be greater than 0.2.\n";
+        std::cout << "                  #   - The fourth constraint means that we limit the 1st parameter of 3rd library,\n";
+        std::cout << "                  #       i.e, Umin in DL07Hi.SED, to be greater than 1.0. Because LIB3 INDEX is\n";
+        std::cout << "                  #       locked to LIB4 INDEX, this means that both libraries will have their\n";
+        std::cout << "                  #       PAR1 beging constrained by this rule.\n";
+        std::cout << "                  #   - The fifth constraint means that we lock the normalization of Radio.SED\n";
+        std::cout << "                  #       to LIB3+LIB4 IR luminosity following the IR-radio correlation,\n";
+        std::cout << "                  #       i.e., q_IR = 2.4, and S_(1.4GHz)/S_(IR,8-1000) = 1.0/3750/10^q_IR,\n";
+        std::cout << "                  #       and PAR3 is log10(L_IR/(4*pi*dL^2)) for each model in each LIB3\n";
+        std::cout << "                  #       and LIB4 and is pre-computed and recorded in the LIB file.\n";
+        std::cout << "                  #       LIB3_NORM and LIB4_NORM will be the fitted normalization of.\n";
+        std::cout << "                  #       LIB3 and LIB4, and will be updated during each fitting.\n";
+        std::cout << "                  #       Therefore (NORM * 10^PAR3) represents the on-the-fly\n";
+        std::cout << "                  #       fitted IR luminosity.\n";
         std::cout << "                  # (*) We can also read filter curves according to the input \"filter.list\" file,\n";
         std::cout << "                  #     which should have two columns, wavelength and filter curve file path without white space,\n";
         std::cout << "                  #     and rows should exactly correspond to \"flux-obsframe.dat\".\n";
         std::cout << "                  #     For wavelength without applicable filter curve, just put \"none\" in the second column.\n";
         std::cout << "                  #     The filter curve file path should refer to a two-column ASCII file which contains\n";
         std::cout << "                  #     obs-frame wavelength and filter transmission value normalized to 1.\n";
+        std::cout << "                  # (*) We can also specify the sampling fraction by the \"-sampling\" option.\n";
+        std::cout << "                  #     Once given, we will run only this fraction of all model combinations.\n";
+        std::cout << "                  #     But do not worry too much about missing important points in the chi-square\n";
+        std::cout << "                  #     space, because our code will shuffle around minimum chi-square points\n";
+        std::cout << "                  #     to best sample the chi-square space for each parameter in each library.\n";
         std::cout << "       \n";
         std::cout << "Version: \n";
-        std::cout << "         michi2_v05 " << "2018-02-XX Heidelberg" << std::endl;
+        std::cout << "         michi2_v05 " << "2018-10-XX Heidelberg" << std::endl;
         std::cout << std::endl;
         
     }
     return 0;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

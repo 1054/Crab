@@ -1,0 +1,4 @@
+history:
+    michi2_v02_20150302.zip
+    michi2_v02_20150914_Backup.zip
+    michi2_v02_20160725_Backup_Fin.zip
