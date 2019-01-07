@@ -29,6 +29,7 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
     this->HeaderBytes = 0;
     std::vector<std::string> StHeaderLines;
     std::string StLine;
+    std::string StKeyName;
     while (std::getline(*(this->FileStream), StLine)) {
         if(StLine.compare(0,1,"#")!=0) {break;} // if we meet the first non-commented data line, then break.
         StHeaderLines.push_back(StLine); // store header lines into StHeaderLines
@@ -36,30 +37,41 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
         this->HeaderBytes = this->FileStream->tellg();
     }
     for(int i=1; i<=2; i++) { // <TODO><LIMIT> Support only =< 2 Variables (Limit <= 2 Dimensions)
-        if(verbose>=4) {std::cout << "michi2DataClass: CrabStringReadInfo " << michi2sprint("# CVAR",i,"") << std::flush;}
-        StTEMP = CrabStringReadInfo(StHeaderLines,michi2sprint("# CVAR",i,""));
+        //
+        StKeyName = michi2sprint("# CVAR",i,"");
+        if(verbose>=4) {std::cout << "michi2DataClass: CrabStringReadInfo " << StKeyName << std::flush;}
+        StTEMP = CrabStringReadInfo(StHeaderLines,StKeyName);
         if(verbose>=4) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StCVAR.push_back(StTEMP); InCVAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         //
-        if(verbose>=4) {std::cout << "michi2DataClass: CrabStringReadInfo " << michi2sprint("# NVAR",i,"") << std::flush;}
-        StTEMP = CrabStringReadInfo(StHeaderLines,michi2sprint("# NVAR",i,""));
+        StKeyName = michi2sprint("# NVAR",i,"");
+        if(verbose>=4) {std::cout << "michi2DataClass: CrabStringReadInfo " << StKeyName << std::flush;}
+        StTEMP = CrabStringReadInfo(StHeaderLines,StKeyName);
         if(verbose>=4) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StNVAR.push_back(StTEMP); InNVAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         //
+        // <20190107> possible bug due on linux OS
+        // if I directly call 'StTEMP = CrabStringReadInfo(StHeaderLines,michi2sprint("# NVAR",i,""));'
+        // then it will cause the second input argument to be wrong random string.
+        // note that this function converts const char* michi2sprint("# NVAR",i,"") to std::string, probably this is the problem. 
     }
     for(int i=1; i<=16; i++) { // <TODO><LIMIT> Support only <= 16 Parameters <20180131> 6 --> 16
-        if(verbose>=4) {std::cout << "michi2DataClass: CrabStringReadInfo " << "# CPAR" << i << std::flush;}
-        StTEMP = CrabStringReadInfo(StHeaderLines,michi2sprint("# CPAR",i,""));
+        //
+        StKeyName = michi2sprint("# CPAR",i,"");
+        if(verbose>=4) {std::cout << "michi2DataClass: CrabStringReadInfo " << StKeyName << std::flush;}
+        StTEMP = CrabStringReadInfo(StHeaderLines,StKeyName);
         if(verbose>=4) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StCPAR.push_back(StTEMP); InCPAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         //
-        if(verbose>=4) {std::cout << "michi2DataClass: CrabStringReadInfo " << "# NPAR" << i << std::flush;}
-        StTEMP = CrabStringReadInfo(StHeaderLines,michi2sprint("# NPAR",i,""));
+        StKeyName = michi2sprint("# NPAR",i,"");
+        if(verbose>=4) {std::cout << "michi2DataClass: CrabStringReadInfo " << StKeyName << std::flush;}
+        StTEMP = CrabStringReadInfo(StHeaderLines,StKeyName);
         if(verbose>=4) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StNPAR.push_back(StTEMP); InNPAR.push_back(michi2stoi(StTEMP)); } // else {break;}
         //
-        if(verbose>=4) {std::cout << "michi2DataClass: CrabStringReadInfo " << "# TPAR" << i << std::flush;}
-        StTEMP = CrabStringReadInfo(StHeaderLines,michi2sprint("# TPAR",i,""));
+        StKeyName = michi2sprint("# TPAR",i,"");
+        if(verbose>=4) {std::cout << "michi2DataClass: CrabStringReadInfo " << StKeyName << std::flush;}
+        StTEMP = CrabStringReadInfo(StHeaderLines,StKeyName);
         if(verbose>=4) {std::cout << ": " << StTEMP << std::endl;}
         if(!StTEMP.empty()) { StTPAR.push_back(StTEMP); } // else {break;}
         //

@@ -28,7 +28,7 @@ else
     else
         echo "Error! Failed to compile the code!"
     fi
-    echo "${name_out}_${output_date}_linux_$(arch) ${name_out}_linux_$(arch)"
+    echo "cp ${name_out}_${output_date}_linux_$(arch) ${name_out}_linux_$(arch)"
     cp ${name_out}_${output_date}_linux_$(arch) ${name_out}_linux_$(arch)
 fi
 
