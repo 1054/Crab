@@ -546,7 +546,7 @@ long michi2DataClass::getParameterLineSpacing(long iParameter, int debug)
     
     // check valid
     if(this->NPAR.size()<=0) {
-        std::cout << "michi2DataClass::getParameterLineSpacing() Error! Please initialize this class!" << std::endl;
+        std::cout << "michi2DataClass::getParameterLineSpacing() Error! this->NPAR.size()=0! Please initialize this class!" << std::endl;
         return -1;
     }
     if(this->NPAR.size()<=iParameter) {
