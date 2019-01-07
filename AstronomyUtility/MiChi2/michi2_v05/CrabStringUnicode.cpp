@@ -17,10 +17,13 @@
 
 using namespace std;
 
+/*
+ // <20190107> I was trying to find out the string problem on linux OS, but seems here has no problem.
 std::wstring CrabStringWideString(std::string str1);
 std::wstring CrabStringWideString(const char *str1);
-std::wstring CrabStringWideStringBefore20190107(std::string str1, const char *Locale=NULL);
-std::wstring CrabStringWideStringBefore20190107(const char *str1, const char *Locale=NULL);
+ */
+std::wstring CrabStringWideString(std::string str1, const char *Locale=NULL);
+std::wstring CrabStringWideString(const char *str1, const char *Locale=NULL);
 
 std::string csu_wstring_to_string(std::wstring str1);
 
@@ -35,27 +38,27 @@ void csu_print_wstr(std::wstring wstr, const char *Locale="zh_CN.UTF-8");
 
 
 
-
+/*
+ // <20190107> I was trying to find out the string problem on linux OS, but seems here has no problem.
 std::wstring CrabStringWideString(std::string stdsS1)
 {
     return std::wstring(stdsS1.begin(), stdsS1.end());
 }
-
 
 std::wstring CrabStringWideString(const char *charS1)
 {
     std::string stdsS1(charS1);
     return CrabStringWideString(stdsS1);
 }
+*/
 
 
-
-std::wstring CrabStringWideStringBefore20190107(std::string stdsS1, const char *Locale)
+std::wstring CrabStringWideString(std::string stdsS1, const char *Locale)
 {
-    return CrabStringWideStringBefore20190107(stdsS1.c_str(), Locale);
+    return CrabStringWideString(stdsS1.c_str(), Locale);
 }
 
-std::wstring CrabStringWideStringBefore20190107(const char *charS1, const char *Locale)
+std::wstring CrabStringWideString(const char *charS1, const char *Locale)
 {
     //
     int debug = 0;
