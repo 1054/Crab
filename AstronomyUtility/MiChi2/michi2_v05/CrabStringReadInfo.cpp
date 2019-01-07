@@ -9,6 +9,10 @@
 #include "CrabStringUnicode.cpp"
 #include "CrabStringFindWholeWord.cpp"
 
+#ifndef DEBUG_CrabStringReadInfo
+#define DEBUG_CrabStringReadInfo 0
+#endif
+
 using namespace std;
 
 
@@ -24,7 +28,7 @@ std::string CrabStringReadInfo(const char *InputText, const char *InputKeyName, 
 {
     // http://www.cplusplus.com/forum/beginner/70805/
     std::string OutputText;
-    int debug = 0;
+    int debug = DEBUG_CrabStringReadInfo;
     if(strlen(InputKeyName)>0 && strlen(InputText)>0) {
         std::wstring line = CrabStringWideString(InputText); // From utf8 char * to utf16 wstring
         std::wstring keyname = CrabStringWideString(InputKeyName); // From utf8 char * to utf16 wstring
@@ -83,7 +87,7 @@ std::string CrabStringReadInfo(std::vector<std::string> InputTexts, std::string 
 {
     // http://www.cplusplus.com/forum/beginner/70805/
     std::string OutputText;
-    int debug = 0;
+    int debug = DEBUG_CrabStringReadInfo;
     if(InputKeyName.length()>0 && InputTexts.size()>0) {
         std::string keyname = InputKeyName;
         std::string commark = CommentMark;

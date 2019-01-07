@@ -500,6 +500,7 @@ void mnchi2(std::vector<std::string> InputObsList,
     //int NumbLib = InputLibList.size(), NumbLibPar = 0, NumbLibVar = 0, NumbLibMulti = 1;
     for(int i=0; i<InputLibList.size(); i++) {
         michi2DataClass *SDLIB = new michi2DataClass(InputLibList.at(i).c_str(), DebugLevel-1);
+        if(SDLIB.NPAR.size()==0) {std::cout << "Error! mnchi2 InputLibList["<<i<<"] \"" << InputLibList.at(i) << "\" parameters could not be read!" << std::endl; exit (EXIT_FAILURE);}
         bool CheckLibParConsistency = SDLIB->checkParameterConsistency(DebugLevel);
         if(!CheckLibParConsistency) {std::cout << "Error! mnchi2 InputLibList["<<i<<"] \"" << InputLibList.at(i) << "\" has invalid format!" << std::endl; exit (EXIT_FAILURE);}
         SDLIB->XNorm = 1.0;

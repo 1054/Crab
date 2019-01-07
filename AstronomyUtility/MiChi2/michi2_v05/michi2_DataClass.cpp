@@ -30,8 +30,8 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
     std::vector<std::string> StHeaderLines;
     std::string StLine;
     while (std::getline(*(this->FileStream), StLine)) {
-        if(StLine.compare(0,1,"#")!=0) {break;}
-        StHeaderLines.push_back(StLine);
+        if(StLine.compare(0,1,"#")!=0) {break;} // if we meet the first non-commented data line, then break.
+        StHeaderLines.push_back(StLine); // store header lines into StHeaderLines
         this->HeaderLines++;
         this->HeaderBytes = this->FileStream->tellg();
     }
@@ -177,6 +177,7 @@ michi2DataClass::~michi2DataClass()
     if(this->FileStream) { if(this->FileStream->is_open()) { this->FileStream->close(); } }
     FilterCurveFilePath.clear(); FilePath.clear();
     X.clear(); Y.clear();
+    this->VALUE4PARAMS.clear(); this->CHISQ4PARAMS.clear();
 }
 
 
