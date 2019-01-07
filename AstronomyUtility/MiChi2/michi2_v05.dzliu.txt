@@ -1,24 +1,19 @@
 
 已完成：
     
-    实现任意成分数。
+    任意成分数 (-lib)。
     
-    实现参数相关联。
-
-待完成：
+    参数相关联 (-constraints)。
     
-    卷积响应函数。
+    CHISQ 空间遍历优化
     
-    待实现动态网格。
+    可设置采样比率 (-sampling)
     
-    马尔可夫蒙特卡罗：先创建一个覆盖参数空间的马尔可夫链，再遍历计算均方差。马尔可夫链有点像能级布居加上跃迁定则加上玻尔兹曼平衡。Metropolis-Hastings算法引入一个接受率的因子以加速收敛。
+待实现：
     
-    马尔可夫采样代码：
-        http://www.codeproject.com/Articles/808292/Markov-chain-implementation-in-Cplusplus-using-Eig
-        https://github.com/pi19404/OpenVision
-        http://blog.sciencenet.cn/blog-357889-771009.html
+    任意红移 (SDOBS->XNorm = 1.0/(1+InputRedshift))
     
-    任意红移
+    If Sampling>1 then set it as absolute loop number limit. 
 
 
 

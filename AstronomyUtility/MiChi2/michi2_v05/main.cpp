@@ -68,7 +68,7 @@ void check_folder_existence(const char* path)
     if(iPos==std::string::npos) {
         return; // no folder in path
     }
-    std::istringstream sStream(path);
+    std::istringstream sStream(path.substr(path,0,iPos)); // extract substr from the beginning to the last char before last kPathSeparator.
     std::string s("");
     std::string sDir("");
     while(getline(sStream, s, kPathSeparator)) {
@@ -317,11 +317,13 @@ int main(int argc, char **argv)
         std::cout << "                  #     For wavelength without applicable filter curve, just put \"none\" in the second column.\n";
         std::cout << "                  #     The filter curve file path should refer to a two-column ASCII file which contains\n";
         std::cout << "                  #     obs-frame wavelength and filter transmission value normalized to 1.\n";
-        std::cout << "                  # (*) We can also specify the sampling fraction by the \"-sampling\" option.\n";
-        std::cout << "                  #     Once given, we will run only this fraction of all model combinations.\n";
-        std::cout << "                  #     But do not worry too much about missing important points in the chi-square\n";
-        std::cout << "                  #     space, because our code will shuffle around minimum chi-square points\n";
-        std::cout << "                  #     to best sample the chi-square space for each parameter in each library.\n";
+        std::cout << "                  # (*) We can also specify the sampling fraction or number by the \"-sampling\" option,\n";
+        std::cout << "                  #     if sampling < 1.0, then it is the fraction of the whole parameter space,\n";
+        std::cout << "                  #     if sampling >= 1.0, then it is the absolute number of loops being fitted.\n";
+        std::cout << "                  #     In defaule, we will run 80% of all model combinations, i.e., sampling = 0.8.\n";
+        std::cout << "                  #     We do not have to worry too much about missing important parameter sapce,\n";
+        std::cout << "                  #     because our code will shuffle around minimum chi-square points to\n";
+        std::cout << "                  #     best sample the chi-square space for each parameter in each library.\n";
         std::cout << "       \n";
         std::cout << "Version: \n";
         std::cout << "         michi2_v05 " << "2018-10-XX Heidelberg" << std::endl;

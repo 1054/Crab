@@ -650,11 +650,17 @@ void mnchi2(std::vector<std::string> InputObsList,
     
     
     
+    int NumbOfActLoops;
+    if(Sampling >= 1.0) {
+        NumbOfActLoops = (int) ( Sampling );
+    } else {
+        NumbOfActLoops = (int) ( Sampling * (double)(ppPool->NumbOfAllLoops) );
+    }
     
     //
     // wait for all threads and print progress
     //
-    while( ((double)(ppPool->IdDone.size()) < Sampling * (double)(ppPool->NumbOfAllLoops)) &&
+    while((ppPool->IdDone.size() <= NumbOfActLoops) &&
           (ppPool->IdPool.size()>0) )
     {
         //
@@ -662,8 +668,8 @@ void mnchi2(std::vector<std::string> InputObsList,
         std::stringstream progress_info;
         std::stringstream progress_info_prefix;
         if(DebugLevel>=0) {
-            int ndigits = (int)(std::ceil(log10( (long)(Sampling * (double)(ppPool->NumbOfAllLoops)) )));
-            progress_info_prefix << "[" << std::setw(ndigits) << std::right << ppPool->IdDone.size() << "/" << std::left << (long)(Sampling * (double)(ppPool->NumbOfAllLoops)) << "]"; //<20180116>
+            int ndigits = (int)(std::ceil(log10( NumbOfActLoops )));
+            progress_info_prefix << "[" << std::setw(ndigits) << std::right << ppPool->IdDone.size() << "/" << std::left << NumbOfActLoops << "]"; //<20180116>
             for(int ip=0; ip<ppPool->NumbParallel; ip++) {
                 if(ip==0) { progress_info << progress_info_prefix.str(); }
                 else { progress_info << std::setw(progress_info_prefix.str().size()) << " "; }
@@ -726,7 +732,7 @@ void mnchi2(std::vector<std::string> InputObsList,
         std::cout << "\n" << progress_info.str() << std::endl;
         //
         // sleep
-        if( ((double)(ppPool->IdDone.size()) < Sampling * (double)(ppPool->NumbOfAllLoops)) &&
+        if((ppPool->IdDone.size() <= NumbOfActLoops) &&
            (ppPool->IdPool.size()>0) )
         {
             if(DebugLevel>=1) {
@@ -741,7 +747,7 @@ void mnchi2(std::vector<std::string> InputObsList,
     //
     // when all threads finished, print a progress of 100%
     //
-    int ndigitsfinal = (int)(std::ceil(log10((double)(ppPool->NumbOfAllLoops)))) * 2 + 1;
+    int ndigitsfinal = (int)(std::ceil(log10(NumbOfActLoops))) * 2 + 1;
     std::cout << "[" << std::setw(ndigitsfinal) << std::right << "100%" << "]" << std::endl;
     
     
@@ -806,9 +812,17 @@ void *mnchi2parallel(void *params)
     // prepare string variable for storing the output content for each Obs
     std::vector<std::string> pStrings; pStrings.resize(pParams->nObs);
     //
+    // set number of active loops
+    int NumbOfActLoops;
+    if(Sampling >= 1.0) {
+        NumbOfActLoops = (int) ( Sampling );
+    } else {
+        NumbOfActLoops = (int) ( Sampling * (double)(ppPool->NumbOfAllLoops) );
+    }
+    //
     // while loop
-    while( ((double)(ppPool->IdDone.size()) < Sampling * (double)(ppPool->NumbOfAllLoops)) &&
-           (ppPool->IdPool.size()>0) )
+    while((ppPool->IdDone.size() <= NumbOfActLoops) &&
+          (ppPool->IdPool.size()>0) )
     {
         std::chrono::high_resolution_clock::time_point Timer1 = std::chrono::high_resolution_clock::now();
         std::chrono::high_resolution_clock::time_point Timer2 = std::chrono::high_resolution_clock::now();

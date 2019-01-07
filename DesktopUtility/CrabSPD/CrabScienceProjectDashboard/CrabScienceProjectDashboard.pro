@@ -25,10 +25,25 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
         main.cpp \
-        CrabScienceProjectDashboard.cpp
+        CrabScienceProjectDashboard.cpp \
+        CrabScienceProjectClass.cpp \
+        TaskTreeModelClass.cpp \
+        TaskTreeItemClass.cpp \
+        TaskTreeViewClass.cpp \
+    TaskTreeViewItemDelegateForTaskName.cpp \
+    TaskTreeViewItemDelegateForCheckBox.cpp
 
 HEADERS += \
-        CrabScienceProjectDashboard.h
+        CrabScienceProjectDashboard.h \
+        CrabScienceProjectClass.h \
+        TaskTreeModelClass.h \
+        TaskTreeItemClass.h \
+        TaskTreeViewClass.h \
+    booleancheckboxdelegate.h \
+    TaskTreeViewItemDelegateForTaskName.h \
+    TaskTreeViewItemDelegateForCheckBox.h
 
 FORMS += \
         CrabScienceProjectDashboard.ui
+
+ICON = CrabScienceProjectDashboard.icns
