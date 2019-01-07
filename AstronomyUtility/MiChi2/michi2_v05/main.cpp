@@ -68,7 +68,7 @@ void check_folder_existence(const char* path)
     if(iPos==std::string::npos) {
         return; // no folder in path
     }
-    std::istringstream sStream(path.substr(path,0,iPos)); // extract substr from the beginning to the last char before last kPathSeparator.
+    std::istringstream sStream(sStr.substr(sStr,0,iPos)); // extract substr from the beginning to the last char before last kPathSeparator.
     std::string s("");
     std::string sDir("");
     while(getline(sStream, s, kPathSeparator)) {
