@@ -33,6 +33,8 @@ public:
     std::vector<long long> IdDone; // list of processed Ids, where Id can be converted to SubIdList by convertIdToSubIdList().
     std::vector<int> iObsPool; // pool of OBS indices
     
+    std::vector<long long> IdLock; // list of locked Ids, where Id can be converted to SubIdList by convertIdToSubIdList().
+    
     std::vector<michi2Constraint *> FreeConstraints; // free INDEX
     std::vector<michi2Constraint *> FreezedConstraints; // freezed INDEX
     std::vector<michi2Constraint *> OtherConstraints; // other NORM, PAR, etc.

@@ -167,6 +167,20 @@ michi2DataClass::michi2DataClass(const char *InputFile, int verbose)
         this->CurrentParameterValues.resize(this->CPAR.size(), nan("")); // then we will not change the size of it
         this->loadParameterValues(std::vector<int>(), verbose-1); // this initialization is important for chisq analysis, and must be done before loadDataBlock(0) otherwise this->X.size() and Y.size() will be both 1.
         this->loadDataBlock(0, verbose-1); // this initialization is important for constraints evaluate()
+        //
+        // also get LIB X range
+        // <TODO><20190126> Here we assume all templates in a LIB share the same X grid!
+        double LibRangeXMin = this->X[0];
+        double LibRangeXMax = this->X[0];
+        for(int j=0; j<this->XNum; j++) {
+            if(this->X[j]<LibRangeXMin){LibRangeXMin=this->X[j];}
+            if(this->X[j]>LibRangeXMax){LibRangeXMax=this->X[j];}
+        }
+        this->XMin = LibRangeXMin;
+        this->XMax = LibRangeXMax;
+    } else {
+        this->XMin = (nan(""));
+        this->XMax = (nan(""));
     }
     //
     // std::cout << "DEBUG: michi2DataClass this->X=0x" << std::hex << (size_t)&this->X << std::endl;
@@ -623,6 +637,8 @@ void michi2DataClass::loadParameterValues(std::vector<int> iPars, int debug)
         std::cout << "michi2DataClass::loadParameterValues() Error! Please initialize this class!" << std::endl;
         return;
     }
+    //
+    // if input iPars is empty, then we load all parameters
     if(iPars.size() == 0) {
         for(int i=0; i<this->NPAR.size(); i++) {
             iPars.push_back(i);
@@ -644,6 +660,11 @@ void michi2DataClass::loadParameterValues(std::vector<int> iPars, int debug)
         std::getline(*(this->FileStream), backline);
         // take the first data line width as the width for all data lines // <TODO> EACH DATA LINE SHOULD HAVE SAME BYTE WIDTH !
         backwidth = (long)this->FileStream->tellg() - this->HeaderBytes;
+        
+        // check this->VALUE4PARAMS.size()
+        //if(debug>=3) {
+        //    std::cout << "michi2DataClass::loadParameterValues() this->VALUE4PARAMS.size() = " << this->VALUE4PARAMS.size() << std::endl;
+        //}
         
         for(int j=0; j<this->NPAR[i]; j++) { // loop all values for each PAR
             
@@ -668,7 +689,10 @@ void michi2DataClass::loadParameterValues(std::vector<int> iPars, int debug)
                 std::cout << "michi2DataClass::loadParameterValues() Error! Failed to get correct columns at data lineNumber " << lineNumber << "!" << std::endl;
                 return;
             }
-            this->VALUE4PARAMS[i][j] = michi2stod(TmpStrVec[this->CPAR[i]-1]); // for i-th Parameter, take j-th value.
+            this->VALUE4PARAMS[i][j] = michi2stod(TmpStrVec[this->CPAR[i]-1]); // assign the value to the i-th Parameter of j-th model.
+            if(debug>=2) {
+                std::cout << "michi2DataClass::loadParameterValues() this->VALUE4PARAMS["<<i<<"]["<<j<<"] = " << this->VALUE4PARAMS[i][j] << std::endl;
+            }
             
             lineNumber = lineNumber + lineSpacing;
         }
@@ -678,17 +702,27 @@ void michi2DataClass::loadParameterValues(std::vector<int> iPars, int debug)
 
 void michi2DataClass::updateCurrentParameterValues(long iModel, int debug)
 {
-    if(this->VALUE4PARAMS.size()>0) {
-        if(this->VALUE4PARAMS.size() == this->NPAR.size()) {
-            for (int i=0; i<this->VALUE4PARAMS.size(); i++) { // for each parameter in this model
-                long lineSpacing = this->getParameterLineSpacing(i); // for i-th PAR, each two values have certain line spacing
-                long lineNumber = iModel * this->XNum + 1; // the iModel-th model in this LIB corresponds to this lineNumber
-                long j = (lineNumber-1) / lineSpacing; // now we know that the iModel-th model corresponds to j-th parameter.
-                // for example, PAR1 = 1 in DataBlock[0:10), 2 in DataBlock[10:20), 3 in DataBlock[20:30), PAR2 = 1-10 within each DataBlock[0:10). NPAR1 = 3, NPAR2 = 10.
-                // we input iModel=25, so we have lineSpacing = 10 * XNum, lineNumber = 25 * XNum + 1, long j = 2. got PAR1[2].
-                // we input iModel=20, so we have lineSpacing = 10 * XNum, lineNumber = 20 * XNum + 1, long j = 2. got PAR1[2].
-                this->CurrentParameterValues[i] = this->VALUE4PARAMS[i][j];
-            }
+    if(this->VALUE4PARAMS.size()>0 && this->VALUE4PARAMS.size() == this->NPAR.size()) {
+        //<20190126>--FIXED--
+        // split iModel number into LIB PAR value SubIdList, so that VALUE4PARAMS.at(i-th-PAR).at(SubIdList[0]-1)
+        std::vector<int> LibParSubIdList = convertIdToSubIdList(iModel);
+        //
+        for (int i=0; i<this->VALUE4PARAMS.size(); i++) { // for each parameter in this model
+            //<20190126>--BUGGY--
+            //<20190126>long lineSpacing = this->getParameterLineSpacing(i); // for i-th PAR, each two values have certain line spacing
+            //<20190126>long lineNumber = iModel * this->XNum + 1; // the iModel-th model in this LIB corresponds to this lineNumber
+            //<20190126>long j = (lineNumber-1) / lineSpacing; // now we know that the iModel-th model corresponds to j-th parameter.
+            //<20190126>// for example, PAR1 = 1 in DataBlock[0:10), 2 in DataBlock[10:20), 3 in DataBlock[20:30), PAR2 = 1-10 within each DataBlock[0:10). NPAR1 = 3, NPAR2 = 10.
+            //<20190126>// we input iModel=25, so we have lineSpacing = 10 * XNum, lineNumber = 25 * XNum + 1, long j = 2. got PAR1[2].
+            //<20190126>// we input iModel=20, so we have lineSpacing = 10 * XNum, lineNumber = 20 * XNum + 1, long j = 2. got PAR1[2].
+            //<20190126>this->CurrentParameterValues[i] = this->VALUE4PARAMS.at(i).at(j);
+            //<20190126>
+            //<20190126>--FIXED--
+            int j = LibParSubIdList[i];
+            this->CurrentParameterValues[i] = this->VALUE4PARAMS.at(i).at(j);
+            //std::cout << "michi2DataClass::updateCurrentParameterValues() " << iModel << "-th model " << ", " << i << "-th parameter " << this->TPAR[i] << " has a value of " << this->CurrentParameterValues[i] << "(VALUE4PARAMS["<<i<<"]["<<j<<"]=" << this->VALUE4PARAMS[i][j] << ")" << std::endl;
+            // we use CurrentParameterValues to store the parameters for i-th model in the LIB.
+            // CurrentParameterValues will be used by exprtk, so its mem addr has better be fixed.
         }
     }
 }

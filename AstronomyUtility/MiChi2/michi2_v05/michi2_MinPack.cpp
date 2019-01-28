@@ -41,7 +41,7 @@ void michi2MinPack_func(const int *m, const int *n, const double *x, double *fve
     // m is NVAR[0], in LVG, it's the mol line count, in SED, it's the band count.
     // n is the LIB number
     int debug = michi2MinPack_debug + 0;
-    if(debug>=1) {printf("michi2MinPack_func() debugging: debug = %d\n", debug);}
+    if(debug>=2) {printf("michi2MinPack_func() debugging: debug = %d\n", debug);}
     double chi2sum = 0.0;
     for (int iim=0; iim<(*m); iim++) { // m is the observed data point grid
         double fsum = 0.0; // sum of multiple libs at one band

@@ -50,6 +50,8 @@ public:
     std::vector<std::vector<double> > VALUE4PARAMS; // value for each PAR
     double YNorm; // Normalization factor multiplied to Y, obtained after each fitting to the data. It may change when looping each model.
     double XNorm; // Normalization factor multiplied to X, obtained after each fitting to the data. It may change when looping each model.
+    std::vector<long> XMatchIndex; // <20190126> since all lib templates have the same X grid, we can store the obs-lib matching index in this XMatchIndex so that we do not run michi2MatchObs for each lib template.
+    double XMin, XMax;
     long CurrentDataBlockIndex;
     long TotalDataBlockNumber;
     long CurrentDataLineIndex;

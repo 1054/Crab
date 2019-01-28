@@ -127,7 +127,7 @@ void michi2ParallelPool::initialize(std::vector<michi2DataClass *> SDOBSList,
     //
     //
     // loop each OBS-LIB-model combination
-    int DebugPerLoopNumber = this->nTotal/20; if(DebugLevel>=3) {DebugPerLoopNumber = 1;}
+    int DebugPerLoopNumber = this->nTotal/20; // if(DebugLevel>=4) {DebugPerLoopNumber = 1;}
     int DebugPerLoopDigits = (int)(std::ceil(log10((double)(this->nTotal))));
     int DebugPerLoopDigits2 = (int)(std::ceil(log10((double)(iLoopIdPoolNumb))));
     std::stringstream DebugPerLoopInfo; DebugPerLoopInfo.clear();
@@ -175,7 +175,7 @@ void michi2ParallelPool::initialize(std::vector<michi2DataClass *> SDOBSList,
         //iLoop = this->convertSubIdListToId(iLoopSubIdList);
         
         //
-        // check free constraints on INDEX (i.e., non-assignment constraints)
+        // check free constraints on INDEX or LIB_PAR (i.e., non-assignment constraints)
         bool ConstraintOK = true;
         if(1) { // <TODO> we either check it here or check it later inside each subprocess
             for(int i = 0; i < this->FreeConstraints.size(); i++) {
@@ -562,17 +562,19 @@ long michi2ParallelPool::findIndexOfClosestIdInPool(long long iPool, int directi
     if(this->IdPool.size() > 0) { // if Pool has been initialized
         // this->NumbOfAllLoops == this->IdPool.size() + this->IdDone.size() == this->SubIdListPool.size() + this->SubIdListDone.size()
         
-        long ibegin = 0;
-        long iend = this->IdPool.size()-1;
-        if(direction < 0) {
-            ibegin = this->IdPool.size()-1;
-            iend = 0;
-        }
-        long istep = direction;
-        long iloop;
+        // long ibegin = 0;
+        // long iend = this->IdPool.size()-1;
+        // if(direction < 0) {
+        //     ibegin = this->IdPool.size()-1;
+        //     iend = 0;
+        // }
+        // long istep = direction;
+        // long iloop;
         
         // if this->CHISQ4PARAMS.size() > 0, we do a CHISQ4PARAMS check
-        if(this->CHISQ4PARAMS.size() > 0) {
+        // 20190126: try optimize this by not checking CHISQ4PARAMS here but in "michi2_v05.cpp". so here I applied && 1 == 0
+        /*
+         if(this->CHISQ4PARAMS.size() > 0 && 1 == 0) {
             for(iloop = ibegin; iloop <= iend; iloop += istep) {
                 if(direction > 0) { if(this->IdPool.at(iloop) < iPool) { continue; }
                 } else { if(this->IdPool.at(iloop) > iPool) { continue; } }
@@ -600,10 +602,30 @@ long michi2ParallelPool::findIndexOfClosestIdInPool(long long iPool, int directi
             for(long iloop = ibegin; iloop <= iend; iloop += istep) {
                 if(direction > 0) { if(this->IdPool.at(iloop) < iPool) { continue; }
                 } else { if(this->IdPool.at(iloop) > iPool) { continue; } }
+                //
                 // if we find a cloest Id, then return
                 return iloop;
             }
         }
+         */
+        //
+        // 20190126: optimize this. we must make sure this->IdPool is monochromatically increasing.
+        // std::lower_bound: returns the first value that does not compare less
+        // std::upper_bound: returns the first value that compares strictly greater
+        long ifind;
+        auto lowerbound = std::lower_bound(this->IdPool.begin(), this->IdPool.end(), iPool);
+        if (lowerbound == this->IdPool.end()) {
+            ifind = this->IdPool.size()-1;
+        } else {
+            ifind = (long)(lowerbound - this->IdPool.begin());
+        }
+        // also check left size value to see if it is closer or not
+        if(ifind-1 >= 0) {
+            if(std::abs(this->IdPool[ifind-1] - iPool) < std::abs(this->IdPool[ifind] - iPool)) {
+                ifind = ifind - 1;
+            }
+        }
+        return ifind;
     } else {
         //std::cout << "michi2ParallelPool::findIndexOfClosestIdInPool() Error! Pool not initialized!" << std::endl; exit (EXIT_FAILURE);
     }
@@ -615,9 +637,13 @@ long michi2ParallelPool::findIndexOfClosestIdInPool(long long iPool, int directi
 long long michi2ParallelPool::findClosestIdInPool(long long iPool)
 {
     if(this->IdPool.size() > 0) {
-        long iloop = findIndexOfClosestIdInPool(iPool, 1);
-        if(iloop < 0) { iloop = findIndexOfClosestIdInPool(iPool, -1); }
-        if(iloop >= 0) { return this->IdPool.at(iloop); }
+        //
+        // 20190126: optimize this. we must make sure this->IdPool is monochromatically increasing.
+        //long iloop = findIndexOfClosestIdInPool(iPool, 1);
+        //if(iloop < 0) { iloop = findIndexOfClosestIdInPool(iPool, -1); }
+        //if(iloop >= 0) { return this->IdPool.at(iloop); }
+        long iloop = findIndexOfClosestIdInPool(iPool);
+        return this->IdPool.at(iloop);
     } else {
         //std::cout << "michi2ParallelPool::findClosestIdInPool() Error! Pool not initialized!" << std::endl; exit (EXIT_FAILURE);
     }

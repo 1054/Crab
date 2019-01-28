@@ -52,14 +52,16 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
         return MatchedDAT;
     }
     
-    
-    // get LIB X range
-    double LibRangeXMin = DCLIB->X[0];
-    double LibRangeXMax = DCLIB->X[0];
-    for(int j=0; j<DCLIB->XNum; j++) {
-        if(DCLIB->X[j]<LibRangeXMin){LibRangeXMin=DCLIB->X[j];}
-        if(DCLIB->X[j]>LibRangeXMax){LibRangeXMax=DCLIB->X[j];}
-    }
+    // 20190126: now moved into DataClass
+    // // get LIB X range
+    // double LibRangeXMin = DCLIB->X[0];
+    // double LibRangeXMax = DCLIB->X[0];
+    // for(int j=0; j<DCLIB->XNum; j++) {
+    //     if(DCLIB->X[j]<LibRangeXMin){LibRangeXMin=DCLIB->X[j];}
+    //     if(DCLIB->X[j]>LibRangeXMax){LibRangeXMax=DCLIB->X[j];}
+    // }
+    double LibRangeXMin = DCLIB->XMin;
+    double LibRangeXMax = DCLIB->XMax;
 
     //debug = 3; // <Debug> // <20160718> now put in argument
 
@@ -67,38 +69,69 @@ MatchedObsLibStruct michi2MatchObs(michi2DataClass *DCOBS, michi2DataClass *DCLI
     //if(strlen(InfoRedshift)>0) { OnePlusRedshift = 1.0+atof(InfoRedshift); }
     if(std::isnan(DCOBS->XNorm)) {DCOBS->XNorm = 1.0;}
     
+    // 20190126: prepare DCLIB->XMatchIndex as a cache of matched indices to OBS X axis
+    if(DCLIB->XMatchIndex.size() != DCOBS->XNum) {
+        DCLIB->XMatchIndex.clear();
+        for(int k=0; k<DCOBS->XNum; k++) {
+            DCLIB->XMatchIndex.push_back(-1); // XMatchIndex stores the index of LIB X array, and XMatchIndex.size() should == OBS->X.size()
+        }
+    }
     
     for(int k=0; k<DCOBS->XNum; k++) {
         DCOBS->Matched[k]=0; // <TODO> we will always find a match for obs.
         if(debug>=2) { std::cout << "michi2MatchObs: debugging: we are trying to match obs X=" << DCOBS->XStr[k] << "(XNorm=" << DCOBS->XNorm << ", X*XNorm=" << DCOBS->X[k]*DCOBS->XNorm << " within lib X range " << LibRangeXMin << " " << LibRangeXMax << std::endl; }
-        if(DCOBS->X[k]*DCOBS->XNorm>=LibRangeXMin && DCOBS->X[k]*DCOBS->XNorm<=LibRangeXMax) {
-            DCOBS->Matched[k]=1; // <TODO> we will always find a match for obs.
-            // now we need to find a value from library
+        //
+        // quickly check whether the OBS X coordinate (after XNorm normalization) within the LIB X range
+        if(DCOBS->X[k]*DCOBS->XNorm >= LibRangeXMin && DCOBS->X[k]*DCOBS->XNorm <= LibRangeXMax) {
+            DCOBS->Matched[k]=1; // this marks whether a X in OBS has a match from LIB. it is always 1 (yes).
+            // now we need to find a matched X value from library
             double tmpdiffvalue = -1.0;
             double mindiffvalue = -1.0;
             long   mindiffindex = -1;
-            for(int j=0; j<DCLIB->XNum; j++) {
-                tmpdiffvalue = (DCOBS->X[k]*DCOBS->XNorm - DCLIB->X[j]); // go search for the left side of OBS data point on X axis
-                if(tmpdiffvalue>=0.0 && mindiffvalue<0.0) { mindiffvalue=tmpdiffvalue; mindiffindex=j; } // initial value
-                if(tmpdiffvalue>=0.0 && tmpdiffvalue<mindiffvalue) { mindiffvalue=tmpdiffvalue; mindiffindex=j; } // compare value
+            // 20190126: now we use DCLIB->XMatchIndex to store a cached mindiffindex to make this process faster.
+            if(DCLIB->XMatchIndex[k] < 0) {
+                for(int j=0; j<DCLIB->XNum; j++) {
+                    tmpdiffvalue = (DCOBS->X[k]*DCOBS->XNorm - DCLIB->X[j]); // go search for the left side of OBS data point on X axis
+                    if(tmpdiffvalue>=0.0 && mindiffvalue<0.0) { mindiffvalue=tmpdiffvalue; mindiffindex=j; } // initial value
+                    if(tmpdiffvalue>=0.0 && tmpdiffvalue<mindiffvalue) { mindiffvalue=tmpdiffvalue; mindiffindex=j; } // compare value
+                }
+                if(mindiffindex>=0 && mindiffindex<=DCLIB->XNum-1) {
+                    DCLIB->XMatchIndex[k] = mindiffindex;
+                }
+            } else {
+                mindiffindex = DCLIB->XMatchIndex[k];
             }
             // once got matched, we do linear interpolate
             // <20170930> or apply filter curve if user has input the filter curve ascii files
             if(mindiffindex>=0 && mindiffindex<=DCLIB->XNum-1) {
                 int j = mindiffindex;
-                int MatchedLibI = j;
                 double MatchedLibY = DCLIB->Y[j];
-                if(debug>=2) { std::cout << "michi2MatchObs: debugging: got matched lib Y value " << MatchedLibY << " at X between " << DCLIB->X[mindiffindex] << " " << DCLIB->X[mindiffindex+1] << std::endl; }
-                // do linear interpolate to get more accurate MatchedLibY
-                if(j<DCLIB->XNum-1) {
-                    double f1_l1 = DCLIB->Y[j]; // left-side LIB data point
-                    double f1_l2 = DCLIB->Y[j+1]; // right-side LIB data point, e.g. if we are matching ObsX = 24.0, LibX = 23.95, then we interpolate LibX(23.95,24.15)=>ObsX(24.00)
-                    double f1_a1 = (DCOBS->X[k]*DCOBS->XNorm - DCLIB->X[j]); // as the e.g., a1 =  0.05
-                    double f1_a2 = (DCLIB->X[j+1] - DCOBS->X[k]*DCOBS->XNorm); // as the e.g., a2 =  0.15
-                    double f1_ai = (f1_a1+f1_a2); // then f1 = f1_l1 * 75% + f1_l2 * 25%
-                    double f1_li = f1_l1*(f1_a2/f1_ai)+f1_l2*(f1_a1/f1_ai); // <TODO> bi-linear interpolation!
-                    MatchedLibY = f1_li;
-                    if(debug>=2) { std::cout << "michi2MatchObs: debugging: interpolated accurate lib Y value " << MatchedLibY << " at obs X " << DCOBS->X[k]*DCOBS->XNorm << std::endl; }
+                // check whether the LIB X exactly matches the OBS X (a precision of 1e-6)
+                if(std::fabs(DCLIB->X[j] - DCOBS->X[k]) < std::fabs(DCOBS->X[k])*1e-6) {
+                    if(debug>=2) { std::cout << "michi2MatchObs: debugging: got matched lib Y value " << MatchedLibY << " at exact X " << DCLIB->X[j] << std::endl; }
+                } else {
+                    // do linear interpolate to get more accurate MatchedLibY
+                    if(j < DCLIB->XNum-1) {
+                        if(debug>=2) { std::cout << "michi2MatchObs: debugging: got matched lib Y value " << MatchedLibY << " at X between " << DCLIB->X[j] << " " << DCLIB->X[j+1] << std::endl; }
+                        double f1_l1 = DCLIB->Y[j]; // left-side LIB data point
+                        double f1_l2 = DCLIB->Y[j+1]; // right-side LIB data point, e.g. if we are matching ObsX = 24.0, LibX = 23.95, then we interpolate LibX(23.95,24.15)=>ObsX(24.00)
+                        double f1_a1 = (DCOBS->X[k]*DCOBS->XNorm - DCLIB->X[j]); // as the e.g., a1 =  0.05
+                        double f1_a2 = (DCLIB->X[j+1] - DCOBS->X[k]*DCOBS->XNorm); // as the e.g., a2 =  0.15
+                        double f1_ai = (f1_a1+f1_a2); // then f1 = f1_l1 * 75% + f1_l2 * 25%
+                        double f1_li = f1_l1*(f1_a2/f1_ai)+f1_l2*(f1_a1/f1_ai); // <TODO> bi-linear interpolation!
+                        MatchedLibY = f1_li;
+                        if(debug>=2) { std::cout << "michi2MatchObs: debugging: interpolated accurate lib Y value " << MatchedLibY << " at obs X " << DCOBS->X[k]*DCOBS->XNorm << std::endl; }
+                    } else if(j > 0) {
+                        if(debug>=2) { std::cout << "michi2MatchObs: debugging: got matched lib Y value " << MatchedLibY << " at X between " << DCLIB->X[j-1] << " " << DCLIB->X[j] << std::endl; }
+                        double f1_l1 = DCLIB->Y[j-1]; // left-side LIB data point
+                        double f1_l2 = DCLIB->Y[j]; // right-side LIB data point, e.g. if we are matching ObsX = 24.0, LibX = 23.95, then we interpolate LibX(23.95,24.15)=>ObsX(24.00)
+                        double f1_a1 = (DCOBS->X[k]*DCOBS->XNorm - DCLIB->X[j-1]); // as the e.g., a1 =  0.05
+                        double f1_a2 = (DCLIB->X[j+1] - DCOBS->X[k]*DCOBS->XNorm); // as the e.g., a2 =  0.15
+                        double f1_ai = (f1_a1+f1_a2); // then f1 = f1_l1 * 75% + f1_l2 * 25%
+                        double f1_li = f1_l1*(f1_a2/f1_ai)+f1_l2*(f1_a1/f1_ai); // <TODO> bi-linear interpolation!
+                        MatchedLibY = f1_li;
+                        if(debug>=2) { std::cout << "michi2MatchObs: debugging: interpolated accurate lib Y value " << MatchedLibY << " at obs X " << DCOBS->X[k]*DCOBS->XNorm << std::endl; }
+                    }
                 }
                 //
                 // <20170930>
@@ -842,12 +875,19 @@ void *mnchi2parallel(void *params)
         // prepare iLib (IdLibList), which is a list of indices for models in each LIB1, LIB2, LIB3, ...
         std::vector<int> iLib; iLib.resize(pParams->SDLIBList.size(), -1);
         //
+        // prepare iPoolCache which is a list of id in IdPool which are locked by current process
+        std::vector<long long> iPoolCache;
+        long long LastIdPool;
+        long LastIdPoolIndex;
+        long long iPool;
+        std::vector<int> iPoolSubIdList;
+        //
         // lock mutex
         pthread_mutex_lock(&mnchi2parallelMutex); // lock mutex for writing ppPool->CHISQ4PARAMS
         if(debug>=2) {std::cout << process_info.str() << ": pthread mutex locked for analyzing chisq array!" << std::endl;}
         //
         // analyze chisq array for each parameter in each LIB for current iObs
-        while (true) {
+        if (true) {
             int i = iObs;
             // for i-th OBS
             //bool HasProcessedAll = true; // no, this is not ture, even we have all valid values for each PAR, we still have not looped all combinations between PARs.
@@ -878,10 +918,11 @@ void *mnchi2parallel(void *params)
                     // then find an element nearby the minimum chisq point which will be fitted in this loop
                     iLibSubIdList[k] = michi2RandomIndexNearbyMinimumPoint(ppPool->CHISQ4PARAMS[i][j][k], RandomRadius);
                     // setting the selected model chisq to 999999.9 so that other processes will not try to fit it at the same time
-                    if(std::isnan(ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]])) {
-                        ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]] = 999999.9;
-                    }
+                    //if(std::isnan(ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]])) {
+                    //    ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]] = 999999.9;
+                    //}
                     // -> this will mark 999999.9 for iLibSubIdList[k]-th value of each PAR in each free LIB.
+                    // 20190126: now use another way "ppPool->IdLock" to lock current id in pool
                 }
                 // convert SubIdList to the model index in j-th LIB
                 iLib[j] = pParams->SDLIBList[j]->convertSubIdListToId(iLibSubIdList); // taking the (iLib[j])-th model from the j-th LIB.
@@ -899,8 +940,23 @@ void *mnchi2parallel(void *params)
                 }
             }
             */
+            //
             // iObs is not changed and iLib has been newly determined from the above chi-square analysis. Now let's proceed!
-            break; // finished chi-square analysis
+            //
+            // 20190126: now use another way "ppPool->IdLock" to lock current id in pool
+            if(debug>=1) {std::cout << process_info.str() << ": ppPool->convertIdLibListToIdPool(iLib,iObs), iLib=["; for(int j=0; j<iLib.size(); j++) {std::cout << iLib[j]; if(j<iLib.size()-1) {std::cout << ",";}} std::cout << "], iObs=" << iObs << std::endl;}
+            iPool = ppPool->convertIdLibListToIdPool(iLib, iObs); // convert paired OBS and LIBs indices to a global pool index
+            if(iPool<0) {iPool = ppPool->convertIdLibListToIdPool(iLib, iObs, 1); } // check if we get negative pool index or not!
+            if(debug>=1) {std::cout << process_info.str() << ": ppPool->convertIdLibListToIdPool(iLib,iObs), iLib=["; for(int j=0; j<iLib.size(); j++) {std::cout << iLib[j]; if(j<iLib.size()-1) {std::cout << ",";}} std::cout << "], iObs=" << iObs << ", iPool = " << iPool << std::endl;}
+            LastIdPoolIndex = ppPool->findIndexOfClosestIdInPool(iPool); // make sure we pick up an iPool in our IdPool
+            if(debug>=1) {std::cout << process_info.str() << ": ppPool->findIndexOfClosestIdInPool(iPool=" << iPool << ") returned index " << LastIdPoolIndex << ", iPool " << ppPool->IdPool[LastIdPoolIndex] << std::endl;}
+            if(ppPool->IdPool[LastIdPoolIndex]!=iPool) { iPool = ppPool->IdPool[LastIdPoolIndex]; } // if iPool is not in our IdPool, then we should use the closestId in our Pool -- IdPool[LastIdPoolIndex].
+            iPoolSubIdList = ppPool->SubIdListPool.at(LastIdPoolIndex); // convert iPool to iPoolSubIdList, which is a list containing [iObs, iLib1, iLib2, etc.]
+            iPoolCache.push_back(iPool);
+            ppPool->IdLock.push_back(iPool);
+            ppPool->removeIdInPool(iPool); // remove iPool from ppPool->IdPool NOW so that other processes will not try to run it.
+            //
+            // finished chi-square analysis
         }
         //
         // unlock mutex
@@ -914,6 +970,7 @@ void *mnchi2parallel(void *params)
         }
         //
         // parse INDEX constraints
+        bool check_constraint_applied = false;
         if(debug>=1) {std::cout << process_info.str() << ": parsing INDEX constraints" << std::endl;}
         for(int i = 0; i < FreezedConstraints.size(); i++) { // FreezedConstraints are INDEX constraints.
             //FreezedConstraints[i]->recompile(debug-1); //<20181002> no need to recompile now, exprtk issue has been fixed. see test under "test_michi2Constraint_expr2/" folder.
@@ -921,66 +978,55 @@ void *mnchi2parallel(void *params)
             for(int j = 0; j < FreezedConstraints[i]->AssignmentsLibIndices.size(); j++) {
                 int k = FreezedConstraints[i]->AssignmentsLibIndices[j];
                 pParams->SDLIBList[k]->CurrentDataBlockIndex = (long)(pParams->SDLIBList[k]->CurrentDataBlockIndexAsDouble);
+                if(iLib[k] != pParams->SDLIBList[k]->CurrentDataBlockIndex) {check_constraint_applied = true;}
                 iLib[k] = pParams->SDLIBList[k]->CurrentDataBlockIndex;
             }
         }
         //
-        // convert (iLib, iObs) pair to iPool for fitting the data and model
-        if(debug>=1) {std::cout << process_info.str() << ": ppPool->convertIdLibListToIdPool(iLib,iObs), iLib=["; for(int j=0; j<iLib.size(); j++) {std::cout << iLib[j]; if(j<iLib.size()-1) {std::cout << ",";}} std::cout << "], iObs=" << iObs << std::endl;}
-        long long iPool = ppPool->convertIdLibListToIdPool(iLib, iObs); // convert paired OBS and LIBs indices to a global pool index
-        if(iPool<0) {iPool = ppPool->convertIdLibListToIdPool(iLib, iObs, 1); } // debug it if we get negative iPool! 
-        if(debug>=1) {std::cout << process_info.str() << ": ppPool->convertIdLibListToIdPool(iLib,iObs), iLib=["; for(int j=0; j<iLib.size(); j++) {std::cout << iLib[j]; if(j<iLib.size()-1) {std::cout << ",";}} std::cout << "], iObs=" << iObs << ", iPool = " << iPool << std::endl;}
-        //
-        // find a nearest iPool in ppPool->IdPool
-        ////long iPool2 = michi2FindClosestValue(ppPool->IdPool, iPool); // this can prevent from repeated processing
-        ////int iObs2 = ppPool->convertIdPoolToIdObs(iPool2);
-        ////std::vector<int> iLib2 = ppPool->convertIdPoolToIdLibList(iPool2); // this is buggy because of the freezed SubIds can not be computed well
-        //long argWhere2 = michi2FindIndexOfClosestValue(ppPool->IdPool, iPool); // this can prevent from repeated processing
-        pthread_mutex_lock(&mnchi2parallelMutex); // lock mutex for calling ppPool->findIndexOfClosestIdInPool() to query ppPool->IdPool
-        if(debug>=2) {std::cout << process_info.str() << ": pthread mutex locked for querying ppPool->IdPool!" << std::endl;}
-        if(debug>=1) {std::cout << process_info.str() << ": ppPool->findIndexOfClosestIdInPool(iPool=" << iPool << ")" << std::endl;}
-        long argWhere2 = ppPool->findIndexOfClosestIdInPool(iPool); // we only process what are in the Pool
-        long long iPool2; std::vector<int> SubIdList2; int iObs2; std::vector<int> iLib2;
-        if(debug>=1) {std::cout << process_info.str() << ": ppPool->findIndexOfClosestIdInPool(iPool=" << iPool << ") returned " << argWhere2 << std::endl;}
-        if(argWhere2 >= 0) {
-            iPool2 = ppPool->IdPool.at(argWhere2);
-            SubIdList2 = ppPool->SubIdListPool.at(argWhere2);
-            iObs2 = SubIdList2.front();
-            iLib2.resize(SubIdList2.size()-1); iLib2.assign(SubIdList2.begin()+1, SubIdList2.end());
-        } else {
-            iPool2 = iPool;
-            iObs2 = iObs;
-            iLib2 = iLib;
-        }
-        pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex
-        if(debug>=2) {std::cout << process_info.str() << ": pthread mutex unlocked!" << std::endl;}
-        if(debug>=2) {
-            std::cout << "mnchi2parallel: DEBUG: iObs = " << iObs << ", iLib = "; for(int k=0; k<iLib.size(); k++) {std::cout << iLib[k] << " ";} std::cout << ", iPool = " << iPool << std::endl;
-            std::cout << "mnchi2parallel: DEBUG: iObs2 = " << iObs2 << ", iLib2 = "; for(int k=0; k<iLib2.size(); k++) {std::cout << iLib2[k] << " ";} std::cout << ", iPool2 = " << iPool2 << std::endl;
-            //std::cout << "mnchi2parallel: DEBUG: ppPool->IdPool = "; for(int k=0; k<ppPool->IdPool.size(); k++) {std::cout << ppPool->IdPool[k] << " ";} std::cout << std::endl;
-        }
-        if(iPool2 != iPool) { // this can happen if user has some constraints which filtered out some IdPool.
-            // mark current iPool CHISQ to 999999.9 so that other processes will not try to run it. we will update CHISQ after each loop.
-            pthread_mutex_lock(&mnchi2parallelMutex); // lock mutex for writing ppPool->CHISQ4PARAMS, if iPool2 != iPool, i.e., iPool did not pass the constraints.
-            // for i-th OBS
-            for (int i=iObs2, j=0; j<ppPool->CHISQ4PARAMS[i].size(); j++) {
-                // for j-th LIB
-                std::vector<int> iLibSubIdList = pParams->SDLIBList[j]->convertIdToSubIdList(iLib2[j]);
-                for (int k=0; k<ppPool->CHISQ4PARAMS[i][j].size(); k++) {
-                    // for k-th PAR
-                    if(std::isnan(ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]])) {
-                        ppPool->CHISQ4PARAMS[i][j][k][iLibSubIdList[k]] = 999999.9;
-                    }
-                }
+        // if the constraint is applied, then we also need to check find the iPool
+        if(check_constraint_applied) {
+            if(debug>=1) {std::cout << process_info.str() << ": applied INDEX constraints!" << std::endl;}
+            //
+            // convert (iLib, iObs) pair to iPool for fitting the data and model
+            // note that now iLib might be updated due to user constraint, so we need to run ppPool->findIndexOfClosestIdInPool again!
+            // 20190126: now use another way "ppPool->IdLock" to lock current id in pool
+            //
+            if(debug>=1) {std::cout << process_info.str() << ": ppPool->convertIdLibListToIdPool(iLib,iObs), iLib=["; for(int j=0; j<iLib.size(); j++) {std::cout << iLib[j]; if(j<iLib.size()-1) {std::cout << ",";}} std::cout << "], iObs=" << iObs << std::endl;}
+            iPool = ppPool->convertIdLibListToIdPool(iLib, iObs); // convert paired OBS and LIBs indices to a global pool index
+            if(iPool<0) { iPool = ppPool->convertIdLibListToIdPool(iLib, iObs, 1); } // check if we get negative pool index or not!
+            if(debug>=1) {std::cout << process_info.str() << ": ppPool->convertIdLibListToIdPool(iLib,iObs), iLib=["; for(int j=0; j<iLib.size(); j++) {std::cout << iLib[j]; if(j<iLib.size()-1) {std::cout << ",";}} std::cout << "], iObs=" << iObs << ", iPool = " << iPool << std::endl;}
+            LastIdPoolIndex = ppPool->findIndexOfClosestIdInPool(iPool); // we only process id that is in the Pool
+            if(debug>=1) {std::cout << process_info.str() << ": ppPool->findIndexOfClosestIdInPool(iPool=" << iPool << ") returned index " << LastIdPoolIndex << ", iPool " << ppPool->IdPool[LastIdPoolIndex] << std::endl;}
+            if(ppPool->IdPool[LastIdPoolIndex]!=iPool) { iPool = ppPool->IdPool[LastIdPoolIndex]; } // if iPool is not in our IdPool, then we should use the closestId in our Pool -- IdPool[LastIdPoolIndex].
+            iPoolSubIdList = ppPool->SubIdListPool.at(LastIdPoolIndex); // convert iPool to iPoolSubIdList, which is a list containing [iObs, iLib1, iLib2, etc.]
+            //
+            if(iPool != iPoolCache.back()) {
+                pthread_mutex_lock(&mnchi2parallelMutex); // lock mutex for calling ppPool->removeIdInPool()
+                if(debug>=2) {std::cout << process_info.str() << ": pthread mutex locked!" << std::endl;}
+                iPoolCache.push_back(iPool);
+                ppPool->IdLock.push_back(iPool);
+                ppPool->removeIdInPool(iPool); // remove iPool from ppPool->IdPool NOW so that other processes will not try to run it.
+                pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex
+                if(debug>=2) {std::cout << process_info.str() << ": pthread mutex unlocked!" << std::endl;}
             }
-            pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex
-            pParams->iPool = iPool2;
-            pParams->iObs = iObs2;
-            pParams->iLib = iLib2;
         } else {
-            pParams->iPool = iPool;
-            pParams->iObs = iObs;
-            pParams->iLib = iLib;
+            if(debug>=1) {std::cout << process_info.str() << ": no INDEX constraints applied!" << std::endl;}
+        }
+        //
+        // make sure things are consistent
+        //long long iPool2; std::vector<int> SubIdList2; int iObs2; std::vector<int> iLib2;
+        //iPool2 = iPool ; // should be the same as ppPool->IdPool.at(LastIdPoolIndex);
+        //SubIdList2 = ppPool->SubIdListPool.at(LastIdPoolIndex); // update iLib with what we have in the Pool
+        //iObs2 = SubIdList2.front();
+        //iLib2.resize(SubIdList2.size()-1); iLib2.assign(SubIdList2.begin()+1, SubIdList2.end());
+        pParams->iPool = iPool;
+        pParams->iObs = iPoolSubIdList.front();
+        std::copy(iPoolSubIdList.begin() + 1, iPoolSubIdList.end(), pParams->iLib.begin());
+        //
+        if(debug>=2) {
+            //std::cout << "mnchi2parallel: DEBUG: iObs = " << iObs << ", iLib = "; for(int k=0; k<iLib.size(); k++) {std::cout << iLib[k] << " ";} std::cout << ", iPool = " << iPool << std::endl;
+            //std::cout << "mnchi2parallel: DEBUG: iObs2 = " << iObs2 << ", iLib2 = "; for(int k=0; k<iLib2.size(); k++) {std::cout << iLib2[k] << " ";} std::cout << ", iPool2 = " << iPool2 << std::endl;
+            //std::cout << "mnchi2parallel: DEBUG: ppPool->IdPool = "; for(int k=0; k<ppPool->IdPool.size(); k++) {std::cout << ppPool->IdPool[k] << " ";} std::cout << std::endl;
         }
         //
         Timer2 = std::chrono::high_resolution_clock::now(); TimeSpan = Timer2 - Timer1;
@@ -1061,6 +1107,8 @@ void *mnchi2parallel(void *params)
             Timer2 = std::chrono::high_resolution_clock::now(); TimeSpan = Timer2 - Timer1;
             if(debug>=1) {std::cout << process_info.str() << ": Time spent in this loop is " << TimeSpan.count() << " ms" << std::endl;}
             //
+            // 20190126: now I already called ppPool->removeIdInPool() at the beginning of each loop.
+            /*
             // remove current pParams->iPool from ppPool->IdPool
             bool iremoveok = false;
             pthread_mutex_lock(&mnchi2parallelMutex); // lock mutex for calling ppPool->removeIdInPool() to remove pParams->iPool from ppPool->IdPool
@@ -1077,6 +1125,7 @@ void *mnchi2parallel(void *params)
                 std::cout << process_info.str() << ": Error! Failed to remove iPool " << pParams->iPool << " from ppPool->IdPool!" << std::endl;
                 exit (EXIT_FAILURE);
             }
+            */
             //
             // continue
             continue;
@@ -1186,10 +1235,10 @@ void *mnchi2parallel(void *params)
             }
             if(debug>=1) {std::cout << process_info.str() << ": Now updated chisq array!" << std::endl;}
         }
-        ppPool->removeIdInPool(pParams->iPool); // remove pParams->iPool from ppPool->IdPool after finished this loop.
+        //Pool->removeIdInPool(pParams->iPool); // remove pParams->iPool from ppPool->IdPool after finished this loop. // 20190126: now I already called ppPool->removeIdInPool() at the beginning of each loop.
         if(debug>=1) {std::cout << process_info.str() << ": Finished pParams->iPool " << pParams->iPool << ", ppPool->IdPool.size() " << ppPool->IdPool.size() << std::endl;}
         ppPool->IdDone.push_back(pParams->iPool); // add to iLibDone
-        ppPool->SubIdListDone.push_back(ppPool->convertIdToSubIdList(pParams->iPool));
+        ppPool->SubIdListDone.push_back(ppPool->convertIdToSubIdList(pParams->iPool)); // 20190126: this is actually not used
         pthread_mutex_unlock(&mnchi2parallelMutex); // unlock mutex
         if(debug>=2) {std::cout << process_info.str() << ": pthread mutex unlocked!" << std::endl;}
         //
