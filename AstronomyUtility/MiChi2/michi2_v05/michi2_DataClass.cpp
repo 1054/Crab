@@ -583,34 +583,36 @@ long michi2DataClass::getParameterLineSpacing(long iParameter, int debug)
     
     // multiply according to the order and number of PARAMS
     // for example,
-    // LIB1[3] LIB2[4] LIB3[2]: 0 0 0
-    // LIB1[3] LIB2[4] LIB3[2]: 0 0 1
-    // LIB1[3] LIB2[4] LIB3[2]: 0 1 0
-    // LIB1[3] LIB2[4] LIB3[2]: 0 1 1
-    // LIB1[3] LIB2[4] LIB3[2]: 0 2 0
-    // LIB1[3] LIB2[4] LIB3[2]: 0 2 1
-    // LIB1[3] LIB2[4] LIB3[2]: 0 3 0
-    // LIB1[3] LIB2[4] LIB3[2]: 0 3 1
-    // LIB1[3] LIB2[4] LIB3[2]: 1 0 0
-    // LIB1[3] LIB2[4] LIB3[2]: 1 0 1
-    // LIB1[3] LIB2[4] LIB3[2]: 1 1 0
-    // LIB1[3] LIB2[4] LIB3[2]: 1 1 1
-    // LIB1[3] LIB2[4] LIB3[2]: 1 2 0
-    // LIB1[3] LIB2[4] LIB3[2]: 1 2 1
-    // LIB1[3] LIB2[4] LIB3[2]: 1 3 0
-    // LIB1[3] LIB2[4] LIB3[2]: 1 3 1
-    // LIB1[3] LIB2[4] LIB3[2]: 2 0 0
-    // LIB1[3] LIB2[4] LIB3[2]: 2 0 1
-    // LIB1[3] LIB2[4] LIB3[2]: 2 1 0
-    // LIB1[3] LIB2[4] LIB3[2]: 2 1 1
-    // LIB1[3] LIB2[4] LIB3[2]: 2 2 0
-    // LIB1[3] LIB2[4] LIB3[2]: 2 2 1
-    // LIB1[3] LIB2[4] LIB3[2]: 2 3 0
-    // LIB1[3] LIB2[4] LIB3[2]: 2 3 1
-    // for LIB1 the lineSpacing is 8 (=24/3), for LIB2 is 2 (=24/3/4), for LIB3 is 1.
-    //-- although note that this requires the LIB file be well formatted, with parameters listed from left to right columns from lower to higher dimensions.
+    // PAR1[2] PAR2[4] PAR3[3]: 0 0 0
+    // PAR1[2] PAR2[4] PAR3[3]: 1 0 0
+    // PAR1[2] PAR2[4] PAR3[3]: 0 1 0
+    // PAR1[2] PAR2[4] PAR3[3]: 1 1 0
+    // PAR1[2] PAR2[4] PAR3[3]: 0 2 0
+    // PAR1[2] PAR2[4] PAR3[3]: 1 2 0
+    // PAR1[2] PAR2[4] PAR3[3]: 0 3 0
+    // PAR1[2] PAR2[4] PAR3[3]: 1 3 0
+    // PAR1[2] PAR2[4] PAR3[3]: 0 0 1
+    // PAR1[2] PAR2[4] PAR3[3]: 1 0 1
+    // PAR1[2] PAR2[4] PAR3[3]: 0 1 1
+    // PAR1[2] PAR2[4] PAR3[3]: 1 1 1
+    // PAR1[2] PAR2[4] PAR3[3]: 0 2 1
+    // PAR1[2] PAR2[4] PAR3[3]: 1 2 1
+    // PAR1[2] PAR2[4] PAR3[3]: 0 3 1
+    // PAR1[2] PAR2[4] PAR3[3]: 1 3 1
+    // PAR1[2] PAR2[4] PAR3[3]: 0 0 2
+    // PAR1[2] PAR2[4] PAR3[3]: 1 0 2
+    // PAR1[2] PAR2[4] PAR3[3]: 0 1 2
+    // PAR1[2] PAR2[4] PAR3[3]: 1 1 2
+    // PAR1[2] PAR2[4] PAR3[3]: 0 2 2
+    // PAR1[2] PAR2[4] PAR3[3]: 1 2 2
+    // PAR1[2] PAR2[4] PAR3[3]: 0 3 2
+    // PAR1[2] PAR2[4] PAR3[3]: 1 3 2
+    // for PAR1 the lineSpacing is 1 (=24/(2*4*3)), for PAR2 is 2 (=24/(4*3)), for PAR3 is 8 (=24/3). 2, 4, 3 is NPAR1, NPAR2, NPAR3 dimension respectively. this->YNum = 2*4*3 = 24.
+    // PAR3 changes slowest, PAR1 changes fastest <20190128>
+    //-- although note that this requires the LIB file be well formatted, with parameters listed from left to right columns from lower to higher dimensions <20190128> from higher to lower dimension?
     long NumbParamMulti = 1;
-    for(int i=0; i<=iParameter; i++) {
+    //<20190128> for(int i=0; i<=iParameter; i++)
+    for(int i=iParameter; i<this->NPAR.size(); i++) {
         NumbParamMulti = NumbParamMulti * this->NPAR[i];
     }
     lineSpacing = this->YNum / NumbParamMulti;
@@ -747,16 +749,43 @@ std::vector<int> michi2DataClass::convertIdToSubIdList(long IdModel)
     // compute the index for each LIB per OBS
     long NumbParamMulti = this->YNum;
     long iLoop = IdModel;
-    for(int j=0; j<this->NPAR.size(); j++) {
-        NumbParamMulti = NumbParamMulti / this->NPAR[j];
+    //<20190128> for(int j=0; j<this->NPAR.size(); j++)
+    for(int j=this->NPAR.size()-1; j>=0; j--) {
+        NumbParamMulti = NumbParamMulti / this->NPAR.at(j);
         SubIdList[j] = long(iLoop / NumbParamMulti);
         iLoop = iLoop % NumbParamMulti;
-        // for example, we have three parameters:
-        // PAR1[10], PAR2[4], PAR3[6]
-        // iPar 0 == indices {0 0 0}
-        // iPar 1 == indices {0 0 1}
-        // iPar 5 == indices {0 0 5}
-        // iPar 6 == indices {0 1 0}
+        //<20190128> --- obsolete
+        //<20190128> // for example, we have three parameters:
+        //<20190128> // PAR1[10], PAR2[4], PAR3[6]
+        //<20190128> // iPar 0 == indices {0 0 0}
+        //<20190128> // iPar 1 == indices {0 0 1}
+        //<20190128> // iPar 5 == indices {0 0 5}
+        //<20190128> // iPar 6 == indices {0 1 0}
+        //<20190128> --- replaced by the code below
+        //<20190128> Note that now we require faster-changed parameters to be listed in the more left column of slower-changed parameters.
+        // so if we have three parameters: PAR1[10], PAR2[4], PAR3[6]
+        // iPar = 0 means PAR1[0], PAR2[0], PAR3[0]
+        // iPar = 1 means PAR1[1], PAR2[0], PAR3[0]
+        // iPar = 2 means PAR1[2], PAR2[0], PAR3[0]
+        // iPar = 9 means PAR1[9], PAR2[0], PAR3[0]
+        // iPar = 10 means PAR1[0], PAR2[1], PAR3[0]
+        // iPar = 11 means PAR1[1], PAR2[1], PAR3[0]
+        // iPar = 19 means PAR1[9], PAR2[1], PAR3[0]
+        // iPar = 20 means PAR1[0], PAR2[2], PAR3[0]
+        // iPar = 21 means PAR1[1], PAR2[2], PAR3[0]
+        // iPar = 29 means PAR1[9], PAR2[2], PAR3[0]
+        // iPar = 30 means PAR1[0], PAR2[3], PAR3[0]
+        // iPar = 31 means PAR1[1], PAR2[3], PAR3[0]
+        // iPar = 39 means PAR1[9], PAR2[3], PAR3[0]
+        // iPar = 40 means PAR1[0], PAR2[0], PAR3[1]
+        // iPar = 41 means PAR1[1], PAR2[0], PAR3[1]
+        // iPar = X means
+        //                PAR3[int(X/(10*4)]; X = int(X%(10*4))
+        //                PAR2[int(X/(10)]; X = int(X%(10))
+        //                PAR1[X];
+        // reversed, PAR1[i1], PAR2[i2], PAR3[i3] corresponds to
+        //           i3*(10*4) + i2*(10) + i1
+        //
     }
     return SubIdList;
 }
@@ -782,11 +811,17 @@ long michi2DataClass::convertSubIdListToId(std::vector<int> SubIdList)
     
     // IdModel = SubIdList[2] + NPAR3 * SubIdList[1] + NPAR3*NPAR2 * SubIdList[0]
     IdModel = 0;
-    long NumbParamMulti = 1;
-    for(int j=0; j<this->NPAR.size(); j++) {
-        IdModel = IdModel + NumbParamMulti * SubIdList[this->NPAR.size()-1-j]; // j=0, SubIdList[2]
-        NumbParamMulti = NumbParamMulti * this->NPAR[this->NPAR.size()-1-j]; // j=0, NPAR[2]
-        //std::cout << "michi2DataClass::convertSubIdListToId() IdModel " << IdModel << " SubIdList[" << this->NPAR.size()-1-j << "] " << SubIdList[this->NPAR.size()-1-j] << std::endl;
+    //<20190128> long NumbParamMulti = 1;
+    //<20190128> for(int j=0; j<this->NPAR.size(); j++)
+    long NumbParamMulti = this->YNum;
+    for(int j=this->NPAR.size()-1; j>=0; j--) {
+        //<20190128> IdModel = IdModel + NumbParamMulti * SubIdList[this->NPAR.size()-1-j]; // j=0, SubIdList[2]
+        //<20190128> NumbParamMulti = NumbParamMulti * this->NPAR[this->NPAR.size()-1-j]; // j=0, NPAR[2]
+        //<20190128> //std::cout << "michi2DataClass::convertSubIdListToId() IdModel " << IdModel << " SubIdList[" << this->NPAR.size()-1-j << "] " << SubIdList[this->NPAR.size()-1-j] << std::endl;
+        //<20190128>
+        //<20190128> Note that now we require faster-changed parameters to be listed in the more left column of slower-changed parameters.
+        NumbParamMulti = NumbParamMulti / this->NPAR[j]; // i3*(10*4) + i2*(10) + i1
+        IdModel = IdModel + NumbParamMulti * SubIdList[j]; // i3*(10*4) + i2*(10) + i1
     }
     return IdModel;
 }

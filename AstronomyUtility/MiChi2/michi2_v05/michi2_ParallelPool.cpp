@@ -468,6 +468,24 @@ long long michi2ParallelPool::convertSubIdListToId(std::vector<int> SubIdList, s
     
     // SubIdList: 0 3 5 2 means SDOBSList[0], SDLIB1[3], SDLIB2[5], SDLIB3[2], where SDLIB1 is SDLIBList[0], etc.
     // iLoop = SubIdList[3] + LIB3YNum*SubIdList[2] + LIB3YNum*LIB2YNum * SubIdList[1] + LIB3YNum*LIB2YNum*LIB1YNum * SubIdList[0]
+    //<20190128> Note that the SubIdList for parallel id is different from the SubIdList for Library parameter id,
+    //<20190128> for parallel id slower-changed item is placed left of faster-changed item,
+    //<20190128> e.g., assuming one SDOBS, 3 SDLIB, which have NPAR 2,4,3 respectively, then we have:
+    //<20190128> iPool=0 means SDOBSList[0], SDLIB1[0], SDLIB2[0], SDLIB3[0]
+    //<20190128> iPool=1 means SDOBSList[0], SDLIB1[0], SDLIB2[0], SDLIB3[1]
+    //<20190128> iPool=2 means SDOBSList[0], SDLIB1[0], SDLIB2[0], SDLIB3[2]
+    //<20190128> iPool=3 means SDOBSList[0], SDLIB1[0], SDLIB2[1], SDLIB3[0]
+    //<20190128> iPool=4 means SDOBSList[0], SDLIB1[0], SDLIB2[1], SDLIB3[1]
+    //<20190128> iPool=5 means SDOBSList[0], SDLIB1[0], SDLIB2[1], SDLIB3[2]
+    //<20190128> iPool=6 means SDOBSList[0], SDLIB1[0], SDLIB2[2], SDLIB3[0]
+    //<20190128> iPool=7 means SDOBSList[0], SDLIB1[0], SDLIB2[2], SDLIB3[1]
+    //<20190128> iPool=8 means SDOBSList[0], SDLIB1[0], SDLIB2[2], SDLIB3[2]
+    //<20190128> iPool=9 means SDOBSList[0], SDLIB1[0], SDLIB2[3], SDLIB3[0]
+    //<20190128> iPool=10 means SDOBSList[0], SDLIB1[0], SDLIB2[3], SDLIB3[1]
+    //<20190128> iPool=11 means SDOBSList[0], SDLIB1[0], SDLIB2[3], SDLIB3[2]
+    //<20190128> iPool=12 means SDOBSList[0], SDLIB1[1], SDLIB2[0], SDLIB3[0]
+    //<20190128> iPool=13 means SDOBSList[0], SDLIB1[1], SDLIB2[0], SDLIB3[1]
+    //<20190128> iPool=14 means SDOBSList[0], SDLIB1[1], SDLIB2[0], SDLIB3[2] -- iPool = i3 + i2*(3) + i1*(4*3) + i0
     iLoop = 0;
     long long NumbLibMulti = 1;
     for(int j=0; j<this->nLib; j++) {
