@@ -230,6 +230,7 @@ int main(int argc, char **argv)
             // prepare new image (new image dimension is always the same as the first input image)
             long newImWidth = oldImWidth;
             long newImHeight = oldImHeight;
+            long newImPixelCount = newImWidth * newImHeight;
             //
             // check operator
             std::string sstrOperator = std::string(cstrOperator);
@@ -297,7 +298,7 @@ int main(int argc, char **argv)
                 }
                 //
                 // allocate memory
-                newImage = (double *)malloc(newImWidth*newImHeight*sizeof(double));
+                newImage = (double *)malloc(newImPixelCount * sizeof(double));
                 //
                 // debug elapsed time
                 if(debug>=2) {
@@ -309,19 +310,19 @@ int main(int argc, char **argv)
                 // we initialize the output image with the input image
                 // and if the user does not need to remove NaN, we keep original values, otherwise replace NaN values with dblReplaceNaN.
                 if(0==iRemoveNaN) {
-                    // for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = NAN; } // need cmath.h
-                    for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = oldImage[i]; }
+                    // for(int i=0; i<newImPixelCount; i++) { newImage[i] = NAN; } // need cmath.h
+                    for(int i=0; i<newImPixelCount; i++) { newImage[i] = oldImage[i]; }
                 } else {
                     if(debug>=1) {
                         std::cout << "DEBUG: removing all NaN values by filling " << dblReplaceNaN << std::endl;
                     }
-                    for(int i=0; i<newImWidth*newImHeight; i++) { if (oldImage[i] == oldImage[i]) { newImage[i] = oldImage[i]; } else { newImage[i] = dblReplaceNaN; } } // NAN need cmath.h. By checking oldImage[i] == oldImage[i] we tell if the value is NAN or not as (NAN == NAN) is False.
+                    for(int i=0; i<newImPixelCount; i++) { if (oldImage[i] == oldImage[i]) { newImage[i] = oldImage[i]; } else { newImage[i] = dblReplaceNaN; } } // NAN need cmath.h. By checking oldImage[i] == oldImage[i] we tell if the value is NAN or not as (NAN == NAN) is False.
                 }
             } else {
                 //
                 // allocate memory
-                newImageMask = (int *)malloc(newImWidth*newImHeight*sizeof(int));
-                for(int i=0; i<newImWidth*newImHeight; i++) { newImageMask[i] = 0; }
+                newImageMask = (int *)malloc(newImPixelCount * sizeof(int));
+                for(int i=0; i<newImPixelCount; i++) { newImageMask[i] = 0; }
             }
             //
             // check NumValue (evaluate)
@@ -345,7 +346,7 @@ int main(int argc, char **argv)
                 for(int jj=intRectY1; jj<=intRectY2; jj++) {
                     for(int ii=intRectX1; ii<=intRectX2; ii++) {
                         long kk = long(ii)+long(jj)*newImWidth;
-                        if(kk < 0 || kk >= newImWidth*newImHeight) {continue;} // check overflow
+                        if(kk < 0 || kk >= newImPixelCount) {continue;} // check overflow
                         //
                         // check if the operation is on Image or ImageMask
                         if(maskOperator==0) {
@@ -429,6 +430,7 @@ int main(int argc, char **argv)
                     // read fits Naxis
                     long refImWidth = atol(cstrNAXIS1RefImage);
                     long refImHeight = atol(cstrNAXIS2RefImage);
+                    long refImPixelCount = refImWidth * refImHeight;
                     //
                     // read ref image
                     double *refImage = readFitsImage(cstrFilePathRefImage,extNumberRefImage);
@@ -460,8 +462,8 @@ int main(int argc, char **argv)
                         for(int ii=intRectX1, iiRefImage=intRectX1RefImage; (ii<=intRectX2) && (iiRefImage<=intRectX2RefImage); ii++, iiRefImage++) {
                             long kk = long(ii)+long(jj)*newImWidth;
                             long kkRefImage=long(iiRefImage)+long(jjRefImage)*refImWidth;
-                            if(kk < 0 || kk >= newImWidth*newImHeight) {continue;} // check overflow
-                            if(kkRefImage < 0 || kkRefImage >= refImWidth*refImHeight) {continue;} // check overflow
+                            if(kk < 0 || kk >= newImPixelCount) {continue;} // check overflow
+                            if(kkRefImage < 0 || kkRefImage >= refImPixelCount) {continue;} // check overflow
                             //
                             // check if the operation is on Image or ImageMask
                             if(maskOperator==0) {
