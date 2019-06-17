@@ -23,6 +23,7 @@
      2017-07-30   -copy-wcs
      2017-09-20   found bug when run 'CrabFitsImageArithmetic fit_3_bug_20170920a.fits -ext 2 times 1.0 fit_3_bug_20170920a.model.fits -copy-wcs -debug -debug'. Should be the bug in 'addKeyword()'.
      2018-02-25   added 'sstrOperator == "=="' and 'sstrOperator == "!="'
+     2019-06-14   added 'sstrOperator' ">", ">=", "<" and "<="
  
  
  */
@@ -214,6 +215,22 @@ int main(int argc, char **argv)
                       sstrOperator == "ne" ) {
                 sstrOperator = "does not equal";
                 maskOperator = 1;
+            } else if(sstrOperator == ">" ||
+                      sstrOperator == "gt" ) {
+                sstrOperator = "greater than";
+                maskOperator = 1;
+            } else if(sstrOperator == ">=" ||
+                      sstrOperator == "ge" ) {
+                sstrOperator = "greater equal";
+                maskOperator = 1;
+            } else if(sstrOperator == "<" ||
+                      sstrOperator == "lt" ) {
+                sstrOperator = "less than";
+                maskOperator = 1;
+            } else if(sstrOperator == "<=" ||
+                      sstrOperator == "le" ) {
+                sstrOperator = "less equal";
+                maskOperator = 1;
             }
             //
             // create new image array and image mask array
@@ -284,13 +301,25 @@ int main(int argc, char **argv)
                             if("equals" == sstrOperator) {
                                 if(oldImage[kk] == dblNumValue) {
                                     newImageMask[kk] = 1;
-                                } else {
-                                    newImageMask[kk] = 0;
                                 }
                             } else if("does not equal" == sstrOperator) {
-                                if(oldImage[kk] == dblNumValue) {
-                                    newImageMask[kk] = 0;
-                                } else {
+                                if(oldImage[kk] != dblNumValue) {
+                                    newImageMask[kk] = 1;
+                                }
+                            } else if("greater than" == sstrOperator) {
+                                if(oldImage[kk] > dblNumValue) {
+                                    newImageMask[kk] = 1;
+                                }
+                            } else if("greater equal" == sstrOperator) {
+                                if(oldImage[kk] >= dblNumValue) {
+                                    newImageMask[kk] = 1;
+                                }
+                            } else if("less than" == sstrOperator) {
+                                if(oldImage[kk] < dblNumValue) {
+                                    newImageMask[kk] = 1;
+                                }
+                            } else if("less equal" == sstrOperator) {
+                                if(oldImage[kk] <= dblNumValue) {
                                     newImageMask[kk] = 1;
                                 }
                             }
@@ -361,13 +390,25 @@ int main(int argc, char **argv)
                                 if("equals" == sstrOperator) {
                                     if(oldImage[kk] == refImage[kk]) {
                                         newImageMask[kk] = 1;
-                                    } else {
-                                        newImageMask[kk] = 0;
                                     }
                                 } else if("does not equal" == sstrOperator) {
-                                    if(oldImage[kk] == refImage[kk]) {
-                                        newImageMask[kk] = 0;
-                                    } else {
+                                    if(oldImage[kk] != refImage[kk]) {
+                                        newImageMask[kk] = 1;
+                                    }
+                                } else if("greater than" == sstrOperator) {
+                                    if(oldImage[kk] > refImage[kk]) {
+                                        newImageMask[kk] = 1;
+                                    }
+                                } else if("greater equal" == sstrOperator) {
+                                    if(oldImage[kk] >= refImage[kk]) {
+                                        newImageMask[kk] = 1;
+                                    }
+                                } else if("less than" == sstrOperator) {
+                                    if(oldImage[kk] < refImage[kk]) {
+                                        newImageMask[kk] = 1;
+                                    }
+                                } else if("less equal" == sstrOperator) {
+                                    if(oldImage[kk] <= refImage[kk]) {
                                         newImageMask[kk] = 1;
                                     }
                                 }
