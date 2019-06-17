@@ -25,6 +25,7 @@
      2018-02-25   added 'sstrOperator == "=="' and 'sstrOperator == "!="'
      2019-06-14   added 'sstrOperator' ">", ">=", "<" and "<="
      2019-06-17   added '-rect'
+     2019-06-17   now using 'enumOperator' to speed up
  
  
  */
@@ -57,6 +58,7 @@ int main(int argc, char **argv)
     int intRectX1 = -1, intRectY1 = -1, intRectX2 = -1, intRectY2 = -1;
     int intRectX1RefImage = -1, intRectY1RefImage = -1, intRectX2RefImage = -1, intRectY2RefImage = -1;
     char *cstrOperator = NULL;
+    enum enumOperatorType {adds, subtracts, multiplies, divides, power_of, equals, does_not_equal, greater_than, greater_equal, less_than, less_equal} enumOperator;
     char *cstrNumValue = NULL; double dblNumValue = 0.0;
     char *cstrNewFilePath = NULL;
     int   iRemoveNaN = 0; // in default we keep NaN values
@@ -207,44 +209,50 @@ int main(int argc, char **argv)
             if(sstrOperator.find("*")!=std::string::npos ||
                sstrOperator.find("time")!=std::string::npos ||
                sstrOperator.find("multipl")!=std::string::npos ) {
-                sstrOperator = "multiplies";
+                enumOperator = enumOperatorType::multiplies;
             } else if(sstrOperator.find("+")!=std::string::npos ||
                       sstrOperator.find("add")!=std::string::npos ||
                       sstrOperator.find("plus")!=std::string::npos ) {
-                sstrOperator = "adds";
+                enumOperator = enumOperatorType::adds;
             } else if(sstrOperator.find("-")!=std::string::npos ||
                       sstrOperator.find("subtract")!=std::string::npos ||
                       sstrOperator.find("minus")!=std::string::npos ) {
-                sstrOperator = "subtracts";
+                enumOperator = enumOperatorType::subtracts;
             } else if(sstrOperator.find("/")!=std::string::npos ||
                       sstrOperator.find("divide")!=std::string::npos ) {
-                sstrOperator = "divides";
+                enumOperator = enumOperatorType::divides;
             } else if(sstrOperator.find("^")!=std::string::npos ||
                       sstrOperator.find("power")!=std::string::npos ) {
-                sstrOperator = "power of";
+                enumOperator = enumOperatorType::power_of;
             } else if(sstrOperator == "==" ||
-                      sstrOperator == "eq" ) {
-                sstrOperator = "equals";
+                      sstrOperator == "eq" ||
+                      sstrOperator == "equals" ) {
+                enumOperator = enumOperatorType::equals;
                 maskOperator = 1;
             } else if(sstrOperator == "!=" ||
-                      sstrOperator == "ne" ) {
-                sstrOperator = "does not equal";
+                      sstrOperator == "ne" ||
+                      sstrOperator == "does not equal" ) {
+                enumOperator = enumOperatorType::does_not_equal;
                 maskOperator = 1;
             } else if(sstrOperator == ">" ||
-                      sstrOperator == "gt" ) {
-                sstrOperator = "greater than";
+                      sstrOperator == "gt" ||
+                      sstrOperator == "greater than" ) {
+                enumOperator = enumOperatorType::greater_than;
                 maskOperator = 1;
             } else if(sstrOperator == ">=" ||
-                      sstrOperator == "ge" ) {
-                sstrOperator = "greater equal";
+                      sstrOperator == "ge" ||
+                      sstrOperator == "greater equal" ) {
+                enumOperator = enumOperatorType::greater_equal;
                 maskOperator = 1;
             } else if(sstrOperator == "<" ||
-                      sstrOperator == "lt" ) {
-                sstrOperator = "less than";
+                      sstrOperator == "lt" ||
+                      sstrOperator == "less than" ) {
+                enumOperator = enumOperatorType::less_than;
                 maskOperator = 1;
             } else if(sstrOperator == "<=" ||
-                      sstrOperator == "le" ) {
-                sstrOperator = "less equal";
+                      sstrOperator == "le" ||
+                      sstrOperator == "less equal" ) {
+                enumOperator = enumOperatorType::less_equal;
                 maskOperator = 1;
             }
             //
@@ -286,7 +294,7 @@ int main(int argc, char **argv)
                 dblNumValue = expression.value();
                 //
                 // print info -- FitsImage operating with NumValue
-                std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " rectangle=[" << "[" << intRectX1 << "," << intRectY1 << "]" << "," << "[" << intRectX2 << "," << intRectY2 << "]" << "]" << " " << sstrOperator << " " << dblNumValue << " " << std::endl;
+                std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " rectangle=[" << "[" << intRectX1 << "," << intRectY1 << "]" << "," << "[" << intRectX2 << "," << intRectY2 << "]" << "]" << " " << enumOperator << " " << dblNumValue << " " << std::endl;
                 //
                 // copy image pixel by pixel
                 for(int jj=intRectY1; jj<=intRectY2; jj++) {
@@ -300,42 +308,42 @@ int main(int argc, char **argv)
                             if(NAN != oldImage[kk] && oldImage[kk] == oldImage[kk]) {
                                 //
                                 // check Operator
-                                if("multiplies" == sstrOperator) {
+                                if(enumOperatorType::multiplies == enumOperator) {
                                     newImage[kk] = oldImage[kk] * dblNumValue;
-                                } else if("adds" == sstrOperator) {
+                                } else if(enumOperatorType::adds == enumOperator) {
                                     newImage[kk] = oldImage[kk] + dblNumValue;
-                                } else if("subtracts" == sstrOperator) {
+                                } else if(enumOperatorType::subtracts == enumOperator) {
                                     newImage[kk] = oldImage[kk] - dblNumValue;
-                                } else if("divides" == sstrOperator) {
+                                } else if(enumOperatorType::divides == enumOperator) {
                                     newImage[kk] = oldImage[kk] / dblNumValue;
-                                } else if("power of" == sstrOperator) {
+                                } else if(enumOperatorType::power_of == enumOperator) {
                                     newImage[kk] = pow(oldImage[kk], dblNumValue);
                                 }
                             }
                         } else {
                             //
                             // check Operator
-                            if("equals" == sstrOperator) {
+                            if(enumOperatorType::equals == enumOperator) {
                                 if(oldImage[kk] == dblNumValue) {
                                     newImageMask[kk] = 1;
                                 }
-                            } else if("does not equal" == sstrOperator) {
+                            } else if(enumOperatorType::does_not_equal == enumOperator) {
                                 if(oldImage[kk] != dblNumValue) {
                                     newImageMask[kk] = 1;
                                 }
-                            } else if("greater than" == sstrOperator) {
+                            } else if(enumOperatorType::greater_than == enumOperator) {
                                 if(oldImage[kk] > dblNumValue) {
                                     newImageMask[kk] = 1;
                                 }
-                            } else if("greater equal" == sstrOperator) {
+                            } else if(enumOperatorType::greater_equal == enumOperator) {
                                 if(oldImage[kk] >= dblNumValue) {
                                     newImageMask[kk] = 1;
                                 }
-                            } else if("less than" == sstrOperator) {
+                            } else if(enumOperatorType::less_than == enumOperator) {
                                 if(oldImage[kk] < dblNumValue) {
                                     newImageMask[kk] = 1;
                                 }
-                            } else if("less equal" == sstrOperator) {
+                            } else if(enumOperatorType::less_equal == enumOperator) {
                                 if(oldImage[kk] <= dblNumValue) {
                                     newImageMask[kk] = 1;
                                 }
@@ -375,7 +383,7 @@ int main(int argc, char **argv)
                     }
                     //
                     // print info -- FitsImage operating with another RefImage
-                    std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " rectangle=[" << "[" << intRectX1 << "," << intRectY1 << "]" << "," << "[" << intRectX2 << "," << intRectY2 << "]" << "]" << " " << sstrOperator << " " << cstrFilePathRefImage << " extension=" << extNumberRefImage << " rectangle=[" << "[" << intRectX1RefImage << "," << intRectY1RefImage << "]" << "," << "[" << intRectX2RefImage << "," << intRectY2RefImage << "]" << "]" << std::endl;
+                    std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " rectangle=[" << "[" << intRectX1 << "," << intRectY1 << "]" << "," << "[" << intRectX2 << "," << intRectY2 << "]" << "]" << " " << enumOperator << " " << cstrFilePathRefImage << " extension=" << extNumberRefImage << " rectangle=[" << "[" << intRectX1RefImage << "," << intRectY1RefImage << "]" << "," << "[" << intRectX2RefImage << "," << intRectY2RefImage << "]" << "]" << std::endl;
                     //
                     // check ref image size
                     if((intRectX2RefImage-intRectX1RefImage)!=(intRectX2-intRectX1) || (intRectY2RefImage-intRectY1RefImage)!=(intRectY2-intRectY1)) {
@@ -396,42 +404,42 @@ int main(int argc, char **argv)
                                 if(NAN != oldImage[kk] && oldImage[kk] == oldImage[kk]) {
                                     //
                                     // check Operator
-                                    if("multiplies" == sstrOperator) {
+                                    if(enumOperatorType::multiplies == enumOperator) {
                                         newImage[kk] = oldImage[kk] * refImage[kkRefImage];
-                                    } else if("adds" == sstrOperator) {
+                                    } else if(enumOperatorType::adds == enumOperator) {
                                         newImage[kk] = oldImage[kk] + refImage[kkRefImage];
-                                    } else if("subtracts" == sstrOperator) {
+                                    } else if(enumOperatorType::subtracts == enumOperator) {
                                         newImage[kk] = oldImage[kk] - refImage[kkRefImage];
-                                    } else if("divides" == sstrOperator) {
+                                    } else if(enumOperatorType::divides == enumOperator) {
                                         newImage[kk] = oldImage[kk] / refImage[kkRefImage];
-                                    } else if("power of" == sstrOperator) {
+                                    } else if(enumOperatorType::power_of == enumOperator) {
                                         newImage[kk] = pow(oldImage[kk], refImage[kkRefImage]);
                                     }
                                 }
                             } else {
                                 //
                                 // check Operator
-                                if("equals" == sstrOperator) {
+                                if(enumOperatorType::equals == enumOperator) {
                                     if(oldImage[kk] == refImage[kkRefImage]) {
                                         newImageMask[kk] = 1;
                                     }
-                                } else if("does not equal" == sstrOperator) {
+                                } else if(enumOperatorType::does_not_equal == enumOperator) {
                                     if(oldImage[kk] != refImage[kkRefImage]) {
                                         newImageMask[kk] = 1;
                                     }
-                                } else if("greater than" == sstrOperator) {
+                                } else if(enumOperatorType::greater_than == enumOperator) {
                                     if(oldImage[kk] > refImage[kkRefImage]) {
                                         newImageMask[kk] = 1;
                                     }
-                                } else if("greater equal" == sstrOperator) {
+                                } else if(enumOperatorType::greater_equal == enumOperator) {
                                     if(oldImage[kk] >= refImage[kkRefImage]) {
                                         newImageMask[kk] = 1;
                                     }
-                                } else if("less than" == sstrOperator) {
+                                } else if(enumOperatorType::less_than == enumOperator) {
                                     if(oldImage[kk] < refImage[kkRefImage]) {
                                         newImageMask[kk] = 1;
                                     }
-                                } else if("less equal" == sstrOperator) {
+                                } else if(enumOperatorType::less_equal == enumOperator) {
                                     if(oldImage[kk] <= refImage[kkRefImage]) {
                                         newImageMask[kk] = 1;
                                     }

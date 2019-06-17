@@ -1,0 +1,10 @@
+#!/bin/bash
+# 
+
+cp -i CrabFitsImageArithmetic_mac ~/Cloud/Github/DeepFields.SuperDeblending/Softwares/ds9_mac/
+cp -i CrabFitsImageArithmetic_mac ~/Cloud/Github/AlmaCosmos/Softwares/ds9_mac/
+
+cp -i CrabFitsImageArithmetic_linux_x86_64 ~/Cloud/Github/DeepFields.SuperDeblending/Softwares/ds9_linux_Glibc_2.14/
+cp -i CrabFitsImageArithmetic_linux_x86_64 ~/Cloud/Github/AlmaCosmos/Softwares/ds9_linux_Glibc_2.14/
+
+
