@@ -53,12 +53,15 @@ int main(int argc, char **argv)
     **/
     char *cstrFilePath = NULL; char *cstrExtNumber = NULL;
     char *cstrFilePathRefImage = NULL; char *cstrExtNumberRefImage = NULL;
+    int intRectX1 = -1, intRectY1 = -1, intRectX2 = -1, intRectY2 = -1;
+    int intRectX1RefImage = -1, intRectY1RefImage = -1, intRectX2RefImage = -1, intRectY2RefImage = -1;
     char *cstrOperator = NULL;
     char *cstrNumValue = NULL; double dblNumValue = 0.0;
     char *cstrNewFilePath = NULL;
     int   iRemoveNaN = 0; // in default we keep NaN values
     int   iCopyWcs = 0; // in default we do not search Wcs keywords, if the user gives '-copy-wcs' keyword, then we search the whole fits header and look for Wcs keywords and copy into the output fits file.
     char *cstrReplaceNaN = (char *)"0.0"; // the value to replace for NaN pixels
+    double dblReplaceNaN = 0.0;
     
     int debug = 0; // <TODO><DEBUG>
     
@@ -68,11 +71,16 @@ int main(int argc, char **argv)
             if(cstrExtNumberRefImage==NULL) {i++; cstrExtNumberRefImage = argv[i]; continue;}
             continue;
         }
+        if(strncmp(argv[i],"-rect",4)==0 && i<argc-4) {
+            if(intRectX1==-1) {intRectX1 = atoi(argv[++i]); intRectY1 = atoi(argv[++i]); intRectX2 = atoi(argv[++i]); intRectY2 = atoi(argv[++i]); continue;}
+            if(intRectX1RefImage==-1) {intRectX1RefImage = atoi(argv[++i]); intRectY1RefImage = atoi(argv[++i]); intRectX2RefImage = atoi(argv[++i]); intRectY2RefImage = atoi(argv[++i]); continue;}
+            continue;
+        }
         if(strcasecmp(argv[i],"-remove-nan")==0 ) {
             iRemoveNaN = 1; continue;
         }
         if(strcasecmp(argv[i],"-replace-nan")==0 ) {
-            iRemoveNaN = 1; if(i<argc-1) { i++; cstrReplaceNaN = argv[i]; } continue;
+            iRemoveNaN = 1; if(i<argc-1) { i++; cstrReplaceNaN = argv[i]; dblReplaceNaN = atof(cstrReplaceNaN); } continue;
         }
         if(strcasecmp(argv[i],"-debug")==0 ) {
             debug++; continue;
@@ -182,7 +190,13 @@ int main(int argc, char **argv)
             double *oldImage = readFitsImage(cstrFilePath,extNumber);
             std::cout << "CrabFitsImageArithmetic: readFitsImage " << cstrFilePath << " extension=" << extNumber << " imagesize=" << oldImWidth << "x" << oldImHeight << " bitpix=" << -long(sizeof(double))*8 << std::endl;
             //
-            // prepare new image
+            // get default computing rectangle if not input by the user (since 20190617)
+            if(intRectX1 == -1) {
+                intRectX1 = 0; intRectY1 = 0;
+                intRectX2 = oldImWidth - 1; intRectY2 = oldImHeight - 1;
+            }
+            //
+            // prepare new image (new image dimension is always the same as the first input image)
             long newImWidth = oldImWidth;
             long newImHeight = oldImHeight;
             //
@@ -237,21 +251,23 @@ int main(int argc, char **argv)
             double *newImage;
             int *newImageMask;
             //
-            // initialize new image array and image mask array
+            // initialize new image array and/or image mask array
             if(maskOperator==0) {
                 //
                 // allocate memory
                 newImage = (double *)malloc(newImWidth*newImHeight*sizeof(double));
                 //
-                // remove NaN
+                // //if the user does not need to remove NaN, we initialize the output image with NaN, otherwise with dblReplaceNaN.
+                // we initialize the output image with the input image
+                // and if the user does not need to remove NaN, we keep original values, otherwise replace NaN values with dblReplaceNaN.
                 if(0==iRemoveNaN) {
-                    for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = NAN; } // need cmath.h
+                    // for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = NAN; } // need cmath.h
+                    for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = oldImage[i]; }
                 } else {
-                    double dblReplaceNaN = atof(cstrReplaceNaN);
                     if(debug>0) {
                         std::cout << "DEBUG: removing all NaN values by filling " << dblReplaceNaN << std::endl;
                     }
-                    for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = dblReplaceNaN; } // need cmath.h
+                    for(int i=0; i<newImWidth*newImHeight; i++) { if (oldImage[i] == oldImage[i]) { newImage[i] = oldImage[i]; } else { newImage[i] = dblReplaceNaN; } } // NAN need cmath.h. By checking oldImage[i] == oldImage[i] we tell if the value is NAN or not as (NAN == NAN) is False.
                 }
             } else {
                 //
@@ -268,12 +284,12 @@ int main(int argc, char **argv)
                 exprtk::parser<double> parser; parser.compile(cstrNumValue,expression);
                 dblNumValue = expression.value();
                 //
-                // check
-                std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " " << sstrOperator << " " << dblNumValue << " " << std::endl;
+                // print info -- FitsImage operating with NumValue
+                std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " rectangle=[" << "[" << intRectX1 << "," << intRectY1 << "]" << "," << "[" << intRectX2 << "," << intRectY2 << "]" << "]" << " " << sstrOperator << " " << dblNumValue << " " << std::endl;
                 //
                 // copy image pixel by pixel
-                for(int jj=0; jj<=(newImHeight-1); jj++) {
-                    for(int ii=0; ii<=(newImWidth-1); ii++) {
+                for(int jj=intRectY1; jj<=intRectY2; jj++) {
+                    for(int ii=intRectX1; ii<=intRectX2; ii++) {
                         long kk = long(ii)+long(jj)*newImWidth;
                         //
                         // check if the operation is on Image or ImageMask
@@ -347,23 +363,30 @@ int main(int argc, char **argv)
                     long refImWidth = atol(cstrNAXIS1RefImage);
                     long refImHeight = atol(cstrNAXIS2RefImage);
                     //
-                    // check -- if the input NumValue is RefImage
-                    std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " " << sstrOperator << " " << cstrFilePathRefImage << " extension=" << extNumberRefImage << std::endl;
-                    //
                     // read ref image
                     double *refImage = readFitsImage(cstrFilePathRefImage,extNumberRefImage);
                     std::cout << "CrabFitsImageArithmetic: readFitsImage " << cstrFilePathRefImage << " extension=" << extNumberRefImage << " imagesize=" << refImWidth << "x" << refImHeight << " bitpix=" << -long(sizeof(double))*8 << std::endl;
                     //
+                    // get default computing rectangle for the ref image (since 20190617)
+                    if(intRectX1RefImage == -1) {
+                        intRectX1RefImage = 0; intRectY1RefImage = 0;
+                        intRectX2RefImage = refImWidth - 1; intRectY2RefImage = refImHeight - 1;
+                    }
+                    //
+                    // print info -- FitsImage operating with another RefImage
+                    std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " rectangle=[" << "[" << intRectX1 << "," << intRectY1 << "]" << "," << "[" << intRectX2 << "," << intRectY2 << "]" << "]" << " " << sstrOperator << " " << cstrFilePathRefImage << " extension=" << extNumberRefImage << " rectangle=[" << "[" << intRectX1RefImage << "," << intRectY1RefImage << "]" << "," << "[" << intRectX2RefImage << "," << intRectY2RefImage << "]" << "]" << std::endl;
+                    //
                     // check ref image size
-                    if(refImWidth!=oldImWidth || refImHeight!=oldImHeight) {
-                        std::cout << "Error! The two input fits images have different dimensions!" << std::endl;
+                    if((intRectX2RefImage-intRectX1RefImage)!=(intRectX2-intRectX1) || (intRectY2RefImage-intRectY1RefImage)!=(intRectY2-intRectY1)) {
+                        std::cout << "Error! The two input fits images have different dimensions or computing rectangle sizes!" << std::endl;
                         return -1;
                     }
                     //
                     // operate on image pixel by pixel
-                    for(int jj=0; jj<=(newImHeight-1); jj++) {
-                        for(int ii=0; ii<=(newImWidth-1); ii++) {
+                    for(int jj=intRectY1, jjRefImage=intRectY1RefImage; (jj<=intRectY2) && (jjRefImage<=intRectY2RefImage); jj++, jjRefImage++) {
+                        for(int ii=intRectX1, iiRefImage=intRectX1RefImage; (ii<=intRectX2) && (iiRefImage<=intRectX2RefImage); ii++, iiRefImage++) {
                             long kk = long(ii)+long(jj)*newImWidth;
+                            long kkRefImage=long(iiRefImage)+long(jjRefImage)*refImWidth;
                             //
                             // check if the operation is on Image or ImageMask
                             if(maskOperator==0) {
@@ -373,42 +396,42 @@ int main(int argc, char **argv)
                                     //
                                     // check Operator
                                     if("multiplies" == sstrOperator) {
-                                        newImage[kk] = oldImage[kk] * refImage[kk];
+                                        newImage[kk] = oldImage[kk] * refImage[kkRefImage];
                                     } else if("adds" == sstrOperator) {
-                                        newImage[kk] = oldImage[kk] + refImage[kk];
+                                        newImage[kk] = oldImage[kk] + refImage[kkRefImage];
                                     } else if("subtracts" == sstrOperator) {
-                                        newImage[kk] = oldImage[kk] - refImage[kk];
+                                        newImage[kk] = oldImage[kk] - refImage[kkRefImage];
                                     } else if("divides" == sstrOperator) {
-                                        newImage[kk] = oldImage[kk] / refImage[kk];
+                                        newImage[kk] = oldImage[kk] / refImage[kkRefImage];
                                     } else if("power of" == sstrOperator) {
-                                        newImage[kk] = pow(oldImage[kk], refImage[kk]);
+                                        newImage[kk] = pow(oldImage[kk], refImage[kkRefImage]);
                                     }
                                 }
                             } else {
                                 //
                                 // check Operator
                                 if("equals" == sstrOperator) {
-                                    if(oldImage[kk] == refImage[kk]) {
+                                    if(oldImage[kk] == refImage[kkRefImage]) {
                                         newImageMask[kk] = 1;
                                     }
                                 } else if("does not equal" == sstrOperator) {
-                                    if(oldImage[kk] != refImage[kk]) {
+                                    if(oldImage[kk] != refImage[kkRefImage]) {
                                         newImageMask[kk] = 1;
                                     }
                                 } else if("greater than" == sstrOperator) {
-                                    if(oldImage[kk] > refImage[kk]) {
+                                    if(oldImage[kk] > refImage[kkRefImage]) {
                                         newImageMask[kk] = 1;
                                     }
                                 } else if("greater equal" == sstrOperator) {
-                                    if(oldImage[kk] >= refImage[kk]) {
+                                    if(oldImage[kk] >= refImage[kkRefImage]) {
                                         newImageMask[kk] = 1;
                                     }
                                 } else if("less than" == sstrOperator) {
-                                    if(oldImage[kk] < refImage[kk]) {
+                                    if(oldImage[kk] < refImage[kkRefImage]) {
                                         newImageMask[kk] = 1;
                                     }
                                 } else if("less equal" == sstrOperator) {
-                                    if(oldImage[kk] <= refImage[kk]) {
+                                    if(oldImage[kk] <= refImage[kkRefImage]) {
                                         newImageMask[kk] = 1;
                                     }
                                 }
