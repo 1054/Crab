@@ -24,6 +24,7 @@
      2017-09-20   found bug when run 'CrabFitsImageArithmetic fit_3_bug_20170920a.fits -ext 2 times 1.0 fit_3_bug_20170920a.model.fits -copy-wcs -debug -debug'. Should be the bug in 'addKeyword()'.
      2018-02-25   added 'sstrOperator == "=="' and 'sstrOperator == "!="'
      2019-06-14   added 'sstrOperator' ">", ">=", "<" and "<="
+     2019-06-17   added '-rect'
  
  
  */
@@ -633,10 +634,28 @@ int main(int argc, char **argv)
             std::cout << "CrabFitsImageArithmetic: Error! Fits header of extension " << extNumber << " does not contain NAXIS1 and NAXIS2!" << std::endl;
         }
     } else {
+        std::cout << "Aim: " << std::endl;
+        std::cout << "    This code computes the arithmetic operation between an input fits image and a number or" << std::endl;
+        std::cout << "    that between two input fits images." << std::endl;
         std::cout << "Usage: " << std::endl;
-        std::cout << "    CrabFitsImageArithmetic FITS_IMAGE.fits 'divides' -0.5 FITS_IMAGE_OUTPUT.fits" << std::endl;
-        std::cout << "    CrabFitsImageArithmetic image_sci.fits '*' 0.0 image_zero.fits -remove-nan" << std::endl;
-        std::cout << "    CrabFitsImageArithmetic galfit_fit.fits -ext 3 times 1.0 galfit_residual.fits -copy-wcs" << std::endl;
+        std::cout << "    1. Simply adding/subtracting/multiplying/dividing by a number:" << std::endl;
+        std::cout << "    CrabFitsImageArithmetic FITS_IMAGE.fits adds 1.0 OUTPUT_IMAGE.fits" << std::endl;
+        std::cout << "    CrabFitsImageArithmetic FITS_IMAGE.fits '+' 1.0 OUTPUT_IMAGE.fits" << std::endl;
+        std::cout << "    CrabFitsImageArithmetic FITS_IMAGE.fits '-' 1.0 OUTPUT_IMAGE.fits" << std::endl;
+        std::cout << "    CrabFitsImageArithmetic FITS_IMAGE.fits '*' 1.0 OUTPUT_IMAGE.fits" << std::endl;
+        std::cout << "    CrabFitsImageArithmetic FITS_IMAGE.fits '/' 1.0 OUTPUT_IMAGE.fits" << std::endl;
+        std::cout << "    2. Removing NaN pixels:" << std::endl;
+        std::cout << "    CrabFitsImageArithmetic FITS_IMAGE.fits times 1.0 OUTPUT_IMAGE.fits -remove-nan" << std::endl;
+        std::cout << "    3. Copying WCS:" << std::endl;
+        std::cout << "    CrabFitsImageArithmetic FITS_IMAGE.fits times 1.0 OUTPUT_IMAGE.fits -remove-nan -copy-wcs" << std::endl;
+        std::cout << "    4. Operating on a specified fits extension:" << std::endl;
+        std::cout << "       (with the -ext argument with a 0-based number)" << std::endl;
+        std::cout << "    CrabFitsImageArithmetic FITS_IMAGE.fits -ext 3 times 1.0 OUTPUT_IMAGE.fits -remove-nan -copy-wcs" << std::endl;
+        std::cout << "    5. Operating on a specified rectangle area:" << std::endl;
+        std::cout << "       (with the -rect argument with four 0-based numbers indicating x1,y1 and x2,y2)" << std::endl;
+        std::cout << "    CrabFitsImageArithmetic FITS_IMAGE.fits -rect 244 218 248 222 adds image_5x5.fits OUTPUT_IMAGE.fits -copy-wcs" << std::endl;
+        std::cout << "Last update:" << std::endl;
+        std::cout << "    2019-06-17 Heidelberg" << std::endl;
     }
     return 0;
 }
