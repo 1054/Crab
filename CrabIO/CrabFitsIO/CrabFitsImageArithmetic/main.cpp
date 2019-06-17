@@ -37,6 +37,7 @@
 #include <fstream>
 #include <iostream>
 #include <iomanip>
+#include <chrono>  // for high_resolution_clock
 #include "../CrabFitsIO.h"
 #include "exprtk.hpp"
 
@@ -59,6 +60,8 @@ int main(int argc, char **argv)
     int intRectX1RefImage = -1, intRectY1RefImage = -1, intRectX2RefImage = -1, intRectY2RefImage = -1;
     char *cstrOperator = NULL;
     enum enumOperatorType {adds, subtracts, multiplies, divides, power_of, equals, does_not_equal, greater_than, greater_equal, less_than, less_equal} enumOperator;
+    //static const char *cstrOperatorType[] = { "+", "-", "*", "/", "^", "==", "!=", ">", ">=", "<", "<=" }; // for printing
+    static const char *cstrOperatorType[] = { "adds", "subtracts", "multiplies", "divided by", "power of", "equals", "does not equal", "greater than", "greater equal", "less than", "less equal" }; // for printing
     char *cstrNumValue = NULL; double dblNumValue = 0.0;
     char *cstrNewFilePath = NULL;
     int   iRemoveNaN = 0; // in default we keep NaN values
@@ -95,6 +98,13 @@ int main(int argc, char **argv)
         if(cstrOperator==NULL && i<=argc-1) { cstrOperator = argv[i]; continue; }
         if(cstrNumValue==NULL && i<=argc-1) { cstrNumValue = argv[i]; continue; }
         if(cstrNewFilePath==NULL && i<=argc-1) { cstrNewFilePath = argv[i]; continue; }
+    }
+    //
+    // debug elapsed time, record starting time
+    auto timeit_start = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> timeit_elapsed = std::chrono::high_resolution_clock::now() - timeit_start;
+    if(debug>=2) {
+        std::cout << "Elapsed time: " << timeit_elapsed.count() << " s" << std::endl;
     }
     //
     //
@@ -176,9 +186,21 @@ int main(int argc, char **argv)
             }
         }
         //
+        // debug elapsed time
+        if(debug>=2) {
+            timeit_elapsed = std::chrono::high_resolution_clock::now() - timeit_start;
+            std::cout << "DEBUG: elapsed time: " << timeit_elapsed.count() << " s" << std::endl;
+        }
+        //
         // read fits header
         errStatus = readFitsHeader(cstrFilePath,extNumber,&cstrHeader,&posHeader,&lenHeader);
         std::cout << "CrabFitsImageArithmetic: readFitsHeader " << cstrFilePath << " extension=" << extNumber << " headersize=" << strlen(cstrHeader) << std::endl;
+        //
+        // debug elapsed time
+        if(debug>=2) {
+            timeit_elapsed = std::chrono::high_resolution_clock::now() - timeit_start;
+            std::cout << "DEBUG: elapsed time: " << timeit_elapsed.count() << " s" << std::endl;
+        }
         //
         // read fits Naxis
         char *cstrNAXIS1 = extKeyword("NAXIS1",cstrHeader);
@@ -197,6 +219,12 @@ int main(int argc, char **argv)
             if(intRectX1 == -1) {
                 intRectX1 = 0; intRectY1 = 0;
                 intRectX2 = oldImWidth - 1; intRectY2 = oldImHeight - 1;
+            }
+            //
+            // debug elapsed time
+            if(debug>=2) {
+                timeit_elapsed = std::chrono::high_resolution_clock::now() - timeit_start;
+                std::cout << "DEBUG: elapsed time: " << timeit_elapsed.count() << " s" << std::endl;
             }
             //
             // prepare new image (new image dimension is always the same as the first input image)
@@ -263,8 +291,19 @@ int main(int argc, char **argv)
             // initialize new image array and/or image mask array
             if(maskOperator==0) {
                 //
+                // debug info
+                if(debug>=2) {
+                    std::cout << "DEBUG: allocating memory" << std::endl;
+                }
+                //
                 // allocate memory
                 newImage = (double *)malloc(newImWidth*newImHeight*sizeof(double));
+                //
+                // debug elapsed time
+                if(debug>=2) {
+                    timeit_elapsed = std::chrono::high_resolution_clock::now() - timeit_start;
+                    std::cout << "DEBUG: elapsed time: " << timeit_elapsed.count() << " s" << std::endl;
+                }
                 //
                 // //if the user does not need to remove NaN, we initialize the output image with NaN, otherwise with dblReplaceNaN.
                 // we initialize the output image with the input image
@@ -273,7 +312,7 @@ int main(int argc, char **argv)
                     // for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = NAN; } // need cmath.h
                     for(int i=0; i<newImWidth*newImHeight; i++) { newImage[i] = oldImage[i]; }
                 } else {
-                    if(debug>0) {
+                    if(debug>=1) {
                         std::cout << "DEBUG: removing all NaN values by filling " << dblReplaceNaN << std::endl;
                     }
                     for(int i=0; i<newImWidth*newImHeight; i++) { if (oldImage[i] == oldImage[i]) { newImage[i] = oldImage[i]; } else { newImage[i] = dblReplaceNaN; } } // NAN need cmath.h. By checking oldImage[i] == oldImage[i] we tell if the value is NAN or not as (NAN == NAN) is False.
@@ -294,12 +333,19 @@ int main(int argc, char **argv)
                 dblNumValue = expression.value();
                 //
                 // print info -- FitsImage operating with NumValue
-                std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " rectangle=[" << "[" << intRectX1 << "," << intRectY1 << "]" << "," << "[" << intRectX2 << "," << intRectY2 << "]" << "]" << " " << enumOperator << " " << dblNumValue << " " << std::endl;
+                std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " rectangle=[" << "[" << intRectX1 << "," << intRectY1 << "]" << "," << "[" << intRectX2 << "," << intRectY2 << "]" << "]" << " " << cstrOperatorType[enumOperator] << " " << dblNumValue << " " << std::endl;
+                //
+                // debug elapsed time
+                if(debug>=2) {
+                    timeit_elapsed = std::chrono::high_resolution_clock::now() - timeit_start;
+                    std::cout << "DEBUG: elapsed time: " << timeit_elapsed.count() << " s" << std::endl;
+                }
                 //
                 // copy image pixel by pixel
                 for(int jj=intRectY1; jj<=intRectY2; jj++) {
                     for(int ii=intRectX1; ii<=intRectX2; ii++) {
                         long kk = long(ii)+long(jj)*newImWidth;
+                        if(kk < 0 || kk >= newImWidth*newImHeight) {continue;} // check overflow
                         //
                         // check if the operation is on Image or ImageMask
                         if(maskOperator==0) {
@@ -351,6 +397,12 @@ int main(int argc, char **argv)
                         }
                     }
                 }
+                //
+                // debug elapsed time
+                if(debug>=2) {
+                    timeit_elapsed = std::chrono::high_resolution_clock::now() - timeit_start;
+                    std::cout << "DEBUG: elapsed time: " << timeit_elapsed.count() << " s" << std::endl;
+                }
             } else {
                 //
                 // if the input NumValue is RefImage
@@ -362,6 +414,12 @@ int main(int argc, char **argv)
                 // read fits header
                 errStatus = readFitsHeader(cstrFilePathRefImage,extNumberRefImage,&cstrHeaderRefImage,&posHeaderRefImage,&lenHeaderRefImage);
                 std::cout << "CrabFitsImageArithmetic: readFitsHeader " << cstrFilePathRefImage << " extension=" << extNumberRefImage << " headersize=" << strlen(cstrHeaderRefImage) << std::endl;
+                //
+                // debug elapsed time
+                if(debug>=2) {
+                    timeit_elapsed = std::chrono::high_resolution_clock::now() - timeit_start;
+                    std::cout << "DEBUG: elapsed time: " << timeit_elapsed.count() << " s" << std::endl;
+                }
                 //
                 // read fits Naxis
                 char *cstrNAXIS1RefImage = extKeyword("NAXIS1",cstrHeaderRefImage);
@@ -383,7 +441,13 @@ int main(int argc, char **argv)
                     }
                     //
                     // print info -- FitsImage operating with another RefImage
-                    std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " rectangle=[" << "[" << intRectX1 << "," << intRectY1 << "]" << "," << "[" << intRectX2 << "," << intRectY2 << "]" << "]" << " " << enumOperator << " " << cstrFilePathRefImage << " extension=" << extNumberRefImage << " rectangle=[" << "[" << intRectX1RefImage << "," << intRectY1RefImage << "]" << "," << "[" << intRectX2RefImage << "," << intRectY2RefImage << "]" << "]" << std::endl;
+                    std::cout << "CrabFitsImageArithmetic: computing " << cstrFilePath << " extension=" << extNumber << " rectangle=[" << "[" << intRectX1 << "," << intRectY1 << "]" << "," << "[" << intRectX2 << "," << intRectY2 << "]" << "]" << " " << cstrOperatorType[enumOperator] << " " << cstrFilePathRefImage << " extension=" << extNumberRefImage << " rectangle=[" << "[" << intRectX1RefImage << "," << intRectY1RefImage << "]" << "," << "[" << intRectX2RefImage << "," << intRectY2RefImage << "]" << "]" << std::endl;
+                    //
+                    // debug elapsed time
+                    if(debug>=2) {
+                        timeit_elapsed = std::chrono::high_resolution_clock::now() - timeit_start;
+                        std::cout << "DEBUG: elapsed time: " << timeit_elapsed.count() << " s" << std::endl;
+                    }
                     //
                     // check ref image size
                     if((intRectX2RefImage-intRectX1RefImage)!=(intRectX2-intRectX1) || (intRectY2RefImage-intRectY1RefImage)!=(intRectY2-intRectY1)) {
@@ -396,6 +460,8 @@ int main(int argc, char **argv)
                         for(int ii=intRectX1, iiRefImage=intRectX1RefImage; (ii<=intRectX2) && (iiRefImage<=intRectX2RefImage); ii++, iiRefImage++) {
                             long kk = long(ii)+long(jj)*newImWidth;
                             long kkRefImage=long(iiRefImage)+long(jjRefImage)*refImWidth;
+                            if(kk < 0 || kk >= newImWidth*newImHeight) {continue;} // check overflow
+                            if(kkRefImage < 0 || kkRefImage >= refImWidth*refImHeight) {continue;} // check overflow
                             //
                             // check if the operation is on Image or ImageMask
                             if(maskOperator==0) {
@@ -451,11 +517,17 @@ int main(int argc, char **argv)
                     std::cout << "Error! Failed to read NAXIS1 and NAXIS2 from the second input fits file!" << std::endl;
                     return -1;
                 }
+                //
+                // debug elapsed time
+                if(debug>=2) {
+                    timeit_elapsed = std::chrono::high_resolution_clock::now() - timeit_start;
+                    std::cout << "DEBUG: elapsed time: " << timeit_elapsed.count() << " s" << std::endl;
+                }
             }
             if(1) {
                 //
                 // also modify BITPIX
-                if(debug>0) {
+                if(debug>=1) {
                     std::cout << "DEBUG: old BITPIX = " << extKeyword("BITPIX",cstrHeader) << std::endl;
                 }
                 char *newBITPIX = new char(4);
@@ -467,7 +539,7 @@ int main(int argc, char **argv)
                     sprintf(newBITPIX,"%d",int(sizeof(int))*8);
                     errStatus = modKeyword("BITPIX",newBITPIX,cstrHeader);
                 }
-                if(debug>0) {
+                if(debug>=1) {
                     std::cout << "DEBUG: new BITPIX = " << extKeyword("BITPIX",cstrHeader) << std::endl;
                 }
                 //
@@ -604,7 +676,7 @@ int main(int argc, char **argv)
                     cstrNewFilePath = (char *)malloc(sizeof(char)*(strlen(strNewFilePath.c_str())+1));
                     memset(cstrNewFilePath,'\0',(strlen(strNewFilePath.c_str())+1));
                     strcpy(cstrNewFilePath,strNewFilePath.c_str());
-                    if(debug>0) {
+                    if(debug>=1) {
                         std::cout << "CrabFitsImageArithmetic: Input " << cstrFilePath << std::endl;
                         std::cout << "CrabFitsImageArithmetic: Output " << cstrNewFilePath << std::endl;
                     }
@@ -614,18 +686,25 @@ int main(int argc, char **argv)
                 // const char *newFilePath = NULL;
                 // newFilePath = "/Users/dliu/Programming/QtProgram/CrabIO/CrabFitsIO/CrabFitsImageCut/new.fits";
                 // std::cout << "CrabFitsImageArithmetic: Opening " << newFilePath << " to write." << std::endl;
-                if(debug>0) {
+                //
+                // debug elapsed time
+                if(debug>=2) {
+                    timeit_elapsed = std::chrono::high_resolution_clock::now() - timeit_start;
+                    std::cout << "DEBUG: elapsed time: " << timeit_elapsed.count() << " s" << std::endl;
+                }
+                //
+                // print progress info
+                if(debug>=1) {
                     std::cout << "CrabFitsImageArithmetic: Opening " << cstrNewFilePath << " to write" << std::endl;
                 }
+                //
+                // write image data as double float array or mask as integer array
                 if(maskOperator==0) {
                     errStatus = writeFitsD(newImage,cstrHeader,cstrNewFilePath);
                 } else {
                     errStatus = writeFitsI(newImageMask,cstrHeader,cstrNewFilePath);
                 }
                 if(errStatus==0) {
-                    if(debug>0) {
-                        std::cout << "CrabFitsImageArithmetic: Well done!" << std::endl;
-                    }
                     std::cout << "CrabFitsImageArithmetic: File has been saved to " << cstrNewFilePath << std::endl;
                 } else {
                     std::cout << "CrabFitsImageArithmetic: Oooh! Failed! We are sorry ... (error code " << errStatus << ")" << std::endl;
@@ -637,6 +716,12 @@ int main(int argc, char **argv)
                 } else {
                     free(newImageMask); newImageMask = NULL;
                 }
+            }
+            //
+            // debug elapsed time
+            if(debug>=2) {
+                timeit_elapsed = std::chrono::high_resolution_clock::now() - timeit_start;
+                std::cout << "DEBUG: elapsed time: " << timeit_elapsed.count() << " s. All done." << std::endl;
             }
         } else {
             std::cout << "CrabFitsImageArithmetic: Error! Fits header of extension " << extNumber << " does not contain NAXIS1 and NAXIS2!" << std::endl;
