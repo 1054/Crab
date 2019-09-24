@@ -1,3 +1,8 @@
 git log --pretty=format:'%h, %cd, %s' --graph > log_of_history.txt
 
 
+
+git gc --prune=now --aggressive
+
+#git repack -a -d # git gc already does a git repack
+
