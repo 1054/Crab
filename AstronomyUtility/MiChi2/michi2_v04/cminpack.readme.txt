@@ -1,4 +1,0 @@
-http://devernay.free.fr/hacks/cminpack/
-
-GitHub repository: https://github.com/devernay/cminpack
-

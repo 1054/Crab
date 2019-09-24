@@ -1,7 +1,0 @@
-#!/bin/bash
-# 
-
-./do_Compile
-
-./CrabFitsImageBlobExtractor_mac test/output_snr_image.fits output_test_1
-

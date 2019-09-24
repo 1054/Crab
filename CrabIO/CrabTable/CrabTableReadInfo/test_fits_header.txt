@@ -1,4 +1,0 @@
-SIMPLE  =                    T / file does conform to FITS standard             
-BITPIX  =                  -32 / number of bits per data pixel                  
-你好      = '再见'                                                                  
-END                                                                             

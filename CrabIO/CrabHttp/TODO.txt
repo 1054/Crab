@@ -1,7 +1,0 @@
-could not test it
-
-the test main must be QCoreApplicatoin a(argc,argv)
-
-change to python
-
-

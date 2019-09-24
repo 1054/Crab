@@ -1,5 +1,0 @@
-clang++ -I/usr/include/malloc/ main.cpp CrabFitsIO.cpp CrabImage.cpp -o CrabPhotAperPhot_mac
-
-cp -i CrabPhotAperPhot_mac /Users/dzliu/Cloud/Github/DeepFields.SuperDeblending/Softwares/ds9_mac/CrabPhotAperPhot_mac
-
-cp -i CrabPhotAperPhot_mac /Users/dzliu/Cloud/Github/Crab.Toolkit.PdBI/bin/bin_mac/CrabPhotAperPhot_mac

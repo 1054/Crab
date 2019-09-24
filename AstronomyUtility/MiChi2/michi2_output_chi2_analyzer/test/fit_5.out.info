@@ -1,8 +1,0 @@
-OBS = flux_obsframe.dat
-NLIB = 5
-LIB1 = FSPS.Padova.BaSeL.Z0.0190.EBV.lib.SED
-LIB2 = MullaneyAGN.Single.lib.SED
-LIB3 = DL07.HiExCom.lib.SED
-LIB4 = DL07.LoExCom.lib.SED
-LIB5 = RadioPowerlaw.Single.lib.SED
-OUT = fit_5.out

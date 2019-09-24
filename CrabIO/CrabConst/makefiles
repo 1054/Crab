@@ -1,6 +1,0 @@
-clang++ lumdist.cpp -o lumdist_mac
-clang++ CrabStringClean.cpp radec2degree.cpp -o radec2degree_linux_x86_64
-clang++ CrabStringClean.cpp degree2radec.cpp -o degree2radec_linux_x86_64
-
-cp lumdist_mac $HOME/Cloud/Github/Crab.Toolkit.PdBI/bin/bin_mac/lumdist_mac
-cp lumdist_mac $HOME/Cloud/Github/DeepFields.SuperDeblending/Softwares/ds9_mac/lumdist_mac

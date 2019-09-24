@@ -1,6 +1,0 @@
-#!/bin/bash
-# 
-
-clang++ -std=c++11 -I.. main.cpp ../CrabFitsIO.cpp ../CrabFitsWcsClass.cpp CrabFitsImageBlobClass.cpp -o CrabFitsImageBlobExtractor_mac
-
-

@@ -1,8 +1,0 @@
-#!/bin/bash
-# 
-
-if [[ $(uname) == Darwin ]]; then
-    clang++ -std=c++11 -I../../../CrabIO/CrabFitsIO ../../../CrabIO/CrabFitsIO/CrabFitsTableClass.cpp ../../../CrabIO/CrabFitsIO/CrabFitsIO.cpp main.cpp -o CrabUVXY_blind_line_emission_search_test
-    ./CrabUVXY_blind_line_emission_search_test '/Volumes/DZLIU/DeepFields/Works_cooperated/WangTao_coscluster/20170929_uv_operations/merged_weighted.uvfits'
-fi
-
